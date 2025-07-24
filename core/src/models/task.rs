@@ -19,7 +19,7 @@ pub struct Task {
 }
 
 /// 任务状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, PartialEq, Eq)]
 #[sqlx(type_name = "task_status", rename_all = "UPPERCASE")]
 pub enum TaskStatus {
     Active,

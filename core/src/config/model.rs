@@ -176,7 +176,7 @@ impl AppConfig {
 
             for path in &default_paths {
                 if Path::new(path).exists() {
-                    builder = builder.add_source(File::new(*path, FileFormat::Toml));
+                    builder = builder.add_source(File::new(path, FileFormat::Toml));
                     break;
                 }
             }

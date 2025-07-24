@@ -6,6 +6,9 @@ pub enum SchedulerError {
     #[error("数据库错误: {0}")]
     Database(#[from] sqlx::Error),
 
+    #[error("数据库操作错误: {0}")]
+    DatabaseOperation(String),
+
     #[error("任务未找到: {id}")]
     TaskNotFound { id: i64 },
 
@@ -31,7 +34,7 @@ pub enum SchedulerError {
     MessageQueue(String),
 
     #[error("序列化错误: {0}")]
-    Serialization(#[from] serde_json::Error),
+    Serialization(String),
 
     #[error("配置错误: {0}")]
     Configuration(String),
@@ -43,7 +46,7 @@ pub enum SchedulerError {
     Network(String),
 
     #[error("内部错误: {0}")]
-    Internal(#[from] anyhow::Error),
+    Internal(String),
 }
 
 /// 统一的Result类型

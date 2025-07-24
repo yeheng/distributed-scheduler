@@ -12,20 +12,20 @@
   - 实现配置验证逻辑
   - _需求: 所有需求的配置支持_
 
-- [ ] 3. 数据库层实现
-  - [ ] 3.1 数据库迁移和表结构
+- [x] 3. 数据库层实现
+  - [x] 3.1 数据库迁移和表结构
     - 创建PostgreSQL迁移文件，定义所有表结构
     - 实现数据库连接池配置
     - 添加必要的索引优化
     - _需求: 5.1, 5.2, 5.3_
 
-  - [ ] 3.2 Repository抽象接口
+  - [x] 3.2 Repository抽象接口
     - 定义TaskRepository和TaskRunRepository trait
     - 定义WorkerRepository trait
     - 实现基础的CRUD操作接口
     - _需求: 1.1, 1.2, 1.3, 1.4_
 
-  - [ ] 3.3 PostgreSQL Repository实现
+  - [x] 3.3 PostgreSQL Repository实现
     - 实现PostgresTaskRepository的所有方法
     - 实现PostgresTaskRunRepository的所有方法
     - 实现PostgresWorkerRepository的所有方法
@@ -39,7 +39,7 @@
     - 实现消息序列化和反序列化
     - _需求: 1.1, 1.2, 1.6_
 
-  - [ ] 3.2 RabbitMQ MessageQueue实现
+  - [x] 3.2 RabbitMQ MessageQueue实现
     - 实现基于RabbitMQ的消息队列
     - 实现任务分发和状态更新队列
     - 实现消息持久化和重试机制

@@ -16,17 +16,17 @@ impl ConfigLoader {
         // 检查是否指定了配置文件路径
         if let Ok(config_path) = env::var("SCHEDULER_CONFIG_PATH") {
             return AppConfig::load(Some(&config_path))
-                .with_context(|| format!("加载指定配置文件失败: {}", config_path));
+                .with_context(|| format!("加载指定配置文件失败: {config_path}"));
         }
 
         // 检查环境变量
         let env_name = env::var("SCHEDULER_ENV").unwrap_or_else(|_| "development".to_string());
-        let config_file = format!("config/{}.toml", env_name);
+        let config_file = format!("config/{env_name}.toml");
 
         // 尝试加载环境特定的配置文件
         if std::path::Path::new(&config_file).exists() {
             AppConfig::load(Some(&config_file))
-                .with_context(|| format!("加载环境配置文件失败: {}", config_file))
+                .with_context(|| format!("加载环境配置文件失败: {config_file}"))
         } else {
             // 回退到默认配置
             AppConfig::load(None).context("加载默认配置失败")
@@ -35,8 +35,8 @@ impl ConfigLoader {
 
     /// 加载指定环境的配置
     pub fn load_for_env(env: &str) -> Result<AppConfig> {
-        let config_file = format!("config/{}.toml", env);
-        AppConfig::load(Some(&config_file)).with_context(|| format!("加载环境配置失败: {}", env))
+        let config_file = format!("config/{env}.toml");
+        AppConfig::load(Some(&config_file)).with_context(|| format!("加载环境配置失败: {env}"))
     }
 
     /// 验证配置并返回组件特定的配置
