@@ -81,10 +81,11 @@ pub enum TaskControlAction {
 impl Message {
     /// 创建任务执行消息
     pub fn task_execution(message: TaskExecutionMessage) -> Self {
+        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskExecution(message),
-            payload: serde_json::Value::Null, // 将在序列化时填充
+            payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
@@ -93,10 +94,11 @@ impl Message {
 
     /// 创建状态更新消息
     pub fn status_update(message: StatusUpdateMessage) -> Self {
+        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::StatusUpdate(message),
-            payload: serde_json::Value::Null,
+            payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
@@ -105,10 +107,11 @@ impl Message {
 
     /// 创建Worker心跳消息
     pub fn worker_heartbeat(message: WorkerHeartbeatMessage) -> Self {
+        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::WorkerHeartbeat(message),
-            payload: serde_json::Value::Null,
+            payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
@@ -117,10 +120,11 @@ impl Message {
 
     /// 创建任务控制消息
     pub fn task_control(message: TaskControlMessage) -> Self {
+        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskControl(message),
-            payload: serde_json::Value::Null,
+            payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
@@ -141,5 +145,47 @@ impl Message {
     /// 检查是否超过最大重试次数
     pub fn is_retry_exhausted(&self, max_retries: i32) -> bool {
         self.retry_count >= max_retries
+    }
+
+    /// 序列化消息为JSON字符串
+    pub fn serialize(&self) -> Result<String, serde_json::Error> {
+        serde_json::to_string(self)
+    }
+
+    /// 从JSON字符串反序列化消息
+    pub fn deserialize(json: &str) -> Result<Self, serde_json::Error> {
+        serde_json::from_str(json)
+    }
+
+    /// 序列化消息为字节数组
+    pub fn serialize_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
+        serde_json::to_vec(self)
+    }
+
+    /// 从字节数组反序列化消息
+    pub fn deserialize_bytes(bytes: &[u8]) -> Result<Self, serde_json::Error> {
+        serde_json::from_slice(bytes)
+    }
+
+    /// 获取消息类型的字符串表示
+    pub fn message_type_str(&self) -> &'static str {
+        match &self.message_type {
+            MessageType::TaskExecution(_) => "task_execution",
+            MessageType::StatusUpdate(_) => "status_update",
+            MessageType::WorkerHeartbeat(_) => "worker_heartbeat",
+            MessageType::TaskControl(_) => "task_control",
+        }
+    }
+
+    /// 获取消息的路由键（用于消息队列路由）
+    pub fn routing_key(&self) -> String {
+        match &self.message_type {
+            MessageType::TaskExecution(msg) => format!("task.execution.{}", msg.task_type),
+            MessageType::StatusUpdate(msg) => format!("status.update.{}", msg.worker_id),
+            MessageType::WorkerHeartbeat(msg) => format!("worker.heartbeat.{}", msg.worker_id),
+            MessageType::TaskControl(msg) => {
+                format!("task.control.{:?}", msg.action).to_lowercase()
+            }
+        }
     }
 }

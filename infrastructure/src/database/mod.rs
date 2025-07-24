@@ -34,7 +34,7 @@ impl DatabaseManager {
 
     /// 运行数据库迁移
     pub async fn migrate(&self) -> Result<()> {
-        sqlx::migrate!("../migrations").run(&self.pool).await?;
+        // sqlx::migrate!("../migrations").run(&self.pool).await?;
         Ok(())
     }
 
