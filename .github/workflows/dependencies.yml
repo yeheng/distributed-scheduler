@@ -1,0 +1,95 @@
+name: Dependency Updates
+
+on:
+  schedule:
+    - cron: '0 5 * * 1'  # Run weekly on Mondays at 5 AM UTC
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  update-dependencies:
+    name: Update Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Cache cargo registry
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry/index
+            ~/.cargo/registry/cache
+            ~/.cargo/git/db
+            target
+          key: ${{ runner.os }}-cargo-update-${{ hashFiles('**/Cargo.lock') }}
+
+      - name: Install cargo-edit
+        run: cargo install cargo-edit
+
+      - name: Update dependencies
+        run: |
+          cargo update
+          cargo upgrade --workspace
+
+      - name: Run tests
+        run: cargo test --workspace --all-features
+
+      - name: Create Pull Request
+        uses: peter-evans/create-pull-request@v5
+        with:
+          token: ${{ secrets.GITHUB_TOKEN }}
+          commit-message: 'chore: update dependencies'
+          title: 'chore: update dependencies'
+          body: |
+            Automated dependency update.
+            
+            - Updated all dependencies to their latest compatible versions
+            - Tests pass successfully
+            
+            Please review the changes and merge if everything looks good.
+          branch: update-dependencies
+          delete-branch: true
+          draft: false
+
+  check-outdated:
+    name: Check Outdated Dependencies
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Install stable toolchain
+        uses: dtolnay/rust-toolchain@stable
+
+      - name: Install cargo-outdated
+        run: cargo install cargo-outdated
+
+      - name: Check for outdated dependencies
+        run: |
+          echo "## Outdated Dependencies Report" >> $GITHUB_STEP_SUMMARY
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+          cargo outdated --workspace >> $GITHUB_STEP_SUMMARY || true
+          echo "\`\`\`" >> $GITHUB_STEP_SUMMARY
+
+  renovate-config:
+    name: Renovate Configuration Check
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout sources
+        uses: actions/checkout@v4
+
+      - name: Validate Renovate config
+        uses: renovatebot/github-action@v39.2.4
+        with:
+          configurationFile: .github/renovate.json5
+          token: ${{ secrets.GITHUB_TOKEN }}
+        env:
+          LOG_LEVEL: info
