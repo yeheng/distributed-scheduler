@@ -1,4 +1,4 @@
-use crate::config::Config;
+use crate::config::AppConfig;
 use anyhow::{Context, Result};
 use std::env;
 
@@ -12,10 +12,10 @@ impl ConfigLoader {
     /// 1. 环境变量 SCHEDULER_CONFIG_PATH 指定的配置文件
     /// 2. 环境变量 SCHEDULER_ENV 指定的环境配置文件
     /// 3. 默认配置文件
-    pub fn load() -> Result<Config> {
+    pub fn load() -> Result<AppConfig> {
         // 检查是否指定了配置文件路径
         if let Ok(config_path) = env::var("SCHEDULER_CONFIG_PATH") {
-            return Config::load(Some(&config_path))
+            return AppConfig::load(Some(&config_path))
                 .with_context(|| format!("加载指定配置文件失败: {}", config_path));
         }
 
@@ -25,34 +25,34 @@ impl ConfigLoader {
 
         // 尝试加载环境特定的配置文件
         if std::path::Path::new(&config_file).exists() {
-            Config::load(Some(&config_file))
+            AppConfig::load(Some(&config_file))
                 .with_context(|| format!("加载环境配置文件失败: {}", config_file))
         } else {
             // 回退到默认配置
-            Config::load(None).context("加载默认配置失败")
+            AppConfig::load(None).context("加载默认配置失败")
         }
     }
 
     /// 加载指定环境的配置
-    pub fn load_for_env(env: &str) -> Result<Config> {
+    pub fn load_for_env(env: &str) -> Result<AppConfig> {
         let config_file = format!("config/{}.toml", env);
-        Config::load(Some(&config_file)).with_context(|| format!("加载环境配置失败: {}", env))
+        AppConfig::load(Some(&config_file)).with_context(|| format!("加载环境配置失败: {}", env))
     }
 
     /// 验证配置并返回组件特定的配置
-    pub fn load_and_validate() -> Result<Config> {
+    pub fn load_and_validate() -> Result<AppConfig> {
         let config = Self::load()?;
         config.validate().context("配置验证失败")?;
         Ok(config)
     }
 
     /// 获取数据库连接字符串，支持环境变量覆盖
-    pub fn get_database_url(config: &Config) -> String {
+    pub fn get_database_url(config: &AppConfig) -> String {
         env::var("DATABASE_URL").unwrap_or_else(|_| config.database.url.clone())
     }
 
     /// 获取消息队列连接字符串，支持环境变量覆盖
-    pub fn get_message_queue_url(config: &Config) -> String {
+    pub fn get_message_queue_url(config: &AppConfig) -> String {
         env::var("RABBITMQ_URL")
             .or_else(|_| env::var("AMQP_URL"))
             .unwrap_or_else(|_| config.message_queue.url.clone())

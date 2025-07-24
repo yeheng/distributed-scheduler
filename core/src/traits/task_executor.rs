@@ -23,16 +23,3 @@ pub trait TaskExecutor: Send + Sync {
     /// 检查任务是否仍在运行
     async fn is_running(&self, task_run_id: i64) -> Result<bool>;
 }
-
-/// 任务执行上下文
-#[derive(Debug, Clone)]
-pub struct TaskExecutionContext {
-    pub task_run_id: i64,
-    pub task_id: i64,
-    pub task_name: String,
-    pub task_type: String,
-    pub parameters: serde_json::Value,
-    pub timeout_seconds: i32,
-    pub retry_count: i32,
-    pub worker_id: String,
-}

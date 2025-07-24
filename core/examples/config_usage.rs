@@ -1,4 +1,4 @@
-use scheduler_core::{Config, ConfigLoader};
+use scheduler_core::config::{AppConfig, ConfigLoader};
 use std::env;
 
 fn main() -> anyhow::Result<()> {
@@ -6,7 +6,7 @@ fn main() -> anyhow::Result<()> {
 
     // 1. 加载默认配置
     println!("1. 加载默认配置:");
-    let default_config = Config::default();
+    let default_config = AppConfig::default();
     println!("   数据库URL: {}", default_config.database.url);
     println!("   最大连接数: {}", default_config.database.max_connections);
     println!("   Dispatcher启用: {}", default_config.dispatcher.enabled);
@@ -65,7 +65,7 @@ log_level = "debug"
 jaeger_endpoint = "http://jaeger:14268/api/traces"
 "#;
 
-    let config_from_toml = Config::from_toml(toml_config)?;
+    let config_from_toml = AppConfig::from_toml(toml_config)?;
     println!("   数据库URL: {}", config_from_toml.database.url);
     println!(
         "   最大连接数: {}",
@@ -94,7 +94,7 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
     println!("   SCHEDULER_OBSERVABILITY_LOG_LEVEL=warn");
 
     // 使用ConfigLoader加载配置（会应用环境变量覆盖）
-    let config_with_env = ConfigLoader::load().unwrap_or_else(|_| Config::default());
+    let config_with_env = ConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
     println!("   加载后的配置:");
     println!(
         "   数据库最大连接数: {}",

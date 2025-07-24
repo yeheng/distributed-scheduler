@@ -5,7 +5,7 @@ use std::path::Path;
 
 /// 系统配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
+pub struct AppConfig {
     pub database: DatabaseConfig,
     pub message_queue: MessageQueueConfig,
     pub dispatcher: DispatcherConfig,
@@ -81,7 +81,7 @@ pub struct ObservabilityConfig {
     pub jaeger_endpoint: Option<String>,
 }
 
-impl Default for Config {
+impl Default for AppConfig {
     fn default() -> Self {
         Self {
             database: DatabaseConfig {
@@ -137,7 +137,7 @@ impl Default for Config {
     }
 }
 
-impl Config {
+impl AppConfig {
     /// 从配置文件和环境变量加载配置
     ///
     /// 加载顺序：
@@ -156,7 +156,7 @@ impl Config {
         let mut builder = ConfigBuilder::builder();
 
         // 1. 设置默认配置
-        let default_config = Config::default();
+        let default_config = AppConfig::default();
         builder = builder.add_source(config::Config::try_from(&default_config)?);
 
         // 2. 加载配置文件
@@ -190,7 +190,7 @@ impl Config {
         );
 
         // 构建配置
-        let config: Config = builder
+        let config: AppConfig = builder
             .build()
             .context("构建配置失败")?
             .try_deserialize()
@@ -204,7 +204,7 @@ impl Config {
 
     /// 从TOML字符串加载配置
     pub fn from_toml(toml_str: &str) -> Result<Self> {
-        let config: Config = toml::from_str(toml_str).context("解析TOML配置失败")?;
+        let config: AppConfig = toml::from_str(toml_str).context("解析TOML配置失败")?;
 
         config.validate()?;
         Ok(config)

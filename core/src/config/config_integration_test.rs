@@ -1,10 +1,10 @@
-use crate::config::Config;
-use crate::config_loader::ConfigLoader;
+use crate::config::AppConfig;
+use crate::config::ConfigLoader;
 use std::env;
 
 #[test]
 fn test_config_loader_basic() {
-    let config = ConfigLoader::load().unwrap_or_else(|_| Config::default());
+    let config = ConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
     assert!(config.validate().is_ok());
 }
 
@@ -28,14 +28,14 @@ fn test_config_loader_environment_detection() {
 
 #[test]
 fn test_config_serialization() {
-    let config = Config::default();
+    let config = AppConfig::default();
 
     // 测试序列化为TOML
     let toml_str = config.to_toml().unwrap();
     assert!(!toml_str.is_empty());
 
     // 测试从TOML反序列化
-    let parsed_config = Config::from_toml(&toml_str).unwrap();
+    let parsed_config = AppConfig::from_toml(&toml_str).unwrap();
 
     // 验证关键字段
     assert_eq!(config.database.url, parsed_config.database.url);
@@ -45,7 +45,7 @@ fn test_config_serialization() {
 
 #[test]
 fn test_config_validation_comprehensive() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试有效配置
     assert!(config.validate().is_ok());
@@ -54,23 +54,23 @@ fn test_config_validation_comprehensive() {
     config.database.url = "".to_string();
     assert!(config.validate().is_err());
 
-    config = Config::default();
+    config = AppConfig::default();
     config.message_queue.task_queue = "".to_string();
     assert!(config.validate().is_err());
 
-    config = Config::default();
+    config = AppConfig::default();
     config.dispatcher.dispatch_strategy = "invalid".to_string();
     assert!(config.validate().is_err());
 
-    config = Config::default();
+    config = AppConfig::default();
     config.worker.max_concurrent_tasks = 0;
     assert!(config.validate().is_err());
 
-    config = Config::default();
+    config = AppConfig::default();
     config.api.bind_address = "invalid".to_string();
     assert!(config.validate().is_err());
 
-    config = Config::default();
+    config = AppConfig::default();
     config.observability.log_level = "invalid".to_string();
     assert!(config.validate().is_err());
 }
@@ -105,7 +105,7 @@ fn test_is_development() {
 
 #[test]
 fn test_database_url_override() {
-    let config = Config::default();
+    let config = AppConfig::default();
 
     // 测试默认值
     env::remove_var("DATABASE_URL");
@@ -122,7 +122,7 @@ fn test_database_url_override() {
 
 #[test]
 fn test_message_queue_url_override() {
-    let config = Config::default();
+    let config = AppConfig::default();
 
     // 测试默认值
     env::remove_var("RABBITMQ_URL");

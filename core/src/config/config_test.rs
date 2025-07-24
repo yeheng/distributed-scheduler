@@ -5,7 +5,7 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn test_default_config() {
-    let config = Config::default();
+    let config = AppConfig::default();
     assert!(config.validate().is_ok());
 
     // 验证默认值
@@ -67,7 +67,7 @@ metrics_endpoint = "/metrics"
 log_level = "debug"
 "#;
 
-    let config = Config::from_toml(toml_content).unwrap();
+    let config = AppConfig::from_toml(toml_content).unwrap();
 
     assert_eq!(config.database.url, "postgresql://test:5432/scheduler_test");
     assert_eq!(config.database.max_connections, 15);
@@ -79,7 +79,7 @@ log_level = "debug"
 
 #[test]
 fn test_config_validation_database() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试空URL
     config.database.url = "".to_string();
@@ -104,7 +104,7 @@ fn test_config_validation_database() {
 
 #[test]
 fn test_config_validation_message_queue() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试空URL
     config.message_queue.url = "".to_string();
@@ -125,7 +125,7 @@ fn test_config_validation_message_queue() {
 
 #[test]
 fn test_config_validation_dispatcher() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试调度间隔
     config.dispatcher.schedule_interval_seconds = 0;
@@ -148,7 +148,7 @@ fn test_config_validation_dispatcher() {
 
 #[test]
 fn test_config_validation_worker() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试空Worker ID
     config.worker.worker_id = "".to_string();
@@ -177,7 +177,7 @@ fn test_config_validation_worker() {
 
 #[test]
 fn test_config_validation_api() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试空绑定地址
     config.api.bind_address = "".to_string();
@@ -198,7 +198,7 @@ fn test_config_validation_api() {
 
 #[test]
 fn test_config_validation_observability() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试无效日志级别
     config.observability.log_level = "invalid".to_string();
@@ -237,7 +237,7 @@ schedule_interval_seconds = 15
     fs::write(temp_file.path(), toml_content).unwrap();
 
     // 从文件加载配置
-    let config = Config::load(Some(temp_file.path().to_str().unwrap())).unwrap();
+    let config = AppConfig::load(Some(temp_file.path().to_str().unwrap())).unwrap();
 
     assert_eq!(config.database.url, "postgresql://file-test:5432/scheduler");
     assert_eq!(config.database.max_connections, 25);
@@ -246,7 +246,7 @@ schedule_interval_seconds = 15
 
 #[test]
 fn test_config_load_nonexistent_file() {
-    let result = Config::load(Some("/nonexistent/config.toml"));
+    let result = AppConfig::load(Some("/nonexistent/config.toml"));
     assert!(result.is_err());
 }
 
@@ -264,7 +264,7 @@ fn test_config_environment_override() {
     );
 
     // 直接测试Config::load方法，不使用文件
-    let config = Config::load(None).unwrap();
+    let config = AppConfig::load(None).unwrap();
 
     // 由于环境变量的嵌套结构可能需要特殊处理，我们先验证基本功能
     // 如果环境变量覆盖工作正常，这些值应该被覆盖
@@ -289,11 +289,11 @@ fn test_config_environment_override() {
 
 #[test]
 fn test_config_to_toml() {
-    let config = Config::default();
+    let config = AppConfig::default();
     let toml_str = config.to_toml().unwrap();
 
     // 验证可以重新解析
-    let parsed_config = Config::from_toml(&toml_str).unwrap();
+    let parsed_config = AppConfig::from_toml(&toml_str).unwrap();
     assert_eq!(config.database.url, parsed_config.database.url);
     assert_eq!(config.dispatcher.enabled, parsed_config.dispatcher.enabled);
 }
@@ -305,13 +305,13 @@ fn test_invalid_toml_format() {
 url = "invalid toml
 "#;
 
-    let result = Config::from_toml(invalid_toml);
+    let result = AppConfig::from_toml(invalid_toml);
     assert!(result.is_err());
 }
 
 #[test]
 fn test_dispatch_strategies() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试所有有效策略
     let valid_strategies = ["round_robin", "load_based", "task_type_affinity"];
@@ -323,7 +323,7 @@ fn test_dispatch_strategies() {
 
 #[test]
 fn test_log_levels() {
-    let mut config = Config::default();
+    let mut config = AppConfig::default();
 
     // 测试所有有效日志级别
     let valid_levels = ["trace", "debug", "info", "warn", "error"];

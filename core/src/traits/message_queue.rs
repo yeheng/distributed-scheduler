@@ -29,15 +29,3 @@ pub trait MessageQueue: Send + Sync {
     /// 清空队列
     async fn purge_queue(&self, queue: &str) -> Result<()>;
 }
-
-/// 消息队列配置
-#[derive(Debug, Clone)]
-pub struct MessageQueueConfig {
-    pub url: String,
-    pub task_queue: String,
-    pub status_queue: String,
-    pub heartbeat_queue: String,
-    pub control_queue: String,
-    pub max_retries: i32,
-    pub retry_delay_seconds: u64,
-}
