@@ -1,0 +1,40 @@
+# 生产环境配置模板
+
+[database]
+url = "postgresql://db-host:5432/scheduler_prod"
+max_connections = 50
+min_connections = 10
+connection_timeout_seconds = 60
+idle_timeout_seconds = 1800
+
+[message_queue]
+url = "amqp://mq-host:5672"
+max_retries = 5
+retry_delay_seconds = 120
+connection_timeout_seconds = 60
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 30
+max_concurrent_dispatches = 500
+worker_timeout_seconds = 180
+
+[worker]
+enabled = false
+max_concurrent_tasks = 20
+heartbeat_interval_seconds = 60
+task_poll_interval_seconds = 10
+
+[api]
+enabled = true
+bind_address = "0.0.0.0:8080"
+cors_enabled = false
+cors_origins = []
+request_timeout_seconds = 60
+max_request_size_mb = 50
+
+[observability]
+tracing_enabled = true
+metrics_enabled = true
+log_level = "warn"
+jaeger_endpoint = "http://jaeger:14268/api/traces"

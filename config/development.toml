@@ -1,0 +1,29 @@
+# 开发环境配置
+
+[database]
+url = "postgresql://localhost:5432/scheduler_dev"
+max_connections = 5
+min_connections = 1
+
+[message_queue]
+url = "amqp://localhost:5672"
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 5
+max_concurrent_dispatches = 10
+
+[worker]
+enabled = true
+worker_id = "dev-worker-001"
+max_concurrent_tasks = 2
+heartbeat_interval_seconds = 15
+
+[api]
+bind_address = "127.0.0.1:8080"
+cors_enabled = true
+
+[observability]
+log_level = "debug"
+tracing_enabled = true
+metrics_enabled = false
