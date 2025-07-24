@@ -2,7 +2,7 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-use super::{TaskRunStatus, TaskResult};
+use super::{TaskResult, TaskRunStatus};
 
 /// 消息队列中的统一消息结构
 #[derive(Debug, Clone, Serialize, Deserialize)]

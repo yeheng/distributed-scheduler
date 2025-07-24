@@ -1,7 +1,7 @@
-use serde::{Deserialize, Serialize};
-use std::path::Path;
 use anyhow::{Context, Result};
 use config::{Config as ConfigBuilder, Environment, File, FileFormat};
+use serde::{Deserialize, Serialize};
+use std::path::Path;
 
 /// 系统配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -139,18 +139,18 @@ impl Default for Config {
 
 impl Config {
     /// 从配置文件和环境变量加载配置
-    /// 
+    ///
     /// 加载顺序：
     /// 1. 默认配置
     /// 2. 配置文件 (TOML格式)
     /// 3. 环境变量覆盖 (前缀: SCHEDULER_)
-    /// 
+    ///
     /// # Arguments
-    /// 
+    ///
     /// * `config_path` - 配置文件路径，如果为None则使用默认路径
-    /// 
+    ///
     /// # Returns
-    /// 
+    ///
     /// 返回加载并验证后的配置
     pub fn load(config_path: Option<&str>) -> Result<Self> {
         let mut builder = ConfigBuilder::builder();
@@ -173,7 +173,7 @@ impl Config {
                 "scheduler.toml",
                 "/etc/scheduler/config.toml",
             ];
-            
+
             for path in &default_paths {
                 if Path::new(path).exists() {
                     builder = builder.add_source(File::new(*path, FileFormat::Toml));
@@ -186,7 +186,7 @@ impl Config {
         builder = builder.add_source(
             Environment::with_prefix("SCHEDULER")
                 .separator("_")
-                .try_parsing(true)
+                .try_parsing(true),
         );
 
         // 构建配置
@@ -204,43 +204,41 @@ impl Config {
 
     /// 从TOML字符串加载配置
     pub fn from_toml(toml_str: &str) -> Result<Self> {
-        let config: Config = toml::from_str(toml_str)
-            .context("解析TOML配置失败")?;
-        
+        let config: Config = toml::from_str(toml_str).context("解析TOML配置失败")?;
+
         config.validate()?;
         Ok(config)
     }
 
     /// 将配置序列化为TOML字符串
     pub fn to_toml(&self) -> Result<String> {
-        toml::to_string_pretty(self)
-            .context("序列化配置为TOML失败")
+        toml::to_string_pretty(self).context("序列化配置为TOML失败")
     }
 
     /// 验证配置的有效性
     pub fn validate(&self) -> Result<()> {
         // 验证数据库配置
-        self.database.validate()
-            .context("数据库配置验证失败")?;
+        self.database.validate().context("数据库配置验证失败")?;
 
         // 验证消息队列配置
-        self.message_queue.validate()
+        self.message_queue
+            .validate()
             .context("消息队列配置验证失败")?;
 
         // 验证Dispatcher配置
-        self.dispatcher.validate()
+        self.dispatcher
+            .validate()
             .context("Dispatcher配置验证失败")?;
 
         // 验证Worker配置
-        self.worker.validate()
-            .context("Worker配置验证失败")?;
+        self.worker.validate().context("Worker配置验证失败")?;
 
         // 验证API配置
-        self.api.validate()
-            .context("API配置验证失败")?;
+        self.api.validate().context("API配置验证失败")?;
 
         // 验证可观测性配置
-        self.observability.validate()
+        self.observability
+            .validate()
             .context("可观测性配置验证失败")?;
 
         Ok(())
@@ -327,8 +325,8 @@ impl DispatcherConfig {
         let valid_strategies = ["round_robin", "load_based", "task_type_affinity"];
         if !valid_strategies.contains(&self.dispatch_strategy.as_str()) {
             return Err(anyhow::anyhow!(
-                "无效的调度策略: {}，支持的策略: {:?}", 
-                self.dispatch_strategy, 
+                "无效的调度策略: {}，支持的策略: {:?}",
+                self.dispatch_strategy,
                 valid_strategies
             ));
         }
@@ -353,7 +351,11 @@ impl WorkerConfig {
         }
 
         // 简单的IP地址格式验证
-        if !self.ip_address.chars().all(|c| c.is_ascii_digit() || c == '.') {
+        if !self
+            .ip_address
+            .chars()
+            .all(|c| c.is_ascii_digit() || c == '.')
+        {
             return Err(anyhow::anyhow!("IP地址格式无效: {}", self.ip_address));
         }
 
@@ -407,8 +409,8 @@ impl ObservabilityConfig {
         let valid_log_levels = ["trace", "debug", "info", "warn", "error"];
         if !valid_log_levels.contains(&self.log_level.to_lowercase().as_str()) {
             return Err(anyhow::anyhow!(
-                "无效的日志级别: {}，支持的级别: {:?}", 
-                self.log_level, 
+                "无效的日志级别: {}，支持的级别: {:?}",
+                self.log_level,
                 valid_log_levels
             ));
         }

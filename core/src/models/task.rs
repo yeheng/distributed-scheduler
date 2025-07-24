@@ -6,13 +6,13 @@ use serde::{Deserialize, Serialize};
 pub struct Task {
     pub id: i64,
     pub name: String,
-    pub task_type: String,           // "shell", "http", etc.
-    pub schedule: String,            // cron 表达式
+    pub task_type: String, // "shell", "http", etc.
+    pub schedule: String,  // cron 表达式
     pub parameters: serde_json::Value,
     pub timeout_seconds: i32,
     pub max_retries: i32,
-    pub status: TaskStatus,          // ACTIVE, INACTIVE
-    pub dependencies: Vec<i64>,      // 依赖的任务 ID
+    pub status: TaskStatus,     // ACTIVE, INACTIVE
+    pub dependencies: Vec<i64>, // 依赖的任务 ID
     pub shard_config: Option<ShardConfig>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,

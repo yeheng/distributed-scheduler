@@ -75,7 +75,10 @@ impl TaskRun {
 
     /// 检查任务是否正在运行
     pub fn is_running(&self) -> bool {
-        matches!(self.status, TaskRunStatus::Running | TaskRunStatus::Dispatched)
+        matches!(
+            self.status,
+            TaskRunStatus::Running | TaskRunStatus::Dispatched
+        )
     }
 
     /// 检查任务是否已完成（成功或失败）
