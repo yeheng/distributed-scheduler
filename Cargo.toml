@@ -1,11 +1,11 @@
 [workspace]
 resolver = "2"
 members = [
-    "core",
-    "dispatcher", 
-    "worker",
-    "api",
-    "infrastructure"
+    "crates/core",
+    "crates/dispatcher", 
+    "crates/worker",
+    "crates/api",
+    "crates/infrastructure"
 ]
 
 [workspace.dependencies]
