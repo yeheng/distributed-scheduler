@@ -317,19 +317,34 @@ mod tests {
         let original_message = Message::task_execution(task_execution);
 
         // Test JSON string serialization
-        let json_str = original_message.serialize().expect("Failed to serialize to JSON");
-        let deserialized_message = Message::deserialize(&json_str).expect("Failed to deserialize from JSON");
+        let json_str = original_message
+            .serialize()
+            .expect("Failed to serialize to JSON");
+        let deserialized_message =
+            Message::deserialize(&json_str).expect("Failed to deserialize from JSON");
 
         assert_eq!(original_message.id, deserialized_message.id);
-        assert_eq!(original_message.retry_count, deserialized_message.retry_count);
-        assert_eq!(original_message.message_type_str(), deserialized_message.message_type_str());
+        assert_eq!(
+            original_message.retry_count,
+            deserialized_message.retry_count
+        );
+        assert_eq!(
+            original_message.message_type_str(),
+            deserialized_message.message_type_str()
+        );
 
         // Test bytes serialization
-        let bytes = original_message.serialize_bytes().expect("Failed to serialize to bytes");
-        let deserialized_from_bytes = Message::deserialize_bytes(&bytes).expect("Failed to deserialize from bytes");
+        let bytes = original_message
+            .serialize_bytes()
+            .expect("Failed to serialize to bytes");
+        let deserialized_from_bytes =
+            Message::deserialize_bytes(&bytes).expect("Failed to deserialize from bytes");
 
         assert_eq!(original_message.id, deserialized_from_bytes.id);
-        assert_eq!(original_message.retry_count, deserialized_from_bytes.retry_count);
+        assert_eq!(
+            original_message.retry_count,
+            deserialized_from_bytes.retry_count
+        );
     }
 
     #[test]
@@ -422,7 +437,10 @@ mod tests {
             timestamp: Utc::now(),
         };
         let heartbeat_message = Message::worker_heartbeat(heartbeat);
-        assert_eq!(heartbeat_message.routing_key(), "worker.heartbeat.worker-002");
+        assert_eq!(
+            heartbeat_message.routing_key(),
+            "worker.heartbeat.worker-002"
+        );
 
         // Test TaskControl routing key
         let control = TaskControlMessage {
@@ -453,7 +471,7 @@ mod tests {
             };
 
             let message = Message::task_control(control);
-            
+
             // Verify the action is properly serialized and accessible
             if let MessageType::TaskControl(msg) = &message.message_type {
                 assert_eq!(msg.action, action);
