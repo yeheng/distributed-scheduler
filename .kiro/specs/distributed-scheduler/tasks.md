@@ -33,7 +33,7 @@
     - _需求: 1.1, 1.2, 1.3, 1.4_
 
 - [-] 4. 消息队列抽象层
-  - [ ] 4.1 MessageQueue trait定义
+  - [x] 4.1 MessageQueue trait定义
     - 定义统一的Message结构体和MessageType枚举
     - 定义消息发布和消费接口
     - 实现消息序列化和反序列化
