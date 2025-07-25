@@ -2,11 +2,10 @@
 mod strategies_tests {
     use std::sync::Arc;
 
-    use crate::strategies::*;
     use chrono::Utc;
     use scheduler_core::*;
+    use scheduler_dispatcher::strategies::*;
     use serde_json::json;
-
     fn create_test_task(task_type: &str) -> Task {
         Task {
             id: 1,

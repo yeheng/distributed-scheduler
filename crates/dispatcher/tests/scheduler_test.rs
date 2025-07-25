@@ -9,7 +9,7 @@ mod tests {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
-    use crate::scheduler::*;
+    use scheduler_dispatcher::scheduler::*;
 
     // Mock MessageQueue for testing
     #[derive(Debug, Clone)]

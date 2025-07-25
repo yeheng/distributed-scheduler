@@ -8,7 +8,7 @@ mod dependency_checker_tests {
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
-    use crate::dependency_checker::*;
+    use scheduler_dispatcher::dependency_checker::*;
 
     // Mock TaskRepository for testing
     #[derive(Debug, Clone)]
@@ -111,9 +111,7 @@ mod dependency_checker_tests {
 
         fn add_task_run(&self, task_run: TaskRun) {
             let mut runs = self.task_runs.lock().unwrap();
-            runs.entry(task_run.task_id)
-                .or_default()
-                .push(task_run);
+            runs.entry(task_run.task_id).or_default().push(task_run);
         }
     }
 

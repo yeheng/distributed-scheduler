@@ -67,20 +67,20 @@
     - 添加分派策略的单元测试
     - _需求: 10.2_
 
-- [ ] 6. Dispatcher服务实现
-  - [ ] 6.1 TaskScheduler服务
+- [x] 6. Dispatcher服务实现
+  - [x] 6.1 TaskScheduler服务
     - 实现TaskSchedulerService trait和具体实现
     - 实现定时任务扫描循环
     - 实现任务创建和分发到消息队列
     - _需求: 1.1, 1.2_
 
-  - [ ] 6.2 StateListener服务
+  - [x] 6.2 StateListener服务
     - 实现StateListenerService trait和具体实现
     - 实现状态更新消息监听
     - 实现任务状态数据库更新
     - _需求: 1.4, 1.6_
 
-  - [ ] 6.3 TaskController服务
+  - [x] 6.3 TaskController服务
     - 实现TaskControlService trait和具体实现
     - 实现任务触发、暂停、恢复、重启、中止功能
     - 实现任务控制的API接口
@@ -161,10 +161,10 @@
     - _需求: 6.1, 6.2, 6.3, 6.4_
 
 - [ ] 11. 启动逻辑
-    - 实现main函数和CLI参数解析
-    - 实现Dispatcher/Worker模式选择
-    - 实现优雅关闭机制
-    - _需求: 2.5_
+  - 实现main函数和CLI参数解析
+  - 实现Dispatcher/Worker模式选择
+  - 实现优雅关闭机制
+  - _需求: 2.5_
 
 - [ ] 12. 集成测试和端到端测试
   - [ ] 12.1 数据库集成测试
