@@ -81,7 +81,7 @@ mod tests {
             let mut queues = self.queues.lock().unwrap();
             queues
                 .entry(queue.to_string())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(message.clone());
             Ok(())
         }
@@ -110,7 +110,7 @@ mod tests {
 
         async fn create_queue(&self, queue: &str, _durable: bool) -> crate::Result<()> {
             let mut queues = self.queues.lock().unwrap();
-            queues.entry(queue.to_string()).or_insert_with(Vec::new);
+            queues.entry(queue.to_string()).or_default();
             Ok(())
         }
 
@@ -220,7 +220,7 @@ mod tests {
         // Publish multiple messages
         for i in 0..5 {
             let mut message = Message::task_execution(task_execution.clone());
-            message.id = format!("message_{}", i);
+            message.id = format!("message_{i}");
             mq.publish_message(queue_name, &message).await.unwrap();
         }
 

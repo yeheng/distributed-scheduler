@@ -10,9 +10,9 @@ fn test_default_config() {
 
     // 验证默认值
     assert_eq!(config.database.max_connections, 10);
-    assert_eq!(config.dispatcher.enabled, true);
-    assert_eq!(config.worker.enabled, false);
-    assert_eq!(config.api.enabled, true);
+    assert!(config.dispatcher.enabled);
+    assert!(!config.worker.enabled);
+    assert!(config.api.enabled);
 }
 
 #[test]
@@ -317,7 +317,7 @@ fn test_dispatch_strategies() {
     let valid_strategies = ["round_robin", "load_based", "task_type_affinity"];
     for strategy in &valid_strategies {
         config.dispatcher.dispatch_strategy = strategy.to_string();
-        assert!(config.validate().is_ok(), "策略 {} 应该有效", strategy);
+        assert!(config.validate().is_ok(), "策略 {strategy} 应该有效");
     }
 }
 
@@ -329,7 +329,7 @@ fn test_log_levels() {
     let valid_levels = ["trace", "debug", "info", "warn", "error"];
     for level in &valid_levels {
         config.observability.log_level = level.to_string();
-        assert!(config.validate().is_ok(), "日志级别 {} 应该有效", level);
+        assert!(config.validate().is_ok(), "日志级别 {level} 应该有效");
 
         // 测试大写
         config.observability.log_level = level.to_uppercase();

@@ -107,7 +107,7 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
     println!("4. 配置验证:");
     match config_with_env.validate() {
         Ok(_) => println!("   ✓ 配置验证通过"),
-        Err(e) => println!("   ✗ 配置验证失败: {}", e),
+        Err(e) => println!("   ✗ 配置验证失败: {e}"),
     }
 
     // 5. 配置序列化

@@ -32,7 +32,7 @@ mod strategies_tests {
     ) -> WorkerInfo {
         WorkerInfo {
             id: id.to_string(),
-            hostname: format!("host-{}", id),
+            hostname: format!("host-{id}"),
             ip_address: "127.0.0.1".to_string(),
             supported_task_types: task_types.iter().map(|s| s.to_string()).collect(),
             max_concurrent_tasks: max_tasks,

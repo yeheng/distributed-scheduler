@@ -40,7 +40,7 @@ mod tests {
             let mut queues = self.queues.lock().unwrap();
             queues
                 .entry(queue.to_string())
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(message.clone());
             Ok(())
         }
@@ -61,7 +61,7 @@ mod tests {
 
         async fn create_queue(&self, queue: &str, _durable: bool) -> Result<()> {
             let mut queues = self.queues.lock().unwrap();
-            queues.entry(queue.to_string()).or_insert_with(Vec::new);
+            queues.entry(queue.to_string()).or_default();
             Ok(())
         }
 

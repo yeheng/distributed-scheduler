@@ -112,7 +112,7 @@ mod dependency_checker_tests {
         fn add_task_run(&self, task_run: TaskRun) {
             let mut runs = self.task_runs.lock().unwrap();
             runs.entry(task_run.task_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(task_run);
         }
     }
@@ -126,7 +126,7 @@ mod dependency_checker_tests {
             new_run.id = *next_id;
             *next_id += 1;
             runs.entry(new_run.task_id)
-                .or_insert_with(Vec::new)
+                .or_default()
                 .push(new_run.clone());
             Ok(new_run)
         }

@@ -43,7 +43,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     );
 
     let is_overdue = every_minute.is_task_overdue(Some(five_minutes_ago), now, 2);
-    println!("   任务是否过期(宽限期2分钟): {}", is_overdue);
+    println!("   任务是否过期(宽限期2分钟): {is_overdue}");
 
     println!();
 
@@ -76,7 +76,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let should_trigger = every_hour.should_trigger(Some(last_run), now);
     println!("   上次执行: {}", last_run.format("%Y-%m-%d %H:%M:%S UTC"));
     println!("   当前时间: {}", now.format("%Y-%m-%d %H:%M:%S UTC"));
-    println!("   是否应该触发: {}", should_trigger);
+    println!("   是否应该触发: {should_trigger}");
 
     println!();
 
@@ -100,16 +100,16 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("   有效的CRON表达式:");
     for expr in &valid_expressions {
         match CronScheduler::validate_cron_expression(expr) {
-            Ok(_) => println!("     ✓ {}", expr),
-            Err(e) => println!("     ✗ {} - {}", expr, e),
+            Ok(_) => println!("     ✓ {expr}"),
+            Err(e) => println!("     ✗ {expr} - {e}"),
         }
     }
 
     println!("   无效的CRON表达式:");
     for expr in &invalid_expressions {
         match CronScheduler::validate_cron_expression(expr) {
-            Ok(_) => println!("     ✓ {}", expr),
-            Err(e) => println!("     ✗ {} - {}", expr, e),
+            Ok(_) => println!("     ✓ {expr}"),
+            Err(e) => println!("     ✗ {expr} - {e}"),
         }
     }
 
