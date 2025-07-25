@@ -1,126 +1,78 @@
-# Project Structure
+# Project Structure Documentation
 
-## Cargo Workspace Layout
+## Overview
+
+This project is a Rust workspace containing multiple interconnected crates that implement a task scheduling and execution system.
+
+## Main Components
+
+### Core Component (core)
+
+- **Functionality**: Provides base models, configuration loading and core traits
+- **Key Files**:
+  - `models/`: Core data structures (Task, TaskRun, Worker etc.)
+  - `config/`: Configuration loading and management
+  - `traits/`: Core interfaces (MessageQueue, Repository, Scheduler etc.)
+
+### API Component (api)
+
+- **Functionality**: Provides HTTP API interfaces
+- **Key Files**:
+  - `routes.rs`: API route definitions
+  - `handlers.rs`: Request handlers
+  - `middleware.rs`: Middleware implementations
+
+### Dispatcher Component (dispatcher)
+
+- **Functionality**: Task scheduling and dependency management
+- **Key Files**:
+  - `scheduler.rs`: Scheduler implementation
+  - `strategies.rs`: Scheduling strategies
+  - `dependency_checker.rs`: Dependency checking
+
+### Infrastructure Component (infrastructure)
+
+- **Functionality**: Database and message queue implementations
+- **Key Files**:
+  - `database/`: PostgreSQL repository implementations
+  - `message_queue.rs`: Message queue implementation
+  - `observability.rs`: Observability tools
+
+### Worker Component (worker)
+
+- **Functionality**: Task execution
+- **Key Files**:
+  - `executors.rs`: Task executors
+  - `heartbeat.rs`: Heartbeat monitoring
+  - `service.rs`: Worker service
+
+## Complete Directory Structure
 
 ```
-scheduler/
-├── Cargo.toml              # Workspace configuration
-├── Cargo.lock              # Dependency lock file
-├── README.md               # Project documentation
-├── docker-compose.yml      # Production services
-├── docker-compose.dev.yml  # Development services
-├── Dockerfile              # Multi-stage build
-├── .env.example            # Environment template
-├── migrations/             # Database migrations
-│   ├── 001_initial.sql
-│   ├── 002_add_indexes.sql
-│   └── ...
-├── config/                 # Configuration files
-│   ├── dispatcher.toml
-│   ├── worker.toml
-│   └── development.toml
-├── core/                   # Shared types and traits
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── models/         # Data models
-│       ├── traits/         # Service traits
-│       ├── errors.rs       # Error definitions
-│       └── config.rs       # Configuration structs
-├── dispatcher/             # Dispatcher service
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs
-│       ├── lib.rs
-│       ├── scheduler/      # Task scheduling logic
-│       ├── state_listener/ # Status update handling
-│       ├── controller/     # Task control operations
-│       └── strategies/     # Dispatch strategies
-├── worker/                 # Worker service
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs
-│       ├── lib.rs
-│       ├── service.rs      # Worker main service
-│       ├── executors/      # Task executors
-│       │   ├── mod.rs
-│       │   ├── shell.rs
-│       │   └── http.rs
-│       └── heartbeat.rs    # Heartbeat management
-├── api/                    # REST API server
-│   ├── Cargo.toml
-│   └── src/
-│       ├── main.rs
-│       ├── lib.rs
-│       ├── handlers/       # HTTP handlers
-│       ├── middleware/     # HTTP middleware
-│       └── routes.rs       # Route definitions
-├── infrastructure/         # Infrastructure abstractions
-│   ├── Cargo.toml
-│   └── src/
-│       ├── lib.rs
-│       ├── database/       # Database repositories
-│       ├── message_queue/  # Message queue implementations
-│       └── observability/  # Metrics and tracing
-└── tests/                  # Integration tests
-    ├── integration/
-    ├── e2e/
-    └── fixtures/
+.
+├── config/                  # Configuration files
+│   ├── development.toml
+│   ├── production.toml
+│   └── scheduler.toml
+├── crates/
+│   ├── api/                 # API component
+│   ├── core/                # Core component
+│   ├── dispatcher/          # Dispatcher component
+│   ├── infrastructure/      # Infrastructure component
+│   └── worker/              # Worker component
+├── docs/                    # Documentation
+│   └── configuration.md
+├── examples/                # Example code
+└── migrations/              # Database migrations
 ```
 
-## Module Organization
+## Key Dependencies
 
-### Core Module (`core/`)
-
-Contains shared types, traits, and utilities used across all components.
-
-**Key Files:**
-
-- `models/` - Domain models (Task, TaskRun, Worker, etc.)
-- `traits/` - Service trait definitions
-- `errors.rs` - Centralized error types
-- `config.rs` - Configuration structures
-
-### Dispatcher Module (`dispatcher/`)
-
-Implements the task scheduling and coordination logic.
-
-**Key Components:**
-
-- `scheduler/` - CRON-based task scheduling
-- `state_listener/` - Worker status update processing
-- `controller/` - Task lifecycle management
-- `strategies/` - Worker selection strategies
-
-### Worker Module (`worker/`)
-
-Implements the task execution nodes.
-
-**Key Components:**
-
-- `service.rs` - Main worker service loop
-- `executors/` - Pluggable task executors
-- `heartbeat.rs` - Health reporting to dispatcher
-
-### API Module (`api/`)
-
-Provides REST API endpoints for task management.
-
-**Key Components:**
-
-- `handlers/` - HTTP request handlers
-- `middleware/` - Authentication, logging, etc.
-- `routes.rs` - Route configuration
-
-### Infrastructure Module (`infrastructure/`)
-
-Contains concrete implementations of infrastructure abstractions.
-
-**Key Components:**
-
-- `database/` - PostgreSQL repository implementations
-- `message_queue/` - RabbitMQ client implementations
-- `observability/` - Metrics and tracing setup
+1. `core` is the base component, depended on by all other components
+2. `api` depends on `core` and `infrastructure`
+3. `dispatcher` depends on `core` and `infrastructure`
+4. `worker` depends on `core` and `infrastructure`
+5. `infrastructure` depends on `core`
 
 ## Naming Conventions
 
@@ -181,7 +133,7 @@ cors_enabled = true
 
 ### Test Organization
 
-- **Unit Tests**: apart from source code, the same as source code folder, `{rust_source_name}_test.rs`
+- **Unit Tests**: apart from source code, `tests/{rust_source_name}_test.rs`
 - **Integration Tests**: In `tests/integration/` directory
 - **End-to-End Tests**: In `tests/e2e/` directory
 - **Test Fixtures**: In `tests/fixtures/` directory
@@ -196,7 +148,7 @@ cors_enabled = true
 
 ### Code Documentation
 
-- **Public APIs**: Comprehensive rustdoc comments, all use chinese
+- **Public APIs**: Comprehensive rustdoc comments
 - **Complex Logic**: Inline comments explaining the "why"
 - **Examples**: Include usage examples in doc comments
 - **Error Cases**: Document error conditions and handling
