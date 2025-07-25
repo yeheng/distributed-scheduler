@@ -24,3 +24,4 @@ sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chron
 tempfile = "3.0"
 lapin = "3.0.1"
 futures = "0.3"
+cron = "0.12"

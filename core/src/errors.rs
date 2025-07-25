@@ -18,8 +18,8 @@ pub enum SchedulerError {
     #[error("Worker未找到: {id}")]
     WorkerNotFound { id: String },
 
-    #[error("无效的CRON表达式: {expr}")]
-    InvalidCron { expr: String },
+    #[error("无效的CRON表达式: {expr} - {message}")]
+    InvalidCron { expr: String, message: String },
 
     #[error("任务执行超时")]
     ExecutionTimeout,

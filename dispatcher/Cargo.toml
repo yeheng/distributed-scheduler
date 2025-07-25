@@ -5,6 +5,7 @@ edition = "2021"
 
 [dependencies]
 scheduler-core = { path = "../core" }
+scheduler-infrastructure = { path = "../infrastructure" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -13,3 +14,4 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
+cron = { workspace = true }
