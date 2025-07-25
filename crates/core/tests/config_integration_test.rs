@@ -1,5 +1,5 @@
-use crate::config::AppConfig;
-use crate::config::ConfigLoader;
+use scheduler_core::config::AppConfig;
+use scheduler_core::config::ConfigLoader;
 use std::env;
 
 #[test]

@@ -1,4 +1,4 @@
-use super::*;
+use scheduler_core::config::*;
 use std::env;
 use std::fs;
 use tempfile::NamedTempFile;
