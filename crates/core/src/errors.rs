@@ -47,6 +47,9 @@ pub enum SchedulerError {
 
     #[error("内部错误: {0}")]
     Internal(String),
+
+    #[error("无效的任务参数: {0}")]
+    InvalidTaskParams(String),
 }
 
 /// 统一的Result类型
