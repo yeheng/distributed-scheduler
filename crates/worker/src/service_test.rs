@@ -101,7 +101,7 @@ async fn test_worker_service_task_execution() {
     };
 
     let message = Message::task_execution(task_execution);
-    message_queue.add_message(message).await;
+    let _ = message_queue.add_message(message).await;
 
     // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
