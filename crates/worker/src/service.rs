@@ -4,20 +4,17 @@ use std::time::Duration;
 
 use async_trait::async_trait;
 use chrono::Utc;
-use scheduler_core::{
-    Message, MessageQueue, MessageType, Result, SchedulerError, StatusUpdateMessage,
-    TaskExecutionMessage, TaskExecutor, TaskResult, TaskRun, TaskRunStatus, TaskStatusUpdate,
-    WorkerHeartbeatMessage, WorkerInfo, WorkerServiceTrait, WorkerStatus,
-};
+use scheduler_core::models::*;
+use scheduler_core::*;
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
 
-/// Worker服务构建器
+/// Worker服务构建器 - 使用依赖注入
 pub struct WorkerServiceBuilder {
     worker_id: String,
-    message_queue: Arc<dyn MessageQueue>,
-    executors: HashMap<String, Arc<dyn TaskExecutor>>,
+    service_locator: Arc<ServiceLocator>,
+    executor_registry: Option<Arc<dyn ExecutorRegistry>>,
     max_concurrent_tasks: usize,
     task_queue: String,
     status_queue: String,
@@ -32,14 +29,14 @@ impl WorkerServiceBuilder {
     /// 创建新的构建器
     pub fn new(
         worker_id: String,
-        message_queue: Arc<dyn MessageQueue>,
+        service_locator: Arc<ServiceLocator>,
         task_queue: String,
         status_queue: String,
     ) -> Self {
         Self {
             worker_id,
-            message_queue,
-            executors: HashMap::new(),
+            service_locator,
+            executor_registry: None,
             max_concurrent_tasks: 5,
             task_queue,
             status_queue,
@@ -52,6 +49,12 @@ impl WorkerServiceBuilder {
                 .to_string(),
             ip_address: "127.0.0.1".to_string(),
         }
+    }
+
+    /// 设置执行器注册表
+    pub fn with_executor_registry(mut self, registry: Arc<dyn ExecutorRegistry>) -> Self {
+        self.executor_registry = Some(registry);
+        self
     }
 
     /// 设置最大并发任务数
@@ -90,20 +93,16 @@ impl WorkerServiceBuilder {
         self
     }
 
-    /// 注册任务执行器
-    pub fn register_executor(mut self, executor: Arc<dyn TaskExecutor>) -> Self {
-        let name = executor.name().to_string();
-        info!("注册任务执行器: {}", name);
-        self.executors.insert(name, executor);
-        self
-    }
-
     /// 构建WorkerService
-    pub fn build(self) -> WorkerService {
-        WorkerService {
+    pub async fn build(self) -> Result<WorkerService> {
+        let executor_registry = self
+            .executor_registry
+            .ok_or_else(|| SchedulerError::Internal("Executor registry is required".to_string()))?;
+
+        Ok(WorkerService {
             worker_id: self.worker_id,
-            message_queue: self.message_queue,
-            executors: Arc::new(self.executors),
+            service_locator: self.service_locator,
+            executor_registry,
             max_concurrent_tasks: self.max_concurrent_tasks,
             running_tasks: Arc::new(RwLock::new(HashMap::new())),
             task_queue: self.task_queue,
@@ -116,20 +115,20 @@ impl WorkerServiceBuilder {
             shutdown_tx: Arc::new(RwLock::new(None)),
             is_running: Arc::new(RwLock::new(false)),
             http_client: reqwest::Client::new(),
-        }
+        })
     }
 }
 
-/// Worker服务实现
+/// Worker服务实现 - 使用依赖注入和抽象
 pub struct WorkerService {
     /// Worker唯一标识
     worker_id: String,
 
-    /// 消息队列客户端
-    message_queue: Arc<dyn MessageQueue>,
+    /// 服务定位器
+    service_locator: Arc<ServiceLocator>,
 
-    /// 任务执行器映射
-    executors: Arc<HashMap<String, Arc<dyn TaskExecutor>>>,
+    /// 执行器注册表
+    executor_registry: Arc<dyn ExecutorRegistry>,
 
     /// 最大并发任务数
     max_concurrent_tasks: usize,
@@ -172,37 +171,24 @@ impl WorkerService {
     /// 创建构建器
     pub fn builder(
         worker_id: String,
-        message_queue: Arc<dyn MessageQueue>,
+        service_locator: Arc<ServiceLocator>,
         task_queue: String,
         status_queue: String,
     ) -> WorkerServiceBuilder {
-        WorkerServiceBuilder::new(worker_id, message_queue, task_queue, status_queue)
+        WorkerServiceBuilder::new(worker_id, service_locator, task_queue, status_queue)
     }
 
     /// 获取支持的任务类型列表
-    pub fn get_supported_task_types(&self) -> Vec<String> {
-        self.executors.keys().cloned().collect()
+    pub async fn get_supported_task_types(&self) -> Vec<String> {
+        self.executor_registry.list_executors().await
     }
 
-    /// 获取Dispatcher URL（用于测试）
-    #[cfg(test)]
-    pub fn get_dispatcher_url(&self) -> &Option<String> {
-        &self.dispatcher_url
+    /// 获取消息队列
+    async fn get_message_queue(&self) -> Result<Arc<dyn MessageQueue>> {
+        self.service_locator.message_queue().await
     }
 
-    /// 获取主机名（用于测试）
-    #[cfg(test)]
-    pub fn get_hostname(&self) -> &str {
-        &self.hostname
-    }
-
-    /// 获取IP地址（用于测试）
-    #[cfg(test)]
-    pub fn get_ip_address(&self) -> &str {
-        &self.ip_address
-    }
-
-    /// 处理任务执行消息
+    /// 处理任务执行消息 - 使用新的执行上下文
     async fn handle_task_execution(&self, message: TaskExecutionMessage) -> Result<()> {
         let task_run_id = message.task_run_id;
         let task_type = &message.task_type;
@@ -212,9 +198,9 @@ impl WorkerService {
             task_run_id, task_type, message.timeout_seconds
         );
 
-        // 检查是否有合适的执行器
-        let executor = match self.executors.get(task_type) {
-            Some(executor) => Arc::clone(executor),
+        // 从执行器注册表获取合适的执行器
+        let executor = match self.executor_registry.get(task_type).await {
+            Some(executor) => executor,
             None => {
                 error!("未找到支持任务类型 '{}' 的执行器", task_type);
                 self.send_task_status_update(
@@ -245,12 +231,7 @@ impl WorkerService {
             return Ok(());
         }
 
-        // 创建TaskRun对象，在result中存储完整的任务信息
-        let task_info = serde_json::json!({
-            "task_type": message.task_type,
-            "parameters": message.parameters
-        });
-
+        // 创建TaskRun对象
         let task_run = TaskRun {
             id: task_run_id,
             task_id: message.task_id,
@@ -262,25 +243,43 @@ impl WorkerService {
             scheduled_at: Utc::now(),
             started_at: Some(Utc::now()),
             completed_at: None,
-            result: Some(task_info.to_string()),
+            result: None,
             error_message: None,
             created_at: Utc::now(),
+        };
+
+        // 创建任务执行上下文
+        let mut parameters = HashMap::new();
+        if let Ok(params) =
+            serde_json::from_value::<HashMap<String, serde_json::Value>>(message.parameters)
+        {
+            parameters = params;
+        }
+
+        let context = TaskExecutionContextTrait {
+            task_run: task_run.clone(),
+            task_type: task_type.clone(),
+            parameters,
+            timeout_seconds: 300,
+            environment: HashMap::new(),
+            working_directory: None,
+            resource_limits: scheduler_core::ResourceLimits::default(),
         };
 
         // 添加到运行任务列表
         {
             let mut running_tasks = self.running_tasks.write().await;
-            running_tasks.insert(task_run_id, task_run.clone());
+            running_tasks.insert(task_run_id, task_run);
         }
 
         // 发送运行状态更新
         self.send_task_status_update(task_run_id, TaskRunStatus::Running, None, None)
             .await?;
 
-        // 异步执行任务，增强超时和错误处理
+        // 异步执行任务
         let worker_id = self.worker_id.clone();
         let running_tasks = Arc::clone(&self.running_tasks);
-        let message_queue = Arc::clone(&self.message_queue);
+        let service_locator = Arc::clone(&self.service_locator);
         let status_queue = self.status_queue.clone();
         let timeout_duration = Duration::from_secs(message.timeout_seconds as u64);
         let task_name = message.task_name.clone();
@@ -288,10 +287,9 @@ impl WorkerService {
         tokio::spawn(async move {
             let execution_start = std::time::Instant::now();
 
-            // 使用tokio::select!来处理超时和取消
+            // 使用新的执行接口
             let result = tokio::select! {
-                // 正常执行任务
-                exec_result = executor.execute(&task_run) => {
+                exec_result = executor.execute_task(&context) => {
                     match exec_result {
                         Ok(task_result) => {
                             if task_result.success {
@@ -325,14 +323,12 @@ impl WorkerService {
                         }
                     }
                 }
-                // 超时处理
                 _ = tokio::time::sleep(timeout_duration) => {
                     error!(
                         "任务执行超时: task_run_id={}, task_name={}, timeout={}s",
                         task_run_id, task_name, message.timeout_seconds
                     );
 
-                    // 尝试取消任务
                     if let Err(e) = executor.cancel(task_run_id).await {
                         warn!("取消超时任务失败: task_run_id={}, error={}", task_run_id, e);
                     }
@@ -353,7 +349,7 @@ impl WorkerService {
                 running_tasks.remove(&task_run_id);
             }
 
-            // 发送状态更新，增加重试机制
+            // 发送状态更新
             let status_update = StatusUpdateMessage {
                 task_run_id,
                 status: result.0,
@@ -365,30 +361,31 @@ impl WorkerService {
 
             let message = Message::status_update(status_update);
 
-            // 重试发送状态更新
-            let mut retry_count = 0;
-            const MAX_STATUS_UPDATE_RETRIES: u32 = 3;
+            // 获取消息队列并发送状态更新
+            if let Ok(message_queue) = service_locator.message_queue().await {
+                let mut retry_count = 0;
+                const MAX_STATUS_UPDATE_RETRIES: u32 = 3;
 
-            while retry_count < MAX_STATUS_UPDATE_RETRIES {
-                match message_queue.publish_message(&status_queue, &message).await {
-                    Ok(_) => {
-                        debug!(
-                            "状态更新发送成功: task_run_id={}, status={:?}, retry_count={}",
-                            task_run_id, result.0, retry_count
-                        );
-                        break;
-                    }
-                    Err(e) => {
-                        retry_count += 1;
-                        error!(
-                            "发送状态更新失败 (重试 {}/{}): task_run_id={}, error={}",
-                            retry_count, MAX_STATUS_UPDATE_RETRIES, task_run_id, e
-                        );
+                while retry_count < MAX_STATUS_UPDATE_RETRIES {
+                    match message_queue.publish_message(&status_queue, &message).await {
+                        Ok(_) => {
+                            debug!(
+                                "状态更新发送成功: task_run_id={}, status={:?}, retry_count={}",
+                                task_run_id, result.0, retry_count
+                            );
+                            break;
+                        }
+                        Err(e) => {
+                            retry_count += 1;
+                            error!(
+                                "发送状态更新失败 (重试 {}/{}): task_run_id={}, error={}",
+                                retry_count, MAX_STATUS_UPDATE_RETRIES, task_run_id, e
+                            );
 
-                        if retry_count < MAX_STATUS_UPDATE_RETRIES {
-                            // 指数退避重试
-                            let delay = Duration::from_millis(100 * (1 << retry_count));
-                            tokio::time::sleep(delay).await;
+                            if retry_count < MAX_STATUS_UPDATE_RETRIES {
+                                let delay = Duration::from_millis(100 * (1 << retry_count));
+                                tokio::time::sleep(delay).await;
+                            }
                         }
                     }
                 }
@@ -407,10 +404,7 @@ impl WorkerService {
     }
 
     /// 处理任务控制消息
-    async fn handle_task_control(
-        &self,
-        control_message: scheduler_core::TaskControlMessage,
-    ) -> Result<()> {
+    async fn handle_task_control(&self, control_message: TaskControlMessage) -> Result<()> {
         let task_run_id = control_message.task_run_id;
         let action = control_message.action;
 
@@ -420,19 +414,16 @@ impl WorkerService {
         );
 
         match action {
-            scheduler_core::TaskControlAction::Cancel => {
+            TaskControlAction::Cancel => {
                 WorkerServiceTrait::cancel_task(self, task_run_id).await?;
             }
-            scheduler_core::TaskControlAction::Pause => {
-                // 暂停功能需要执行器支持，这里记录日志
+            TaskControlAction::Pause => {
                 warn!("暂停任务功能尚未实现: task_run_id={}", task_run_id);
             }
-            scheduler_core::TaskControlAction::Resume => {
-                // 恢复功能需要执行器支持，这里记录日志
+            TaskControlAction::Resume => {
                 warn!("恢复任务功能尚未实现: task_run_id={}", task_run_id);
             }
-            scheduler_core::TaskControlAction::Restart => {
-                // 重启功能需要重新创建任务执行，这里记录日志
+            TaskControlAction::Restart => {
                 warn!("重启任务功能尚未实现: task_run_id={}", task_run_id);
             }
         }
@@ -458,7 +449,9 @@ impl WorkerService {
         };
 
         let message = Message::status_update(status_update);
-        self.message_queue
+        let message_queue = self.get_message_queue().await?;
+
+        message_queue
             .publish_message(&self.status_queue, &message)
             .await
             .map_err(|e| SchedulerError::MessageQueue(format!("发送状态更新失败: {e}")))?;
@@ -472,13 +465,11 @@ impl WorkerService {
 
     /// 获取系统负载（简化实现）
     async fn get_system_load(&self) -> Option<f64> {
-        // TODO: 实现真实的系统负载获取
         None
     }
 
     /// 获取内存使用量（简化实现）
     async fn get_memory_usage(&self) -> Option<u64> {
-        // TODO: 实现真实的内存使用量获取
         None
     }
 
@@ -490,7 +481,7 @@ impl WorkerService {
                 id: self.worker_id.clone(),
                 hostname: self.hostname.clone(),
                 ip_address: self.ip_address.clone(),
-                supported_task_types: self.get_supported_task_types(),
+                supported_task_types: self.get_supported_task_types().await,
                 max_concurrent_tasks: self.max_concurrent_tasks as i32,
                 current_task_count: 0,
                 status: WorkerStatus::Alive,
@@ -625,12 +616,10 @@ impl WorkerService {
         loop {
             tokio::select! {
                 _ = heartbeat_interval.tick() => {
-                    // 发送消息队列心跳
                     if let Err(e) = self.send_heartbeat().await {
                         error!("发送消息队列心跳失败: {}", e);
                     }
 
-                    // 发送HTTP心跳到Dispatcher
                     if let Err(e) = self.send_heartbeat_to_dispatcher().await {
                         error!("发送HTTP心跳失败: {}", e);
                     }
@@ -677,22 +666,18 @@ impl WorkerServiceTrait for WorkerService {
 
         info!("启动Worker服务: {}", self.worker_id);
 
-        // 向Dispatcher注册Worker
         if let Err(e) = self.register_with_dispatcher().await {
             warn!("Worker注册失败，但继续启动服务: {}", e);
         }
 
-        // 创建停止信号通道
         let (shutdown_tx, shutdown_rx1) = broadcast::channel(1);
         let shutdown_rx2 = shutdown_tx.subscribe();
 
-        // 保存shutdown_tx
         {
             let mut tx_guard = self.shutdown_tx.write().await;
             *tx_guard = Some(shutdown_tx);
         }
 
-        // 启动心跳任务
         let heartbeat_service = self.clone();
         tokio::spawn(async move {
             if let Err(e) = heartbeat_service.start_heartbeat_task(shutdown_rx1).await {
@@ -700,7 +685,6 @@ impl WorkerServiceTrait for WorkerService {
             }
         });
 
-        // 启动任务轮询
         let polling_service = self.clone();
         tokio::spawn(async move {
             if let Err(e) = polling_service.start_task_polling(shutdown_rx2).await {
@@ -721,7 +705,6 @@ impl WorkerServiceTrait for WorkerService {
 
         info!("停止Worker服务: {}", self.worker_id);
 
-        // 发送停止信号
         {
             let tx_guard = self.shutdown_tx.read().await;
             if let Some(ref shutdown_tx) = *tx_guard {
@@ -729,9 +712,8 @@ impl WorkerServiceTrait for WorkerService {
             }
         }
 
-        // 等待所有运行中的任务完成
         let mut attempts = 0;
-        const MAX_ATTEMPTS: u32 = 30; // 最多等待30秒
+        const MAX_ATTEMPTS: u32 = 30;
 
         while attempts < MAX_ATTEMPTS {
             let task_count = self.get_current_task_count().await;
@@ -744,7 +726,6 @@ impl WorkerServiceTrait for WorkerService {
             attempts += 1;
         }
 
-        // 从Dispatcher注销Worker
         if let Err(e) = self.unregister_from_dispatcher().await {
             warn!("Worker注销失败: {}", e);
         }
@@ -755,15 +736,13 @@ impl WorkerServiceTrait for WorkerService {
     }
 
     async fn poll_and_execute_tasks(&self) -> Result<()> {
-        // 检查是否可以接受新任务
         let current_count = self.get_current_task_count().await;
         if current_count >= self.max_concurrent_tasks as i32 {
             return Ok(());
         }
 
-        // 从消息队列获取任务
-        let messages = self
-            .message_queue
+        let message_queue = self.get_message_queue().await?;
+        let messages = message_queue
             .consume_messages(&self.task_queue)
             .await
             .map_err(|e| SchedulerError::MessageQueue(format!("消费消息失败: {e}")))?;
@@ -771,38 +750,32 @@ impl WorkerServiceTrait for WorkerService {
         for message in messages {
             match message.message_type {
                 MessageType::TaskExecution(task_message) => {
-                    // 确认消息
-                    if let Err(e) = self.message_queue.ack_message(&message.id).await {
+                    if let Err(e) = message_queue.ack_message(&message.id).await {
                         error!("确认消息失败: {}", e);
                         continue;
                     }
 
-                    // 处理任务执行
                     if let Err(e) = self.handle_task_execution(task_message).await {
                         error!("处理任务执行失败: {}", e);
                     }
 
-                    // 检查并发限制
                     let current_count = self.get_current_task_count().await;
                     if current_count >= self.max_concurrent_tasks as i32 {
                         break;
                     }
                 }
                 MessageType::TaskControl(control_message) => {
-                    // 确认消息
-                    if let Err(e) = self.message_queue.ack_message(&message.id).await {
+                    if let Err(e) = message_queue.ack_message(&message.id).await {
                         error!("确认控制消息失败: {}", e);
                         continue;
                     }
 
-                    // 处理任务控制
                     if let Err(e) = self.handle_task_control(control_message).await {
                         error!("处理任务控制失败: {}", e);
                     }
                 }
                 _ => {
-                    // 其他类型的消息，确认但不处理
-                    if let Err(e) = self.message_queue.ack_message(&message.id).await {
+                    if let Err(e) = message_queue.ack_message(&message.id).await {
                         error!("确认消息失败: {}", e);
                     }
                 }
@@ -823,7 +796,9 @@ impl WorkerServiceTrait for WorkerService {
         };
 
         let message = Message::status_update(status_update);
-        self.message_queue
+        let message_queue = self.get_message_queue().await?;
+
+        message_queue
             .publish_message(&self.status_queue, &message)
             .await
             .map_err(|e| SchedulerError::MessageQueue(format!("发送状态更新失败: {e}")))?;
@@ -838,43 +813,41 @@ impl WorkerServiceTrait for WorkerService {
 
     async fn can_accept_task(&self, task_type: &str) -> bool {
         let current_count = self.get_current_task_count().await;
-        current_count < self.max_concurrent_tasks as i32 && self.executors.contains_key(task_type)
+        let has_executor = self.executor_registry.contains(task_type).await;
+        current_count < self.max_concurrent_tasks as i32 && has_executor
     }
 
-    /// 取消正在运行的任务
     async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
         let running_tasks_guard = self.running_tasks.read().await;
 
         if let Some(task_run) = running_tasks_guard.get(&task_run_id) {
-            // 尝试从任务参数中获取任务类型
-            let task_type_str = task_run
+            // 获取任务类型并查找执行器
+            let task_info = task_run
                 .result
                 .as_ref()
                 .and_then(|r| serde_json::from_str::<serde_json::Value>(r).ok())
-                .and_then(|v| {
-                    v.get("task_type")
-                        .and_then(|t| t.as_str().map(|s| s.to_string()))
-                })
-                .unwrap_or_else(|| "unknown".to_string());
+                .unwrap_or_else(|| serde_json::json!({}));
 
-            // 释放读锁
+            let task_type = task_info
+                .get("task_type")
+                .and_then(|t| t.as_str())
+                .unwrap_or("unknown");
+
             drop(running_tasks_guard);
 
-            if let Some(executor) = self.executors.get(&task_type_str) {
+            if let Some(executor) = self.executor_registry.get(task_type).await {
                 info!(
                     "取消任务: task_run_id={}, task_type={}",
-                    task_run_id, task_type_str
+                    task_run_id, task_type
                 );
 
                 match executor.cancel(task_run_id).await {
                     Ok(_) => {
-                        // 从运行任务列表中移除
                         {
                             let mut running_tasks = self.running_tasks.write().await;
                             running_tasks.remove(&task_run_id);
                         }
 
-                        // 发送取消状态更新
                         self.send_task_status_update(
                             task_run_id,
                             TaskRunStatus::Failed,
@@ -903,19 +876,16 @@ impl WorkerServiceTrait for WorkerService {
         Ok(())
     }
 
-    /// 获取正在运行的任务列表
     async fn get_running_tasks(&self) -> Vec<TaskRun> {
         let running_tasks = self.running_tasks.read().await;
         running_tasks.values().cloned().collect()
     }
 
-    /// 检查任务是否正在运行
     async fn is_task_running(&self, task_run_id: i64) -> bool {
         let running_tasks = self.running_tasks.read().await;
         running_tasks.contains_key(&task_run_id)
     }
 
-    /// 发送心跳消息
     async fn send_heartbeat(&self) -> Result<()> {
         let current_task_count = self.get_current_task_count().await;
 
@@ -928,7 +898,9 @@ impl WorkerServiceTrait for WorkerService {
         };
 
         let message = Message::worker_heartbeat(heartbeat);
-        self.message_queue
+        let message_queue = self.get_message_queue().await?;
+
+        message_queue
             .publish_message("worker_heartbeat", &message)
             .await
             .map_err(|e| SchedulerError::MessageQueue(format!("发送心跳失败: {e}")))?;
@@ -941,13 +913,12 @@ impl WorkerServiceTrait for WorkerService {
     }
 }
 
-// 实现Clone trait以支持在异步任务中使用
 impl Clone for WorkerService {
     fn clone(&self) -> Self {
         Self {
             worker_id: self.worker_id.clone(),
-            message_queue: Arc::clone(&self.message_queue),
-            executors: Arc::clone(&self.executors),
+            service_locator: Arc::clone(&self.service_locator),
+            executor_registry: Arc::clone(&self.executor_registry),
             max_concurrent_tasks: self.max_concurrent_tasks,
             running_tasks: Arc::clone(&self.running_tasks),
             task_queue: self.task_queue.clone(),

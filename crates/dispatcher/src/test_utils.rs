@@ -3,9 +3,10 @@ pub mod mocks {
     use crate::retry_service::RetryService;
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
+    use scheduler_core::models::{TaskFilter, TaskStatus};
     use scheduler_core::{
-        Result, Task, TaskFilter, TaskRepository, TaskRun, TaskRunRepository, TaskRunStatus,
-        TaskStatus, WorkerInfo, WorkerRepository, WorkerStatus,
+        Result, Task, TaskRepository, TaskRun, TaskRunRepository, TaskRunStatus, WorkerInfo,
+        WorkerRepository, WorkerStatus,
     };
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};

@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use crate::{
-    models::{Task, TaskRun, WorkerInfo},
-    Result, TaskStatusUpdate,
+    models::{Task, TaskRun, TaskStatusUpdate, WorkerInfo},
+    Result,
 };
 
 /// 任务调度服务接口
