@@ -10,6 +10,8 @@ use scheduler_core::{
     Result, SchedulerError,
 };
 
+use crate::retry_service::RetryService;
+
 /// 状态监听器实现
 pub struct StateListener {
     task_run_repo: Arc<dyn TaskRunRepository>,
@@ -18,6 +20,7 @@ pub struct StateListener {
     status_queue_name: String,
     heartbeat_queue_name: String,
     running: Arc<tokio::sync::RwLock<bool>>,
+    retry_service: Option<Arc<dyn RetryService>>,
 }
 
 impl StateListener {
@@ -36,6 +39,27 @@ impl StateListener {
             status_queue_name,
             heartbeat_queue_name,
             running: Arc::new(tokio::sync::RwLock::new(false)),
+            retry_service: None,
+        }
+    }
+
+    /// 创建带重试服务的状态监听器
+    pub fn with_retry_service(
+        task_run_repo: Arc<dyn TaskRunRepository>,
+        worker_repo: Arc<dyn WorkerRepository>,
+        message_queue: Arc<dyn MessageQueue>,
+        status_queue_name: String,
+        heartbeat_queue_name: String,
+        retry_service: Arc<dyn RetryService>,
+    ) -> Self {
+        Self {
+            task_run_repo,
+            worker_repo,
+            message_queue,
+            status_queue_name,
+            heartbeat_queue_name,
+            running: Arc::new(tokio::sync::RwLock::new(false)),
+            retry_service: Some(retry_service),
         }
     }
 
@@ -185,6 +209,56 @@ impl StateListener {
                     status_msg.worker_id,
                     status_msg.error_message.as_deref().unwrap_or("未知错误")
                 );
+
+                // 处理失败任务的重试逻辑
+                if let Some(retry_service) = &self.retry_service {
+                    match retry_service
+                        .handle_failed_task(status_msg.task_run_id)
+                        .await
+                    {
+                        Ok(true) => {
+                            info!("任务运行 {} 已安排重试", status_msg.task_run_id);
+                        }
+                        Ok(false) => {
+                            debug!("任务运行 {} 不满足重试条件", status_msg.task_run_id);
+                        }
+                        Err(e) => {
+                            error!("处理失败任务 {} 重试时出错: {}", status_msg.task_run_id, e);
+                        }
+                    }
+                }
+            }
+            TaskRunStatus::Timeout => {
+                self.task_run_repo
+                    .update_result(status_msg.task_run_id, None, Some("任务执行超时"))
+                    .await?;
+
+                self.task_run_repo
+                    .update_status(status_msg.task_run_id, status_msg.status, None)
+                    .await?;
+
+                warn!(
+                    "任务运行 {} 在 Worker {} 上执行超时",
+                    status_msg.task_run_id, status_msg.worker_id
+                );
+
+                // 处理超时任务的重试逻辑
+                if let Some(retry_service) = &self.retry_service {
+                    match retry_service
+                        .handle_timeout_task(status_msg.task_run_id)
+                        .await
+                    {
+                        Ok(true) => {
+                            info!("超时任务运行 {} 已安排重试", status_msg.task_run_id);
+                        }
+                        Ok(false) => {
+                            debug!("超时任务运行 {} 不满足重试条件", status_msg.task_run_id);
+                        }
+                        Err(e) => {
+                            error!("处理超时任务 {} 重试时出错: {}", status_msg.task_run_id, e);
+                        }
+                    }
+                }
             }
             // 其他状态的基本更新
             _ => {
@@ -308,6 +382,7 @@ impl StateListenerService for StateListener {
             status_queue_name: status_queue_name_clone.clone(),
             heartbeat_queue_name: heartbeat_queue_name_clone.clone(),
             running: running.clone(),
+            retry_service: self.retry_service.clone(),
         };
 
         let heartbeat_state_listener = StateListener {
@@ -317,6 +392,7 @@ impl StateListenerService for StateListener {
             status_queue_name: status_queue_name_clone.clone(),
             heartbeat_queue_name: heartbeat_queue_name_clone.clone(),
             running,
+            retry_service: self.retry_service.clone(),
         };
 
         let status_listener = {

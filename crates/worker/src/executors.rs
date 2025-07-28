@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::process::Stdio;
 use std::sync::Arc;
-use std::time::Instant;
+use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use scheduler_core::{Result, SchedulerError, TaskExecutor, TaskResult, TaskRun};
@@ -9,6 +9,7 @@ use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
 use tokio::sync::RwLock;
+use tokio::time::sleep;
 use tracing::{error, info, warn};
 
 /// Shell任务执行器
@@ -200,9 +201,7 @@ impl TaskExecutor for ShellExecutor {
                             "执行kill命令失败: task_run_id={}, pid={}, error={}",
                             task_run_id, pid, e
                         );
-                        Err(SchedulerError::TaskExecution(format!(
-                            "取消任务失败: {e}"
-                        )))
+                        Err(SchedulerError::TaskExecution(format!("取消任务失败: {e}")))
                     }
                 }
             }
@@ -444,104 +443,61 @@ pub struct HttpTaskParams {
     pub timeout_seconds: Option<u64>,
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use chrono::Utc;
-    use scheduler_core::{TaskRun, TaskRunStatus};
+#[derive(Debug)]
+pub struct MockTaskExecutor {
+    name: String,
+    should_succeed: bool,
+    execution_time_ms: u64,
+}
 
-    fn create_test_task_run(params: &str) -> TaskRun {
-        TaskRun {
-            id: 1,
-            task_id: 1,
-            status: TaskRunStatus::Running,
-            worker_id: Some("test-worker".to_string()),
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-            scheduled_at: Utc::now(),
-            started_at: Some(Utc::now()),
-            completed_at: None,
-            result: Some(params.to_string()),
-            error_message: None,
-            created_at: Utc::now(),
+impl MockTaskExecutor {
+    pub fn new(name: String, should_succeed: bool, execution_time_ms: u64) -> Self {
+        Self {
+            name,
+            should_succeed,
+            execution_time_ms,
+        }
+    }
+}
+
+#[async_trait]
+impl TaskExecutor for MockTaskExecutor {
+    async fn execute(&self, _task_run: &TaskRun) -> Result<TaskResult> {
+        // 模拟执行时间
+        sleep(Duration::from_millis(self.execution_time_ms)).await;
+
+        if self.should_succeed {
+            Ok(TaskResult {
+                success: true,
+                output: Some("任务执行成功".to_string()),
+                error_message: None,
+                exit_code: Some(0),
+                execution_time_ms: self.execution_time_ms,
+            })
+        } else {
+            Ok(TaskResult {
+                success: false,
+                output: None,
+                error_message: Some("任务执行失败".to_string()),
+                exit_code: Some(1),
+                execution_time_ms: self.execution_time_ms,
+            })
         }
     }
 
-    #[tokio::test]
-    async fn test_shell_executor_echo() {
-        let executor = ShellExecutor::new();
-
-        let params = serde_json::json!({
-            "command": "echo",
-            "args": ["Hello, World!"]
-        });
-
-        let task_run = create_test_task_run(&params.to_string());
-        let result = executor.execute(&task_run).await.unwrap();
-
-        assert!(result.success);
-        assert_eq!(result.output, Some("Hello, World!".to_string()));
-        assert!(result.error_message.is_none());
-        assert_eq!(result.exit_code, Some(0));
+    fn supports_task_type(&self, task_type: &str) -> bool {
+        task_type == self.name
     }
 
-    #[tokio::test]
-    async fn test_shell_executor_invalid_command() {
-        let executor = ShellExecutor::new();
-
-        let params = serde_json::json!({
-            "command": "nonexistent_command_12345"
-        });
-
-        let task_run = create_test_task_run(&params.to_string());
-        let result = executor.execute(&task_run).await;
-
-        assert!(result.is_err());
+    fn name(&self) -> &str {
+        &self.name
     }
 
-    #[tokio::test]
-    async fn test_shell_executor_supports_task_type() {
-        let executor = ShellExecutor::new();
-
-        assert!(executor.supports_task_type("shell"));
-        assert!(!executor.supports_task_type("http"));
-        assert!(!executor.supports_task_type("other"));
+    async fn cancel(&self, _task_run_id: i64) -> Result<()> {
+        Ok(())
     }
 
-    #[tokio::test]
-    async fn test_http_executor_supports_task_type() {
-        let executor = HttpExecutor::new();
-
-        assert!(executor.supports_task_type("http"));
-        assert!(!executor.supports_task_type("shell"));
-        assert!(!executor.supports_task_type("other"));
-    }
-
-    #[tokio::test]
-    async fn test_http_executor_get_request() {
-        let executor = HttpExecutor::new();
-
-        let params = serde_json::json!({
-            "url": "https://httpbin.org/get",
-            "method": "GET"
-        });
-
-        let task_run = create_test_task_run(&params.to_string());
-        let result = executor.execute(&task_run).await.unwrap();
-
-        assert!(result.success);
-        assert!(result.output.is_some());
-        assert!(result.error_message.is_none());
-        assert_eq!(result.exit_code, Some(200));
-    }
-
-    #[tokio::test]
-    async fn test_executor_names() {
-        let shell_executor = ShellExecutor::new();
-        let http_executor = HttpExecutor::new();
-
-        assert_eq!(shell_executor.name(), "shell");
-        assert_eq!(http_executor.name(), "http");
+    async fn is_running(&self, _task_run_id: i64) -> Result<bool> {
+        Ok(false)
     }
 }

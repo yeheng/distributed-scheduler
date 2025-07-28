@@ -5,5 +5,8 @@ pub mod service;
 #[cfg(test)]
 mod service_test;
 
+#[cfg(test)]
+mod executors_test;
+
 pub use executors::{HttpExecutor, HttpTaskParams, ShellExecutor, ShellTaskParams};
-pub use service::{WorkerService, WorkerServiceBuilder, WorkerServiceTrait};
+pub use service::{WorkerService, WorkerServiceBuilder};

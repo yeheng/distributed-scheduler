@@ -2,7 +2,7 @@ use async_trait::async_trait;
 
 use crate::{
     models::{Task, TaskRun, WorkerInfo},
-    Result,
+    Result, TaskStatusUpdate,
 };
 
 /// 任务调度服务接口
@@ -72,7 +72,7 @@ pub trait TaskDispatchStrategy: Send + Sync {
 
 /// Worker服务接口
 #[async_trait]
-pub trait WorkerService: Send + Sync {
+pub trait WorkerServiceTrait: Send + Sync {
     /// 启动Worker服务
     async fn start(&self) -> Result<()>;
 
@@ -83,13 +83,22 @@ pub trait WorkerService: Send + Sync {
     async fn poll_and_execute_tasks(&self) -> Result<()>;
 
     /// 发送状态更新
-    async fn send_status_update(
-        &self,
-        task_run_id: i64,
-        status: crate::models::TaskRunStatus,
-        result: Option<String>,
-        error_message: Option<String>,
-    ) -> Result<()>;
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()>;
+
+    /// 获取当前运行的任务数量
+    async fn get_current_task_count(&self) -> i32;
+
+    /// 检查是否可以接受新任务
+    async fn can_accept_task(&self, task_type: &str) -> bool;
+
+    /// 取消正在运行的任务
+    async fn cancel_task(&self, task_run_id: i64) -> Result<()>;
+
+    /// 获取正在运行的任务列表
+    async fn get_running_tasks(&self) -> Vec<TaskRun>;
+
+    /// 检查任务是否正在运行
+    async fn is_task_running(&self, task_run_id: i64) -> bool;
 
     /// 发送心跳
     async fn send_heartbeat(&self) -> Result<()>;

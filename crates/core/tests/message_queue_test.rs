@@ -1,297 +1,197 @@
-#[cfg(test)]
-mod message_queue_tests {
-    use async_trait::async_trait;
-    use chrono::Utc;
-    use scheduler_core::{models::*, *};
-    use serde_json::json;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
+use chrono::Utc;
+use scheduler_core::{models::*, *};
+use serde_json::json;
+use std::collections::HashMap;
 
-    /// Mock implementation of MessageQueue for testing
-    #[derive(Debug, Clone)]
-    pub struct MockMessageQueue {
-        queues: Arc<Mutex<HashMap<String, Vec<Message>>>>,
-        acked_messages: Arc<Mutex<Vec<String>>>,
-        nacked_messages: Arc<Mutex<Vec<String>>>,
-    }
+#[tokio::test]
+async fn test_message_queue_publish_and_consume() {
+    let mq = MockMessageQueue::new();
+    let queue_name = "test_queue";
 
-    impl MockMessageQueue {
-        pub fn new() -> Self {
-            Self {
-                queues: Arc::new(Mutex::new(HashMap::new())),
-                acked_messages: Arc::new(Mutex::new(Vec::new())),
-                nacked_messages: Arc::new(Mutex::new(Vec::new())),
-            }
-        }
+    // Create a test message
+    let task_execution = TaskExecutionMessage {
+        task_run_id: 123,
+        task_id: 456,
+        task_name: "test_task".to_string(),
+        task_type: "shell".to_string(),
+        parameters: json!({"command": "echo hello"}),
+        timeout_seconds: 300,
+        retry_count: 0,
+        shard_index: None,
+        shard_total: None,
+    };
+    let message = Message::task_execution(task_execution);
 
-        pub fn get_acked_messages(&self) -> Vec<String> {
-            self.acked_messages.lock().unwrap().clone()
-        }
+    // Test publishing
+    mq.publish_message(queue_name, &message).await.unwrap();
 
-        pub fn get_nacked_messages(&self) -> Vec<String> {
-            self.nacked_messages.lock().unwrap().clone()
-        }
+    // Test consuming
+    let consumed_messages = mq.consume_messages(queue_name).await.unwrap();
+    assert_eq!(consumed_messages.len(), 1);
+    assert_eq!(consumed_messages[0].id, message.id);
+}
 
-        pub fn get_queue_messages(&self, queue: &str) -> Vec<Message> {
-            self.queues
-                .lock()
-                .unwrap()
-                .get(queue)
-                .cloned()
-                .unwrap_or_default()
-        }
-    }
+#[tokio::test]
+async fn test_message_queue_ack_nack() {
+    let mq = MockMessageQueue::new();
+    let message_id = "test_message_123";
 
-    #[async_trait]
-    impl MessageQueue for MockMessageQueue {
-        async fn publish_message(&self, queue: &str, message: &Message) -> Result<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues
-                .entry(queue.to_string())
-                .or_default()
-                .push(message.clone());
-            Ok(())
-        }
+    // Test ack
+    mq.ack_message(message_id).await.unwrap();
+    let acked = mq.get_acked_messages();
+    assert_eq!(acked.len(), 1);
+    assert_eq!(acked[0], message_id);
 
-        async fn consume_messages(&self, queue: &str) -> Result<Vec<Message>> {
-            let mut queues = self.queues.lock().unwrap();
-            let messages = queues.remove(queue).unwrap_or_default();
-            Ok(messages)
-        }
+    // Test nack
+    mq.nack_message(message_id, true).await.unwrap();
+    let nacked = mq.get_nacked_messages();
+    assert_eq!(nacked.len(), 1);
+    assert_eq!(nacked[0], message_id);
+}
 
-        async fn ack_message(&self, message_id: &str) -> Result<()> {
-            self.acked_messages
-                .lock()
-                .unwrap()
-                .push(message_id.to_string());
-            Ok(())
-        }
+#[tokio::test]
+async fn test_message_queue_create_delete_queue() {
+    let mq = MockMessageQueue::new();
+    let queue_name = "test_queue";
 
-        async fn nack_message(&self, message_id: &str, _requeue: bool) -> Result<()> {
-            self.nacked_messages
-                .lock()
-                .unwrap()
-                .push(message_id.to_string());
-            Ok(())
-        }
+    // Test create queue
+    mq.create_queue(queue_name, true).await.unwrap();
+    let size = mq.get_queue_size(queue_name).await.unwrap();
+    assert_eq!(size, 0);
 
-        async fn create_queue(&self, queue: &str, _durable: bool) -> Result<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues.entry(queue.to_string()).or_default();
-            Ok(())
-        }
+    // Test delete queue
+    mq.delete_queue(queue_name).await.unwrap();
+    let size_after_delete = mq.get_queue_size(queue_name).await.unwrap();
+    assert_eq!(size_after_delete, 0);
+}
 
-        async fn delete_queue(&self, queue: &str) -> Result<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues.remove(queue);
-            Ok(())
-        }
+#[tokio::test]
+async fn test_message_queue_size_and_purge() {
+    let mq = MockMessageQueue::new();
+    let queue_name = "test_queue";
 
-        async fn get_queue_size(&self, queue: &str) -> Result<u32> {
-            let queues = self.queues.lock().unwrap();
-            let size = queues.get(queue).map(|q| q.len()).unwrap_or(0) as u32;
-            Ok(size)
-        }
+    // Create queue and add messages
+    mq.create_queue(queue_name, true).await.unwrap();
 
-        async fn purge_queue(&self, queue: &str) -> Result<()> {
-            let mut queues = self.queues.lock().unwrap();
-            if let Some(queue_messages) = queues.get_mut(queue) {
-                queue_messages.clear();
-            }
-            Ok(())
-        }
-    }
+    let task_execution = TaskExecutionMessage {
+        task_run_id: 123,
+        task_id: 456,
+        task_name: "test_task".to_string(),
+        task_type: "shell".to_string(),
+        parameters: json!({}),
+        timeout_seconds: 300,
+        retry_count: 0,
+        shard_index: None,
+        shard_total: None,
+    };
 
-    #[tokio::test]
-    async fn test_message_queue_publish_and_consume() {
-        let mq = MockMessageQueue::new();
-        let queue_name = "test_queue";
-
-        // Create a test message
-        let task_execution = TaskExecutionMessage {
-            task_run_id: 123,
-            task_id: 456,
-            task_name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            parameters: json!({"command": "echo hello"}),
-            timeout_seconds: 300,
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-        };
-        let message = Message::task_execution(task_execution);
-
-        // Test publishing
+    // Publish multiple messages
+    for i in 0..5 {
+        let mut message = Message::task_execution(task_execution.clone());
+        message.id = format!("message_{i}");
         mq.publish_message(queue_name, &message).await.unwrap();
-
-        // Test consuming
-        let consumed_messages = mq.consume_messages(queue_name).await.unwrap();
-        assert_eq!(consumed_messages.len(), 1);
-        assert_eq!(consumed_messages[0].id, message.id);
     }
 
-    #[tokio::test]
-    async fn test_message_queue_ack_nack() {
-        let mq = MockMessageQueue::new();
-        let message_id = "test_message_123";
+    // Test queue size
+    let size = mq.get_queue_size(queue_name).await.unwrap();
+    assert_eq!(size, 5);
 
-        // Test ack
-        mq.ack_message(message_id).await.unwrap();
-        let acked = mq.get_acked_messages();
-        assert_eq!(acked.len(), 1);
-        assert_eq!(acked[0], message_id);
+    // Test purge
+    mq.purge_queue(queue_name).await.unwrap();
+    let size_after_purge = mq.get_queue_size(queue_name).await.unwrap();
+    assert_eq!(size_after_purge, 0);
+}
 
-        // Test nack
-        mq.nack_message(message_id, true).await.unwrap();
-        let nacked = mq.get_nacked_messages();
-        assert_eq!(nacked.len(), 1);
-        assert_eq!(nacked[0], message_id);
-    }
+#[tokio::test]
+async fn test_message_queue_multiple_message_types() {
+    let mq = MockMessageQueue::new();
+    let queue_name = "mixed_queue";
 
-    #[tokio::test]
-    async fn test_message_queue_create_delete_queue() {
-        let mq = MockMessageQueue::new();
-        let queue_name = "test_queue";
+    // Create different types of messages
+    let task_execution = TaskExecutionMessage {
+        task_run_id: 123,
+        task_id: 456,
+        task_name: "test_task".to_string(),
+        task_type: "shell".to_string(),
+        parameters: json!({}),
+        timeout_seconds: 300,
+        retry_count: 0,
+        shard_index: None,
+        shard_total: None,
+    };
 
-        // Test create queue
-        mq.create_queue(queue_name, true).await.unwrap();
-        let size = mq.get_queue_size(queue_name).await.unwrap();
-        assert_eq!(size, 0);
-
-        // Test delete queue
-        mq.delete_queue(queue_name).await.unwrap();
-        let size_after_delete = mq.get_queue_size(queue_name).await.unwrap();
-        assert_eq!(size_after_delete, 0);
-    }
-
-    #[tokio::test]
-    async fn test_message_queue_size_and_purge() {
-        let mq = MockMessageQueue::new();
-        let queue_name = "test_queue";
-
-        // Create queue and add messages
-        mq.create_queue(queue_name, true).await.unwrap();
-
-        let task_execution = TaskExecutionMessage {
-            task_run_id: 123,
-            task_id: 456,
-            task_name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            parameters: json!({}),
-            timeout_seconds: 300,
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-        };
-
-        // Publish multiple messages
-        for i in 0..5 {
-            let mut message = Message::task_execution(task_execution.clone());
-            message.id = format!("message_{i}");
-            mq.publish_message(queue_name, &message).await.unwrap();
-        }
-
-        // Test queue size
-        let size = mq.get_queue_size(queue_name).await.unwrap();
-        assert_eq!(size, 5);
-
-        // Test purge
-        mq.purge_queue(queue_name).await.unwrap();
-        let size_after_purge = mq.get_queue_size(queue_name).await.unwrap();
-        assert_eq!(size_after_purge, 0);
-    }
-
-    #[tokio::test]
-    async fn test_message_queue_multiple_message_types() {
-        let mq = MockMessageQueue::new();
-        let queue_name = "mixed_queue";
-
-        // Create different types of messages
-        let task_execution = TaskExecutionMessage {
-            task_run_id: 123,
-            task_id: 456,
-            task_name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            parameters: json!({}),
-            timeout_seconds: 300,
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-        };
-
-        let status_update = StatusUpdateMessage {
-            task_run_id: 789,
-            status: TaskRunStatus::Completed,
-            worker_id: "worker-001".to_string(),
-            result: Some(TaskResult {
-                success: true,
-                output: Some("Success".to_string()),
-                error_message: None,
-                exit_code: Some(0),
-                execution_time_ms: 1000,
-            }),
+    let status_update = StatusUpdateMessage {
+        task_run_id: 789,
+        status: TaskRunStatus::Completed,
+        worker_id: "worker-001".to_string(),
+        result: Some(TaskResult {
+            success: true,
+            output: Some("Success".to_string()),
             error_message: None,
-            timestamp: Utc::now(),
-        };
+            exit_code: Some(0),
+            execution_time_ms: 1000,
+        }),
+        error_message: None,
+        timestamp: Utc::now(),
+    };
 
-        let heartbeat = WorkerHeartbeatMessage {
-            worker_id: "worker-002".to_string(),
-            current_task_count: 3,
-            system_load: Some(0.5),
-            memory_usage_mb: Some(512),
-            timestamp: Utc::now(),
-        };
+    let heartbeat = WorkerHeartbeatMessage {
+        worker_id: "worker-002".to_string(),
+        current_task_count: 3,
+        system_load: Some(0.5),
+        memory_usage_mb: Some(512),
+        timestamp: Utc::now(),
+    };
 
-        let control = TaskControlMessage {
-            task_run_id: 999,
-            action: TaskControlAction::Cancel,
-            requester: "admin".to_string(),
-            timestamp: Utc::now(),
-        };
+    let control = TaskControlMessage {
+        task_run_id: 999,
+        action: TaskControlAction::Cancel,
+        requester: "admin".to_string(),
+        timestamp: Utc::now(),
+    };
 
-        // Publish all message types
-        let messages = vec![
-            Message::task_execution(task_execution),
-            Message::status_update(status_update),
-            Message::worker_heartbeat(heartbeat),
-            Message::task_control(control),
-        ];
+    // Publish all message types
+    let messages = vec![
+        Message::task_execution(task_execution),
+        Message::status_update(status_update),
+        Message::worker_heartbeat(heartbeat),
+        Message::task_control(control),
+    ];
 
-        for message in &messages {
-            mq.publish_message(queue_name, message).await.unwrap();
-        }
-
-        // Consume and verify
-        let consumed = mq.consume_messages(queue_name).await.unwrap();
-        assert_eq!(consumed.len(), 4);
-
-        // Verify message types
-        let mut type_counts = HashMap::new();
-        for message in consumed {
-            let type_str = message.message_type_str();
-            *type_counts.entry(type_str).or_insert(0) += 1;
-        }
-
-        assert_eq!(type_counts.get("task_execution"), Some(&1));
-        assert_eq!(type_counts.get("status_update"), Some(&1));
-        assert_eq!(type_counts.get("worker_heartbeat"), Some(&1));
-        assert_eq!(type_counts.get("task_control"), Some(&1));
+    for message in &messages {
+        mq.publish_message(queue_name, message).await.unwrap();
     }
 
-    #[tokio::test]
-    async fn test_message_queue_empty_queue_operations() {
-        let mq = MockMessageQueue::new();
-        let queue_name = "empty_queue";
+    // Consume and verify
+    let consumed = mq.consume_messages(queue_name).await.unwrap();
+    assert_eq!(consumed.len(), 4);
 
-        // Test consuming from non-existent queue
-        let messages = mq.consume_messages(queue_name).await.unwrap();
-        assert_eq!(messages.len(), 0);
-
-        // Test getting size of non-existent queue
-        let size = mq.get_queue_size(queue_name).await.unwrap();
-        assert_eq!(size, 0);
-
-        // Test purging non-existent queue (should not fail)
-        mq.purge_queue(queue_name).await.unwrap();
+    // Verify message types
+    let mut type_counts = HashMap::new();
+    for message in consumed {
+        let type_str = message.message_type_str();
+        *type_counts.entry(type_str).or_insert(0) += 1;
     }
+
+    assert_eq!(type_counts.get("task_execution"), Some(&1));
+    assert_eq!(type_counts.get("status_update"), Some(&1));
+    assert_eq!(type_counts.get("worker_heartbeat"), Some(&1));
+    assert_eq!(type_counts.get("task_control"), Some(&1));
+}
+
+#[tokio::test]
+async fn test_message_queue_empty_queue_operations() {
+    let mq = MockMessageQueue::new();
+    let queue_name = "empty_queue";
+
+    // Test consuming from non-existent queue
+    let messages = mq.consume_messages(queue_name).await.unwrap();
+    assert_eq!(messages.len(), 0);
+
+    // Test getting size of non-existent queue
+    let size = mq.get_queue_size(queue_name).await.unwrap();
+    assert_eq!(size, 0);
+
+    // Test purging non-existent queue (should not fail)
+    mq.purge_queue(queue_name).await.unwrap();
 }

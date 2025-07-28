@@ -7,42 +7,11 @@ use chrono::Utc;
 use scheduler_core::{
     Message, MessageQueue, MessageType, Result, SchedulerError, StatusUpdateMessage,
     TaskExecutionMessage, TaskExecutor, TaskResult, TaskRun, TaskRunStatus, TaskStatusUpdate,
-    WorkerHeartbeatMessage, WorkerInfo, WorkerStatus,
+    WorkerHeartbeatMessage, WorkerInfo, WorkerServiceTrait, WorkerStatus,
 };
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
-
-/// Worker服务接口
-#[async_trait]
-pub trait WorkerServiceTrait: Send + Sync {
-    /// 启动Worker服务
-    async fn start(&self) -> Result<()>;
-
-    /// 停止Worker服务
-    async fn stop(&self) -> Result<()>;
-
-    /// 轮询并执行任务
-    async fn poll_and_execute_tasks(&self) -> Result<()>;
-
-    /// 发送状态更新
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()>;
-
-    /// 获取当前运行的任务数量
-    async fn get_current_task_count(&self) -> i32;
-
-    /// 检查是否可以接受新任务
-    async fn can_accept_task(&self, task_type: &str) -> bool;
-
-    /// 取消正在运行的任务
-    async fn cancel_task(&self, task_run_id: i64) -> Result<()>;
-
-    /// 获取正在运行的任务列表
-    async fn get_running_tasks(&self) -> Vec<TaskRun>;
-
-    /// 检查任务是否正在运行
-    async fn is_task_running(&self, task_run_id: i64) -> bool;
-}
 
 /// Worker服务构建器
 pub struct WorkerServiceBuilder {
@@ -501,31 +470,6 @@ impl WorkerService {
         Ok(())
     }
 
-    /// 发送心跳消息
-    async fn send_heartbeat(&self) -> Result<()> {
-        let current_task_count = self.get_current_task_count().await;
-
-        let heartbeat = WorkerHeartbeatMessage {
-            worker_id: self.worker_id.clone(),
-            current_task_count,
-            system_load: self.get_system_load().await,
-            memory_usage_mb: self.get_memory_usage().await,
-            timestamp: Utc::now(),
-        };
-
-        let message = Message::worker_heartbeat(heartbeat);
-        self.message_queue
-            .publish_message("worker_heartbeat", &message)
-            .await
-            .map_err(|e| SchedulerError::MessageQueue(format!("发送心跳失败: {e}")))?;
-
-        debug!(
-            "发送心跳: worker_id={}, task_count={}",
-            self.worker_id, current_task_count
-        );
-        Ok(())
-    }
-
     /// 获取系统负载（简化实现）
     async fn get_system_load(&self) -> Option<f64> {
         // TODO: 实现真实的系统负载获取
@@ -969,6 +913,31 @@ impl WorkerServiceTrait for WorkerService {
     async fn is_task_running(&self, task_run_id: i64) -> bool {
         let running_tasks = self.running_tasks.read().await;
         running_tasks.contains_key(&task_run_id)
+    }
+
+    /// 发送心跳消息
+    async fn send_heartbeat(&self) -> Result<()> {
+        let current_task_count = self.get_current_task_count().await;
+
+        let heartbeat = WorkerHeartbeatMessage {
+            worker_id: self.worker_id.clone(),
+            current_task_count,
+            system_load: self.get_system_load().await,
+            memory_usage_mb: self.get_memory_usage().await,
+            timestamp: Utc::now(),
+        };
+
+        let message = Message::worker_heartbeat(heartbeat);
+        self.message_queue
+            .publish_message("worker_heartbeat", &message)
+            .await
+            .map_err(|e| SchedulerError::MessageQueue(format!("发送心跳失败: {e}")))?;
+
+        debug!(
+            "发送心跳: worker_id={}, task_count={}",
+            self.worker_id, current_task_count
+        );
+        Ok(())
     }
 }
 
