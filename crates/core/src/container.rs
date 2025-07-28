@@ -205,16 +205,6 @@ impl ServiceLocator {
 mod tests {
     use super::*;
 
-    struct MockService {
-        id: String,
-    }
-
-    impl MockService {
-        fn new(id: String) -> Self {
-            Self { id }
-        }
-    }
-
     #[tokio::test]
     async fn test_service_container_basic_functionality() {
         let container = ServiceContainer::new();

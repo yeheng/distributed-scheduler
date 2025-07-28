@@ -787,7 +787,6 @@ async fn test_recover_system_state() {
     let report = result.unwrap();
     assert_eq!(report.recovered_tasks.len(), 2); // Both tasks should be recovered
     assert_eq!(report.failed_workers.len(), 1); // One worker should be marked as failed
-    assert!(report.recovery_duration_ms >= 0); // Duration can be 0 in fast tests
     assert!(report.errors.is_empty());
 }
 
