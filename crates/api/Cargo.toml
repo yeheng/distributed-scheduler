@@ -3,8 +3,13 @@ name = "scheduler-api"
 version = "0.1.0"
 edition = "2021"
 
+[[bin]]
+name = "api-server"
+path = "src/bin/api-server.rs"
+
 [dependencies]
 scheduler-core = { path = "../core" }
+scheduler-infrastructure = { path = "../infrastructure" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -13,3 +18,9 @@ anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
+tracing-subscriber = "0.3"
+axum = "0.8"
+tower = "0.5"
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+hyper = { version = "1.0", features = ["full"] }
+uuid = { workspace = true }

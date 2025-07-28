@@ -1,2 +1,4 @@
-// API handlers implementation placeholder
-// This will be implemented in later tasks
+pub mod health;
+pub mod system;
+pub mod tasks;
+pub mod workers;
