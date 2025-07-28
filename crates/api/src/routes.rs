@@ -30,9 +30,10 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/health", get(health_check))
         // 任务管理API
         .route("/api/tasks", get(list_tasks).post(create_task))
-        .route("/api/tasks/{id}", get(get_task))
-        .route("/api/tasks/{id}/update", post(update_task))
-        .route("/api/tasks/{id}/delete", post(delete_task))
+        .route(
+            "/api/tasks/{id}",
+            get(get_task).put(update_task).delete(delete_task),
+        )
         .route("/api/tasks/{id}/trigger", post(trigger_task))
         .route("/api/tasks/{id}/runs", get(get_task_runs))
         .route("/api/task-runs/{id}", get(get_task_run))

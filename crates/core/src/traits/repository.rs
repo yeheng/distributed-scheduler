@@ -155,7 +155,7 @@ pub trait WorkerRepository: Send + Sync {
 }
 
 /// 任务执行统计信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct TaskExecutionStats {
     pub task_id: i64,
     pub total_runs: i64,
@@ -168,7 +168,7 @@ pub struct TaskExecutionStats {
 }
 
 /// Worker负载统计信息
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, serde::Serialize)]
 pub struct WorkerLoadStats {
     pub worker_id: String,
     pub current_task_count: i32,
