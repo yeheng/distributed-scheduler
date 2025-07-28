@@ -10,55 +10,112 @@ name = "scheduler"
 path = "src/main.rs"
 
 [dependencies]
-# Workspace crates
+# 工作区内部crates
 scheduler-core = { path = "crates/core" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
 scheduler-worker = { path = "crates/worker" }
 scheduler-api = { path = "crates/api" }
 scheduler-infrastructure = { path = "crates/infrastructure" }
 
-# External dependencies
+# 异步运行时和基础工具
 tokio = { workspace = true }
 anyhow = { workspace = true }
+async-trait = "0.1"
+futures = "0.3"
+
+# Web框架和HTTP相关
+axum = "0.8"
+tower = "0.5"
+hyper = { version = "1.6", features = ["full"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+reqwest = { version = "0.12", features = ["json"] }
+
+# 数据库相关
+sqlx = { workspace = true, features = ["migrate"] }
+lapin = "3.0.1"
+
+# 日志和监控
 tracing = { workspace = true }
 tracing-subscriber = { workspace = true }
-clap = { version = "4.0", features = ["derive"] }
-sqlx = { workspace = true, features = ["migrate"] }
-axum = "0.8"
-
-[workspace]
-resolver = "2"
-members = [
-    "crates/core",
-    "crates/dispatcher", 
-    "crates/worker",
-    "crates/api",
-    "crates/infrastructure"
-]
-
-[workspace.dependencies]
-tokio = { version = "1.0", features = ["full"] }
-serde = { version = "1.0", features = ["derive"] }
-serde_json = "1.0"
-toml = "0.9.2"
-config = "0.15"
-chrono = { version = "0.4", features = ["serde"] }
-uuid = { version = "1.0", features = ["v4", "serde"] }
-anyhow = "1.0"
-thiserror = "2.0"
-tracing = "0.1"
-async-trait = "0.1"
-sqlx = { version = "0.8", features = ["runtime-tokio-rustls", "postgres", "chrono", "uuid", "json"] }
-tempfile = "3.0"
-lapin = "3.0.1"
-futures = "0.3"
-cron = "0.15"
-# OpenTelemetry dependencies
 opentelemetry = "0.30"
 opentelemetry-otlp = "0.30"
 opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
 opentelemetry-semantic-conventions = "0.30"
 tracing-opentelemetry = "0.31"
-tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 metrics = "0.24"
 metrics-exporter-prometheus = "0.17"
+
+# 命令行工具
+clap = { version = "4.0", features = ["derive"] }
+
+# 其他工具
+rand = "0.9"
+hostname = "0.4"
+tempfile = "3.0"
+
+[workspace]
+resolver = "2"
+members = [
+    "crates/core",
+    "crates/dispatcher",
+    "crates/worker",
+    "crates/api",
+    "crates/infrastructure",
+]
+
+[workspace.dependencies]
+# 序列化和配置
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9.2"
+config = "0.15"
+
+# 异步和基础工具
+tokio = { version = "1.0", features = ["full"] }
+anyhow = "1.0"
+thiserror = "2.0"
+async-trait = "0.1"
+futures = "0.3"
+
+# 数据库相关
+sqlx = { version = "0.8", features = [
+    "runtime-tokio-rustls",
+    "postgres",
+    "chrono",
+    "uuid",
+    "json",
+] }
+lapin = "3.0.1"
+
+# 时间处理
+chrono = { version = "0.4", features = ["serde"] }
+cron = "0.15"
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+# 日志和监控
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+opentelemetry = "0.30"
+opentelemetry-otlp = "0.30"
+opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+opentelemetry-semantic-conventions = "0.30"
+tracing-opentelemetry = "0.31"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.17"
+
+# Web框架和HTTP相关
+axum = "0.8"
+tower = "0.5"
+hyper = { version = "1.6", features = ["full"] }
+reqwest = { version = "0.12", features = ["json"] }
+tower-http = { version = "0.6", features = ["cors", "trace"] }
+
+# 测试相关
+testcontainers = "0.24"
+testcontainers-modules = { version = "0.12", features = ["postgres"] }
+tokio-test = "0.4"
+
+# 其他工具
+tempfile = "3.0"
+rand = "0.9"
+hostname = "0.4"
