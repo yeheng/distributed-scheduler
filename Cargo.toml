@@ -25,3 +25,12 @@ tempfile = "3.0"
 lapin = "3.0.1"
 futures = "0.3"
 cron = "0.15"
+# OpenTelemetry dependencies
+opentelemetry = "0.24"
+opentelemetry-otlp = "0.17"
+opentelemetry_sdk = { version = "0.24", features = ["rt-tokio"] }
+opentelemetry-semantic-conventions = "0.16"
+tracing-opentelemetry = "0.25"
+tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
+metrics = "0.23"
+metrics-exporter-prometheus = "0.15"

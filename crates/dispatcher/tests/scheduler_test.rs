@@ -10,6 +10,11 @@ mod tests {
     use std::sync::{Arc, Mutex};
 
     use scheduler_dispatcher::scheduler::*;
+    use scheduler_infrastructure::MetricsCollector;
+
+    fn create_test_metrics() -> Arc<MetricsCollector> {
+        Arc::new(MetricsCollector::new().unwrap())
+    }
 
     // Mock MessageQueue for testing
     #[derive(Debug, Clone)]
@@ -333,6 +338,7 @@ mod tests {
             task_run_repo,
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 测试调度器创建成功
@@ -350,6 +356,7 @@ mod tests {
             task_run_repo,
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建一个每分钟执行的任务
@@ -396,6 +403,7 @@ mod tests {
             task_run_repo.clone(),
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建没有依赖的任务
@@ -473,6 +481,7 @@ mod tests {
             task_run_repo.clone(),
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         let task = Task {
@@ -512,6 +521,7 @@ mod tests {
             task_run_repo.clone(),
             message_queue.clone(),
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         let task = Task {
@@ -576,6 +586,7 @@ mod tests {
             task_run_repo.clone(),
             message_queue.clone(),
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建一个应该被调度的任务
@@ -619,6 +630,7 @@ mod tests {
             task_run_repo.clone(),
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建一个每分钟执行的任务
@@ -677,6 +689,7 @@ mod tests {
             task_run_repo,
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建一个每小时执行的任务
@@ -717,6 +730,7 @@ mod tests {
             task_run_repo,
             message_queue,
             "test_queue".to_string(),
+            create_test_metrics(),
         );
 
         // 创建一个有效CRON表达式的任务

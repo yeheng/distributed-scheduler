@@ -519,3 +519,28 @@ pub async fn get_task_run(
     let response = TaskRunResponse::from(task_run);
     Ok(success(response))
 }
+
+/// 获取任务执行统计信息
+pub async fn get_task_execution_stats(
+    State(state): State<AppState>,
+    Path(id): Path<i64>,
+    Query(params): Query<TaskStatsQueryParams>,
+) -> ApiResult<impl axum::response::IntoResponse> {
+    // 首先检查任务是否存在
+    let _task = state
+        .task_repo
+        .get_by_id(id)
+        .await?
+        .ok_or(ApiError::NotFound)?;
+
+    let days = params.days.unwrap_or(30).clamp(1, 365);
+    let stats = state.task_run_repo.get_execution_stats(id, days).await?;
+
+    Ok(success(stats))
+}
+
+/// 任务统计查询参数
+#[derive(Debug, Deserialize)]
+pub struct TaskStatsQueryParams {
+    pub days: Option<i32>,
+}

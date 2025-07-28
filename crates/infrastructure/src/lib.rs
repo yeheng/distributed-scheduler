@@ -4,3 +4,4 @@ pub mod observability;
 
 pub use database::*;
 pub use message_queue::*;
+pub use observability::*;

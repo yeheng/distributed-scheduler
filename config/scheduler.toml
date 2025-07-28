@@ -1,7 +1,7 @@
 # 分布式任务调度系统配置文件
 
 [database]
-url = "postgresql://localhost:5432/scheduler"
+url = "postgresql://postgres:123456@localhost:5432/scheduler"
 max_connections = 20
 min_connections = 2
 connection_timeout_seconds = 30

@@ -83,7 +83,7 @@ mod tests {
             &self,
             _filter: &scheduler_core::models::TaskFilter,
         ) -> scheduler_core::Result<Vec<scheduler_core::models::Task>> {
-            unimplemented!()
+            Ok(vec![])
         }
 
         async fn get_active_tasks(
@@ -164,7 +164,7 @@ mod tests {
             &self,
             _status: scheduler_core::models::TaskRunStatus,
         ) -> scheduler_core::Result<Vec<scheduler_core::models::TaskRun>> {
-            unimplemented!()
+            Ok(vec![])
         }
 
         async fn get_pending_runs(
@@ -263,13 +263,13 @@ mod tests {
         }
 
         async fn list(&self) -> scheduler_core::Result<Vec<scheduler_core::models::WorkerInfo>> {
-            unimplemented!()
+            Ok(vec![])
         }
 
         async fn get_alive_workers(
             &self,
         ) -> scheduler_core::Result<Vec<scheduler_core::models::WorkerInfo>> {
-            unimplemented!()
+            Ok(vec![])
         }
 
         async fn get_workers_by_task_type(
@@ -424,9 +424,23 @@ mod tests {
 
         // Test system stats endpoint
         let response = app
+            .clone()
             .oneshot(
                 Request::builder()
                     .uri("/api/system/stats")
+                    .body(Body::empty())
+                    .unwrap(),
+            )
+            .await
+            .unwrap();
+
+        assert_eq!(response.status(), StatusCode::OK);
+
+        // Test system health endpoint
+        let response = app
+            .oneshot(
+                Request::builder()
+                    .uri("/api/system/health")
                     .body(Body::empty())
                     .unwrap(),
             )

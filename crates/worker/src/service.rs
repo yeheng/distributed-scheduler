@@ -6,6 +6,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use scheduler_core::models::*;
 use scheduler_core::*;
+use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer};
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{debug, error, info, warn};
@@ -23,6 +24,7 @@ pub struct WorkerServiceBuilder {
     dispatcher_url: Option<String>,
     hostname: String,
     ip_address: String,
+    metrics: Option<Arc<MetricsCollector>>,
 }
 
 impl WorkerServiceBuilder {
@@ -48,6 +50,7 @@ impl WorkerServiceBuilder {
                 .to_string_lossy()
                 .to_string(),
             ip_address: "127.0.0.1".to_string(),
+            metrics: None,
         }
     }
 
@@ -93,11 +96,25 @@ impl WorkerServiceBuilder {
         self
     }
 
+    /// 设置指标收集器
+    pub fn with_metrics(mut self, metrics: Arc<MetricsCollector>) -> Self {
+        self.metrics = Some(metrics);
+        self
+    }
+
     /// 构建WorkerService
     pub async fn build(self) -> Result<WorkerService> {
         let executor_registry = self
             .executor_registry
             .ok_or_else(|| SchedulerError::Internal("Executor registry is required".to_string()))?;
+
+        let metrics = self.metrics.unwrap_or_else(|| {
+            Arc::new(MetricsCollector::new().unwrap_or_else(|e| {
+                tracing::warn!("Failed to create metrics collector: {}", e);
+                // Return a dummy metrics collector that does nothing
+                MetricsCollector::new().unwrap()
+            }))
+        });
 
         Ok(WorkerService {
             worker_id: self.worker_id,
@@ -115,6 +132,7 @@ impl WorkerServiceBuilder {
             shutdown_tx: Arc::new(RwLock::new(None)),
             is_running: Arc::new(RwLock::new(false)),
             http_client: reqwest::Client::new(),
+            metrics,
         })
     }
 }
@@ -165,6 +183,9 @@ pub struct WorkerService {
 
     /// HTTP客户端
     http_client: reqwest::Client,
+
+    /// 指标收集器
+    metrics: Arc<MetricsCollector>,
 }
 
 impl WorkerService {
@@ -191,7 +212,16 @@ impl WorkerService {
     /// 处理任务执行消息 - 使用新的执行上下文
     async fn handle_task_execution(&self, message: TaskExecutionMessage) -> Result<()> {
         let task_run_id = message.task_run_id;
-        let task_type = &message.task_type;
+        let task_type = message.task_type.clone();
+
+        let span = TaskTracer::execute_task_span(
+            task_run_id,
+            message.task_id,
+            &message.task_name,
+            &task_type,
+            &self.worker_id,
+        );
+        let _guard = span.enter();
 
         info!(
             "收到任务执行请求: task_run_id={}, task_type={}, timeout={}s",
@@ -199,7 +229,7 @@ impl WorkerService {
         );
 
         // 从执行器注册表获取合适的执行器
-        let executor = match self.executor_registry.get(task_type).await {
+        let executor = match self.executor_registry.get(&task_type).await {
             Some(executor) => executor,
             None => {
                 error!("未找到支持任务类型 '{}' 的执行器", task_type);
@@ -272,6 +302,15 @@ impl WorkerService {
             running_tasks.insert(task_run_id, task_run);
         }
 
+        // Log task execution start
+        StructuredLogger::log_task_execution_start(
+            task_run_id,
+            message.task_id,
+            &message.task_name,
+            &task_type,
+            &self.worker_id,
+        );
+
         // 发送运行状态更新
         self.send_task_status_update(task_run_id, TaskRunStatus::Running, None, None)
             .await?;
@@ -283,6 +322,7 @@ impl WorkerService {
         let status_queue = self.status_queue.clone();
         let timeout_duration = Duration::from_secs(message.timeout_seconds as u64);
         let task_name = message.task_name.clone();
+        let metrics = Arc::clone(&self.metrics);
 
         tokio::spawn(async move {
             let execution_start = std::time::Instant::now();
@@ -293,16 +333,54 @@ impl WorkerService {
                     match exec_result {
                         Ok(task_result) => {
                             if task_result.success {
-                                info!(
-                                    "任务执行成功: task_run_id={}, task_name={}, duration={}ms",
-                                    task_run_id, task_name, task_result.execution_time_ms
+                                // Log structured completion
+                                StructuredLogger::log_task_execution_complete(
+                                    task_run_id,
+                                    &task_name,
+                                    &task_type,
+                                    &worker_id,
+                                    true,
+                                    task_result.execution_time_ms,
+                                    None,
                                 );
+
+                                // Record successful task execution metrics
+                                metrics.record_task_execution(
+                                    &task_type,
+                                    "completed",
+                                    task_result.execution_time_ms as f64 / 1000.0
+                                );
+
+                                // Record tracing information
+                                TaskTracer::record_task_result(
+                                    true,
+                                    task_result.execution_time_ms,
+                                    None
+                                );
+
                                 (TaskRunStatus::Completed, Some(task_result), None)
                             } else {
-                                warn!(
-                                    "任务执行失败: task_run_id={}, task_name={}, error={:?}",
-                                    task_run_id, task_name, task_result.error_message
+                                // Log structured failure
+                                StructuredLogger::log_task_execution_complete(
+                                    task_run_id,
+                                    &task_name,
+                                    &task_type,
+                                    &worker_id,
+                                    false,
+                                    task_result.execution_time_ms,
+                                    task_result.error_message.as_deref(),
                                 );
+
+                                // Record failed task execution metrics
+                                metrics.record_task_failure(&task_type, "execution_error");
+
+                                // Record tracing information
+                                TaskTracer::record_task_result(
+                                    false,
+                                    task_result.execution_time_ms,
+                                    task_result.error_message.as_deref()
+                                );
+
                                 (
                                     TaskRunStatus::Failed,
                                     Some(task_result.clone()),
@@ -311,14 +389,21 @@ impl WorkerService {
                             }
                         }
                         Err(e) => {
-                            error!(
-                                "任务执行异常: task_run_id={}, task_name={}, error={}",
-                                task_run_id, task_name, e
-                            );
+                            let error_msg = format!("任务执行异常: {e}");
+
+                            // Log structured error
+                            StructuredLogger::log_system_error("worker", "execute_task", &e);
+
+                            // Record task execution exception metrics
+                            metrics.record_task_failure(&task_type, "execution_exception");
+
+                            // Record tracing information
+                            TaskTracer::record_error(&e);
+
                             (
                                 TaskRunStatus::Failed,
                                 None,
-                                Some(format!("任务执行异常: {e}")),
+                                Some(error_msg),
                             )
                         }
                     }
@@ -332,6 +417,16 @@ impl WorkerService {
                     if let Err(e) = executor.cancel(task_run_id).await {
                         warn!("取消超时任务失败: task_run_id={}, error={}", task_run_id, e);
                     }
+
+                    // Record task timeout metrics
+                    metrics.record_task_failure(&task_type, "timeout");
+
+                    // Record tracing information
+                    TaskTracer::record_task_result(
+                        false,
+                        message.timeout_seconds as u64 * 1000,
+                        Some(&format!("任务执行超时 ({}s)", message.timeout_seconds))
+                    );
 
                     (
                         TaskRunStatus::Timeout,
@@ -532,6 +627,12 @@ impl WorkerService {
     pub async fn send_heartbeat_to_dispatcher(&self) -> Result<()> {
         if let Some(ref dispatcher_url) = self.dispatcher_url {
             let current_task_count = self.get_current_task_count().await;
+
+            // Update worker metrics
+            self.metrics
+                .update_worker_capacity(&self.worker_id, self.max_concurrent_tasks as f64);
+            self.metrics
+                .update_worker_load(&self.worker_id, current_task_count as f64);
 
             let heartbeat_data = serde_json::json!({
                 "current_task_count": current_task_count,
@@ -931,6 +1032,7 @@ impl Clone for WorkerService {
             shutdown_tx: Arc::clone(&self.shutdown_tx),
             is_running: Arc::clone(&self.is_running),
             http_client: self.http_client.clone(),
+            metrics: Arc::clone(&self.metrics),
         }
     }
 }

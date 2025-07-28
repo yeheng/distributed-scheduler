@@ -9,6 +9,8 @@ use scheduler_core::{
     traits::{MessageQueue, TaskRepository, TaskRunRepository, TaskSchedulerService},
     Result, SchedulerError,
 };
+use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer};
+use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::cron_utils::CronScheduler;
 use crate::dependency_checker::{DependencyCheckService, DependencyChecker};
@@ -20,6 +22,7 @@ pub struct TaskScheduler {
     pub message_queue: Arc<dyn MessageQueue>,
     pub task_queue_name: String,
     pub dependency_checker: DependencyChecker,
+    pub metrics: Arc<MetricsCollector>,
 }
 
 impl TaskScheduler {
@@ -29,6 +32,7 @@ impl TaskScheduler {
         task_run_repo: Arc<dyn TaskRunRepository>,
         message_queue: Arc<dyn MessageQueue>,
         task_queue_name: String,
+        metrics: Arc<MetricsCollector>,
     ) -> Self {
         let dependency_checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
 
@@ -38,6 +42,7 @@ impl TaskScheduler {
             message_queue,
             task_queue_name,
             dependency_checker,
+            metrics,
         }
     }
 
@@ -124,6 +129,9 @@ impl TaskScheduler {
 impl TaskSchedulerService for TaskScheduler {
     /// 扫描并调度任务
     async fn scan_and_schedule(&self) -> Result<Vec<TaskRun>> {
+        let span = tracing::info_span!("scan_and_schedule");
+        let _guard = span.enter();
+        let start_time = std::time::Instant::now();
         info!("开始扫描需要调度的任务");
 
         // 获取所有活跃任务
@@ -131,20 +139,33 @@ impl TaskSchedulerService for TaskScheduler {
         let mut scheduled_runs = Vec::new();
 
         for task in active_tasks {
+            let task_span = TaskTracer::schedule_task_span(task.id, &task.name, &task.task_type);
+            let _task_guard = task_span.enter();
+
             match self.schedule_task_if_needed(&task).await {
                 Ok(Some(task_run)) => {
-                    info!("成功调度任务: {} (运行实例ID: {})", task.name, task_run.id);
+                    StructuredLogger::log_task_scheduled(
+                        task.id,
+                        &task.name,
+                        &task.task_type,
+                        task_run.scheduled_at,
+                    );
                     scheduled_runs.push(task_run);
                 }
                 Ok(None) => {
                     // 任务不需要调度，这是正常情况
                 }
                 Err(e) => {
-                    error!("调度任务 {} 时发生错误: {}", task.name, e);
+                    StructuredLogger::log_system_error("dispatcher", "schedule_task", &e);
+                    TaskTracer::record_error(&e);
                     // 继续处理其他任务，不因为单个任务失败而停止整个调度过程
                 }
             }
         }
+
+        // Record scheduling metrics
+        let duration = start_time.elapsed().as_secs_f64();
+        self.metrics.record_scheduling_duration(duration);
 
         info!("本次调度完成，共调度了 {} 个任务", scheduled_runs.len());
         Ok(scheduled_runs)
@@ -152,14 +173,24 @@ impl TaskSchedulerService for TaskScheduler {
 
     /// 检查任务依赖
     async fn check_dependencies(&self, task: &Task) -> Result<bool> {
+        let span = TaskTracer::dependency_check_span(task.id, &task.name);
+        let _guard = span.enter();
         let check_result = self.dependency_checker.check_dependencies(task).await?;
+
+        StructuredLogger::log_dependency_check(
+            task.id,
+            &task.name,
+            check_result.can_execute,
+            check_result.reason.as_deref(),
+        );
 
         if !check_result.can_execute {
             if let Some(reason) = &check_result.reason {
-                warn!("任务 {} 依赖检查失败: {}", task.name, reason);
+                tracing::Span::current().set_attribute("dependency.check.result", "failed");
+                tracing::Span::current().set_attribute("dependency.check.reason", reason.clone());
             }
         } else {
-            debug!("任务 {} 的所有依赖都已满足", task.name);
+            tracing::Span::current().set_attribute("dependency.check.result", "passed");
         }
 
         Ok(check_result.can_execute)
@@ -189,6 +220,10 @@ impl TaskSchedulerService for TaskScheduler {
 
     /// 分发任务到消息队列
     async fn dispatch_to_queue(&self, task_run: &TaskRun) -> Result<()> {
+        let span = tracing::info_span!("dispatch_to_queue", task_run.id = task_run.id);
+        let _guard = span.enter();
+        let _start_time = std::time::Instant::now();
+
         // 获取任务信息
         let task = self
             .task_repo
@@ -203,14 +238,34 @@ impl TaskSchedulerService for TaskScheduler {
         let message = Message::task_execution(task_execution);
 
         // 发送到消息队列
-        self.message_queue
-            .publish_message(&self.task_queue_name, &message)
-            .await?;
+        let mq_start = std::time::Instant::now();
+        {
+            let mq_span = TaskTracer::message_queue_span("publish", &self.task_queue_name);
+            let _mq_guard = mq_span.enter();
+            self.message_queue
+                .publish_message(&self.task_queue_name, &message)
+                .await?;
+        }
+
+        // Record message queue operation metrics
+        let mq_duration = mq_start.elapsed().as_secs_f64();
+        self.metrics
+            .record_message_queue_operation("publish", mq_duration);
 
         // 更新任务运行状态为已分发
-        self.task_run_repo
-            .update_status(task_run.id, TaskRunStatus::Dispatched, None)
-            .await?;
+        let db_start = std::time::Instant::now();
+        {
+            let db_span = TaskTracer::database_span("update", "task_runs");
+            let _db_guard = db_span.enter();
+            self.task_run_repo
+                .update_status(task_run.id, TaskRunStatus::Dispatched, None)
+                .await?;
+        }
+
+        // Record database operation metrics
+        let db_duration = db_start.elapsed().as_secs_f64();
+        self.metrics
+            .record_database_operation("update_task_run_status", db_duration);
 
         info!("任务运行实例 {} 已分发到消息队列", task_run.id);
 

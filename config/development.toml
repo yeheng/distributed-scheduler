@@ -1,7 +1,7 @@
 # 开发环境配置文件
 
 [database]
-url = "postgresql://scheduler:scheduler@localhost:5432/scheduler_dev"
+url = "postgresql://postgres:123456@localhost:5432/scheduler"
 max_connections = 10
 min_connections = 1
 connection_timeout_seconds = 30

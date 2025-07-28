@@ -8,8 +8,8 @@ use crate::handlers::{
     health::health_check,
     system::{get_system_health, get_system_stats},
     tasks::{
-        create_task, delete_task, get_task, get_task_run, get_task_runs, list_tasks, trigger_task,
-        update_task,
+        create_task, delete_task, get_task, get_task_execution_stats, get_task_run, get_task_runs,
+        list_tasks, trigger_task, update_task,
     },
     workers::{get_worker, get_worker_stats, list_workers},
 };
@@ -44,5 +44,7 @@ pub fn create_routes(state: AppState) -> Router {
         // 系统监控API
         .route("/api/system/stats", get(get_system_stats))
         .route("/api/system/health", get(get_system_health))
+        // 任务执行统计API
+        .route("/api/tasks/{id}/stats", get(get_task_execution_stats))
         .with_state(state)
 }
