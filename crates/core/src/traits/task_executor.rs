@@ -157,6 +157,7 @@ pub trait TaskExecutor: Send + Sync {
 }
 
 /// 执行器工厂trait - 用于创建执行器实例
+/// 修复: 返回Arc而不Box以保持一致性
 #[async_trait]
 pub trait ExecutorFactory: Send + Sync {
     /// 创建执行器实例
@@ -164,7 +165,7 @@ pub trait ExecutorFactory: Send + Sync {
         &self,
         executor_type: &str,
         config: &ExecutorConfig,
-    ) -> Result<Box<dyn TaskExecutor>>;
+    ) -> Result<Arc<dyn TaskExecutor>>;
 
     /// 获取支持的执行器类型
     fn supported_types(&self) -> Vec<String>;
@@ -198,10 +199,11 @@ impl Default for ExecutorConfig {
 }
 
 /// 执行器注册表trait - 管理执行器生命周期（异步版本）
+/// 修复: 统一使用Arc<dyn TaskExecutor>以实现线程安全共享
 #[async_trait]
 pub trait ExecutorRegistry: Send + Sync {
-    /// 注册执行器
-    async fn register(&mut self, name: String, executor: Box<dyn TaskExecutor>) -> Result<()>;
+    /// 注册执行器 - 使用Arc确保线程安全
+    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> Result<()>;
 
     /// 获取执行器(返回Arc包装以支持异步)
     async fn get(&self, name: &str) -> Option<Arc<dyn TaskExecutor>>;

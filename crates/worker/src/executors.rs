@@ -572,7 +572,7 @@ impl MockTaskExecutor {
 
 #[async_trait]
 impl TaskExecutor for MockTaskExecutor {
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> Result<TaskResult> {
+    async fn execute_task(&self, _context: &TaskExecutionContextTrait) -> Result<TaskResult> {
         // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
@@ -595,7 +595,7 @@ impl TaskExecutor for MockTaskExecutor {
         }
     }
 
-    async fn execute(&self, task_run: &TaskRun) -> Result<TaskResult> {
+    async fn execute(&self, _task_run: &TaskRun) -> Result<TaskResult> {
         // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
