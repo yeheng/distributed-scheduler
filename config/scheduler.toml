@@ -1,9 +1,7 @@
-# 分布式任务调度系统配置文件
-
 [database]
-url = "postgresql://postgres:123456@localhost:5432/scheduler"
-max_connections = 20
-min_connections = 2
+url = "postgresql://postgres:123456@localhost/scheduler"
+max_connections = 10
+min_connections = 1
 connection_timeout_seconds = 30
 idle_timeout_seconds = 600
 
@@ -47,4 +45,4 @@ tracing_enabled = true
 metrics_enabled = true
 metrics_endpoint = "/metrics"
 log_level = "info"
-jaeger_endpoint = "http://localhost:14268/api/traces"
+jaeger_endpoint = null

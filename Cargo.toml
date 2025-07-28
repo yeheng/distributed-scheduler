@@ -1,3 +1,31 @@
+[package]
+name = "scheduler"
+version = "1.0.0"
+edition = "2021"
+description = "分布式任务调度系统"
+authors = ["Scheduler Team"]
+
+[[bin]]
+name = "scheduler"
+path = "src/main.rs"
+
+[dependencies]
+# Workspace crates
+scheduler-core = { path = "crates/core" }
+scheduler-dispatcher = { path = "crates/dispatcher" }
+scheduler-worker = { path = "crates/worker" }
+scheduler-api = { path = "crates/api" }
+scheduler-infrastructure = { path = "crates/infrastructure" }
+
+# External dependencies
+tokio = { workspace = true }
+anyhow = { workspace = true }
+tracing = { workspace = true }
+tracing-subscriber = { workspace = true }
+clap = { version = "4.0", features = ["derive"] }
+sqlx = { workspace = true, features = ["migrate"] }
+axum = "0.8"
+
 [workspace]
 resolver = "2"
 members = [
@@ -26,11 +54,11 @@ lapin = "3.0.1"
 futures = "0.3"
 cron = "0.15"
 # OpenTelemetry dependencies
-opentelemetry = "0.24"
-opentelemetry-otlp = "0.17"
-opentelemetry_sdk = { version = "0.24", features = ["rt-tokio"] }
-opentelemetry-semantic-conventions = "0.16"
-tracing-opentelemetry = "0.25"
+opentelemetry = "0.30"
+opentelemetry-otlp = "0.30"
+opentelemetry_sdk = { version = "0.30", features = ["rt-tokio"] }
+opentelemetry-semantic-conventions = "0.30"
+tracing-opentelemetry = "0.31"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
-metrics = "0.23"
-metrics-exporter-prometheus = "0.15"
+metrics = "0.24"
+metrics-exporter-prometheus = "0.17"
