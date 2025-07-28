@@ -20,7 +20,7 @@ impl TestApp {
     pub async fn spawn() -> TestApp {
         // 设置测试数据库连接
         let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://postgres:password@localhost:5432/scheduler_test".to_string()
+            "postgresql://postgres:123456@localhost:5432/scheduler".to_string()
         });
 
         let db_pool = PgPool::connect(&database_url)
