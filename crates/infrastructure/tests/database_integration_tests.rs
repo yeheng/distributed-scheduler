@@ -7,7 +7,7 @@ use scheduler_infrastructure::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 use sqlx::PgPool;
-use testcontainers::runners::SyncRunner;
+use testcontainers::{runners::SyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 
 /// 测试数据库设置辅助函数
@@ -15,7 +15,8 @@ async fn setup_test_database() -> (testcontainers::Container<Postgres>, PgPool) 
     let postgres_image = Postgres::default()
         .with_db_name("scheduler_test")
         .with_user("test_user")
-        .with_password("test_password");
+        .with_password("test_password")
+        .with_tag("16-alpine");
 
     let container = postgres_image.start().unwrap();
     let connection_string = format!(

@@ -39,11 +39,7 @@ impl PostgresTaskRepository {
             parameters: row.try_get("parameters")?,
             timeout_seconds: row.try_get("timeout_seconds")?,
             max_retries: row.try_get("max_retries")?,
-            status: match row.try_get::<String, _>("status")?.as_str() {
-                "ACTIVE" => TaskStatus::Active,
-                "INACTIVE" => TaskStatus::Inactive,
-                _ => return Err(SchedulerError::Internal(String::from("无效的任务状态"))),
-            },
+            status: row.try_get("status")?,
             dependencies,
             shard_config,
             created_at: row.try_get("created_at")?,
@@ -66,7 +62,7 @@ impl TaskRepository for PostgresTaskRepository {
         let row = sqlx::query(
             r#"
             INSERT INTO tasks (name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config)
-            VALUES ($1, $2, $3, $4, $5, $6, $7::task_status, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
             RETURNING id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at
             "#,
         )
@@ -76,10 +72,7 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(&task.parameters)
         .bind(task.timeout_seconds)
         .bind(task.max_retries)
-        .bind(match task.status {
-            TaskStatus::Active => "ACTIVE",
-            TaskStatus::Inactive => "INACTIVE",
-        })
+        .bind(task.status)
         .bind(&task.dependencies)
         .bind(shard_config_json)
         .fetch_one(&self.pool)
@@ -139,7 +132,7 @@ impl TaskRepository for PostgresTaskRepository {
             r#"
             UPDATE tasks 
             SET name = $2, task_type = $3, schedule = $4, parameters = $5, 
-                timeout_seconds = $6, max_retries = $7, status = $8::task_status, 
+                timeout_seconds = $6, max_retries = $7, status = $8, 
                 dependencies = $9, shard_config = $10, updated_at = NOW()
             WHERE id = $1
             "#,
@@ -151,10 +144,7 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(&task.parameters)
         .bind(task.timeout_seconds)
         .bind(task.max_retries)
-        .bind(match task.status {
-            TaskStatus::Active => "ACTIVE",
-            TaskStatus::Inactive => "INACTIVE",
-        })
+        .bind(task.status)
         .bind(&task.dependencies)
         .bind(shard_config_json)
         .execute(&self.pool)
@@ -222,10 +212,7 @@ impl TaskRepository for PostgresTaskRepository {
 
         // 绑定参数
         if let Some(status) = filter.status {
-            sqlx_query = sqlx_query.bind(match status {
-                TaskStatus::Active => "ACTIVE",
-                TaskStatus::Inactive => "INACTIVE",
-            });
+            sqlx_query = sqlx_query.bind(status);
         }
 
         if let Some(task_type) = &filter.task_type {

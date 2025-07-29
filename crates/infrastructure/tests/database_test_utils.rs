@@ -1,8 +1,8 @@
 use anyhow::Result;
 use sqlx::{PgPool, Row};
 use std::collections::HashMap;
-use testcontainers::runners::AsyncRunner;
-use testcontainers::{ContainerAsync, Image};
+use testcontainers::ContainerAsync;
+use testcontainers::{runners::AsyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, Duration};
 
@@ -11,7 +11,6 @@ pub struct DatabaseTestContainer {
     #[allow(dead_code)]
     container: ContainerAsync<Postgres>,
     pub pool: PgPool,
-    pub database_url: String,
 }
 
 impl DatabaseTestContainer {
@@ -21,7 +20,8 @@ impl DatabaseTestContainer {
         let postgres_image = Postgres::default()
             .with_db_name("scheduler_test")
             .with_user("test_user")
-            .with_password("test_password");
+            .with_password("test_password")
+            .with_tag("16-alpine");
 
         let container = postgres_image.start().await?;
         let port = container.get_host_port_ipv4(5432).await?;
@@ -45,11 +45,7 @@ impl DatabaseTestContainer {
             }
         };
 
-        Ok(Self {
-            container,
-            pool,
-            database_url,
-        })
+        Ok(Self { container, pool })
     }
 
     /// Run database migrations

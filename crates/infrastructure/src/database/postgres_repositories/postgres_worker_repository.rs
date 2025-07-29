@@ -32,15 +32,7 @@ impl PostgresWorkerRepository {
             supported_task_types,
             max_concurrent_tasks: row.try_get("max_concurrent_tasks")?,
             current_task_count: 0, // 这个字段不在数据库中，需要从task_runs表计算
-            status: match row.try_get::<String, _>("status")?.as_str() {
-                "ALIVE" => WorkerStatus::Alive,
-                "DOWN" => WorkerStatus::Down,
-                _ => {
-                    return Err(SchedulerError::DatabaseOperation(
-                        "无效的Worker状态".to_string(),
-                    ))
-                }
-            },
+            status: row.try_get("status")?,
             last_heartbeat: row.try_get("last_heartbeat")?,
             registered_at: row.try_get("registered_at")?,
         })
@@ -54,7 +46,7 @@ impl WorkerRepository for PostgresWorkerRepository {
         sqlx::query(
             r#"
             INSERT INTO workers (id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8)
+            VALUES ($1, $2, $3::inet, $4, $5, $6, $7, $8)
             ON CONFLICT (id) DO UPDATE SET
                 hostname = EXCLUDED.hostname,
                 ip_address = EXCLUDED.ip_address,
@@ -69,10 +61,7 @@ impl WorkerRepository for PostgresWorkerRepository {
         .bind(&worker.ip_address)
         .bind(&worker.supported_task_types)
         .bind(worker.max_concurrent_tasks)
-        .bind(match worker.status {
-            WorkerStatus::Alive => "ALIVE",
-            WorkerStatus::Down => "DOWN",
-        })
+        .bind(worker.status)
         .bind(worker.last_heartbeat)
         .bind(worker.registered_at)
         .execute(&self.pool)
@@ -104,7 +93,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     /// 根据ID获取Worker信息
     async fn get_by_id(&self, worker_id: &str) -> Result<Option<WorkerInfo>> {
         let row = sqlx::query(
-            "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE id = $1"
+            "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE id = $1"
         )
         .bind(worker_id)
         .fetch_optional(&self.pool)
@@ -136,7 +125,7 @@ impl WorkerRepository for PostgresWorkerRepository {
         let result = sqlx::query(
             r#"
             UPDATE workers 
-            SET hostname = $2, ip_address = $3, supported_task_types = $4, 
+            SET hostname = $2, ip_address = $3::inet, supported_task_types = $4, 
                 max_concurrent_tasks = $5, status = $6, last_heartbeat = $7
             WHERE id = $1
             "#,
@@ -146,10 +135,7 @@ impl WorkerRepository for PostgresWorkerRepository {
         .bind(&worker.ip_address)
         .bind(&worker.supported_task_types)
         .bind(worker.max_concurrent_tasks)
-        .bind(match worker.status {
-            WorkerStatus::Alive => "ALIVE",
-            WorkerStatus::Down => "DOWN",
-        })
+        .bind(worker.status)
         .bind(worker.last_heartbeat)
         .execute(&self.pool)
         .await
@@ -168,7 +154,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     /// 获取所有Worker列表
     async fn list(&self) -> Result<Vec<WorkerInfo>> {
         let rows = sqlx::query(
-            "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers ORDER BY registered_at DESC"
+            "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers ORDER BY registered_at DESC"
         )
         .fetch_all(&self.pool)
         .await
@@ -197,8 +183,9 @@ impl WorkerRepository for PostgresWorkerRepository {
     /// 获取活跃的Worker列表
     async fn get_alive_workers(&self) -> Result<Vec<WorkerInfo>> {
         let rows = sqlx::query(
-            "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = 'ALIVE' ORDER BY last_heartbeat DESC"
+            "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = $1 ORDER BY last_heartbeat DESC"
         )
+        .bind(WorkerStatus::Alive)
         .fetch_all(&self.pool)
         .await
         .map_err(SchedulerError::Database)?;
@@ -226,8 +213,9 @@ impl WorkerRepository for PostgresWorkerRepository {
     /// 获取支持指定任务类型的Worker列表
     async fn get_workers_by_task_type(&self, task_type: &str) -> Result<Vec<WorkerInfo>> {
         let rows = sqlx::query(
-            "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = 'ALIVE' AND $1 = ANY(supported_task_types) ORDER BY last_heartbeat DESC"
+            "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = $1 AND $2 = ANY(supported_task_types) ORDER BY last_heartbeat DESC"
         )
+        .bind(WorkerStatus::Alive)
         .bind(task_type)
         .fetch_all(&self.pool)
         .await
@@ -261,8 +249,9 @@ impl WorkerRepository for PostgresWorkerRepository {
         current_task_count: i32,
     ) -> Result<()> {
         let result =
-            sqlx::query("UPDATE workers SET last_heartbeat = $1, status = 'ALIVE' WHERE id = $2")
+            sqlx::query("UPDATE workers SET last_heartbeat = $1, status = $2 WHERE id = $3")
                 .bind(heartbeat_time)
+                .bind(WorkerStatus::Alive)
                 .bind(worker_id)
                 .execute(&self.pool)
                 .await
@@ -283,13 +272,8 @@ impl WorkerRepository for PostgresWorkerRepository {
 
     /// 更新Worker状态
     async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> Result<()> {
-        let status_str = match status {
-            WorkerStatus::Alive => "ALIVE",
-            WorkerStatus::Down => "DOWN",
-        };
-
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = $2")
-            .bind(status_str)
+            .bind(status)
             .bind(worker_id)
             .execute(&self.pool)
             .await
@@ -301,7 +285,7 @@ impl WorkerRepository for PostgresWorkerRepository {
             });
         }
 
-        debug!("更新Worker状态成功: {} -> {}", worker_id, status_str);
+        debug!("更新Worker状态成功: {} -> {:?}", worker_id, status);
         Ok(())
     }
 
@@ -309,13 +293,14 @@ impl WorkerRepository for PostgresWorkerRepository {
     async fn get_timeout_workers(&self, timeout_seconds: i64) -> Result<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             r#"
-            SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at 
+            SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at 
             FROM workers 
-            WHERE status = 'ALIVE' 
-            AND EXTRACT(EPOCH FROM (NOW() - last_heartbeat)) > $1
+            WHERE status = $1 
+            AND EXTRACT(EPOCH FROM (NOW() - last_heartbeat)) > $2
             ORDER BY last_heartbeat ASC
             "#
         )
+        .bind(WorkerStatus::Alive)
         .bind(timeout_seconds)
         .fetch_all(&self.pool)
         .await
@@ -346,11 +331,13 @@ impl WorkerRepository for PostgresWorkerRepository {
         let result = sqlx::query(
             r#"
             UPDATE workers 
-            SET status = 'DOWN' 
-            WHERE status = 'ALIVE' 
-            AND EXTRACT(EPOCH FROM (NOW() - last_heartbeat)) > $1
+            SET status = $1 
+            WHERE status = $2 
+            AND EXTRACT(EPOCH FROM (NOW() - last_heartbeat)) > $3
             "#,
         )
+        .bind(WorkerStatus::Down)
+        .bind(WorkerStatus::Alive)
         .bind(timeout_seconds)
         .execute(&self.pool)
         .await
@@ -372,7 +359,7 @@ impl WorkerRepository for PostgresWorkerRepository {
                 COALESCE(running_tasks.count, 0) as current_task_count,
                 COALESCE(completed_stats.total_completed, 0) as total_completed_tasks,
                 COALESCE(failed_stats.total_failed, 0) as total_failed_tasks,
-                COALESCE(duration_stats.avg_duration_ms, 0) as average_task_duration_ms
+                COALESCE(duration_stats.avg_duration_ms, 0)::DOUBLE PRECISION as average_task_duration_ms
             FROM workers w
             LEFT JOIN (
                 SELECT worker_id, COUNT(*) as count
@@ -395,17 +382,18 @@ impl WorkerRepository for PostgresWorkerRepository {
             LEFT JOIN (
                 SELECT 
                     worker_id, 
-                    AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000) as avg_duration_ms
+                    AVG(EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000)::DOUBLE PRECISION as avg_duration_ms
                 FROM task_runs 
                 WHERE status = 'COMPLETED' 
                 AND started_at IS NOT NULL 
                 AND completed_at IS NOT NULL
                 GROUP BY worker_id
             ) duration_stats ON w.id = duration_stats.worker_id
-            WHERE w.status = 'ALIVE'
+            WHERE w.status = $1
             ORDER BY w.last_heartbeat DESC
             "#,
         )
+        .bind(WorkerStatus::Alive)
         .fetch_all(&self.pool)
         .await
         .map_err(SchedulerError::Database)?;
@@ -447,22 +435,17 @@ impl WorkerRepository for PostgresWorkerRepository {
             return Ok(());
         }
 
-        let status_str = match status {
-            WorkerStatus::Alive => "ALIVE",
-            WorkerStatus::Down => "DOWN",
-        };
-
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = ANY($2)")
-            .bind(status_str)
+            .bind(status)
             .bind(worker_ids)
             .execute(&self.pool)
             .await
             .map_err(SchedulerError::Database)?;
 
         debug!(
-            "批量更新 {} 个Worker状态为 {}",
+            "批量更新 {} 个Worker状态为 {:?}",
             result.rows_affected(),
-            status_str
+            status
         );
         Ok(())
     }

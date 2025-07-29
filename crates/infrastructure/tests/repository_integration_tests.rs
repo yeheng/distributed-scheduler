@@ -313,6 +313,7 @@ async fn test_repository_error_handling() -> Result<()> {
 
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
     let task_run_repo = PostgresTaskRunRepository::new(container.pool.clone());
+    let worker_repo = PostgresWorkerRepository::new(container.pool.clone());
 
     // Test get non-existent task
     let non_existent_task = task_repo.get_by_id(99999).await?;
@@ -321,6 +322,10 @@ async fn test_repository_error_handling() -> Result<()> {
     // Test get non-existent task run
     let non_existent_task_run = task_run_repo.get_by_id(99999).await?;
     assert!(non_existent_task_run.is_none());
+
+    // Test get non-existent worker
+    let non_existent_worker = worker_repo.get_by_id("non_existent_worker").await?;
+    assert!(non_existent_worker.is_none());
 
     // Test create task run with invalid task_id
     let invalid_task_run = TaskRun {
@@ -341,6 +346,277 @@ async fn test_repository_error_handling() -> Result<()> {
 
     let result = task_run_repo.create(&invalid_task_run).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
+
+    // Test update non-existent task
+    let non_existent_task_update = Task {
+        id: 99999,
+        name: "non_existent".to_string(),
+        task_type: "shell".to_string(),
+        schedule: "0 0 * * *".to_string(),
+        parameters: serde_json::json!({}),
+        timeout_seconds: 300,
+        max_retries: 3,
+        status: TaskStatus::Active,
+        dependencies: vec![],
+        shard_config: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+
+    let update_result = task_repo.update(&non_existent_task_update).await;
+    assert!(update_result.is_err()); // Should fail because task doesn't exist
+
+    // Test delete non-existent task
+    let delete_result = task_repo.delete(99999).await;
+    assert!(delete_result.is_err()); // Should fail because task doesn't exist
+
+    // Test update status of non-existent task run
+    let status_update_result = task_run_repo
+        .update_status(99999, TaskRunStatus::Running, Some("worker1"))
+        .await;
+    assert!(status_update_result.is_err()); // Should fail because task run doesn't exist
+
+    // Test update non-existent worker status
+    let worker_status_result = worker_repo
+        .update_status("non_existent_worker", WorkerStatus::Down)
+        .await;
+    assert!(worker_status_result.is_err()); // Should fail because worker doesn't exist
+
+    Ok(())
+}
+
+/// Test task dependencies functionality
+#[tokio::test]
+async fn test_task_dependencies() -> Result<()> {
+    let container = DatabaseTestContainer::new().await?;
+    container.run_migrations().await?;
+
+    let task_repo = PostgresTaskRepository::new(container.pool.clone());
+
+    // Create parent task
+    let parent_task = Task {
+        id: 0,
+        name: "parent_task".to_string(),
+        task_type: "shell".to_string(),
+        schedule: "0 0 * * *".to_string(),
+        parameters: serde_json::json!({"command": "echo 'parent'"}),
+        timeout_seconds: 300,
+        max_retries: 3,
+        status: TaskStatus::Active,
+        dependencies: vec![],
+        shard_config: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+
+    let created_parent = task_repo.create(&parent_task).await?;
+
+    // Create child task with dependency
+    let child_task = Task {
+        id: 0,
+        name: "child_task".to_string(),
+        task_type: "shell".to_string(),
+        schedule: "0 0 * * *".to_string(),
+        parameters: serde_json::json!({"command": "echo 'child'"}),
+        timeout_seconds: 300,
+        max_retries: 3,
+        status: TaskStatus::Active,
+        dependencies: vec![created_parent.id],
+        shard_config: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+
+    let created_child = task_repo.create(&child_task).await?;
+
+    // Test get dependencies
+    let dependencies = task_repo.get_dependencies(created_child.id).await?;
+    assert_eq!(dependencies.len(), 1);
+    assert_eq!(dependencies[0].id, created_parent.id);
+
+    // Test check dependencies (should fail initially)
+    let deps_satisfied = task_repo.check_dependencies(created_child.id).await?;
+    assert!(!deps_satisfied); // No successful runs of parent task yet
+
+    Ok(())
+}
+
+/// Test worker load statistics
+#[tokio::test]
+async fn test_worker_load_stats() -> Result<()> {
+    let container = DatabaseTestContainer::new().await?;
+    container.run_migrations().await?;
+
+    let worker_repo = PostgresWorkerRepository::new(container.pool.clone());
+
+    // Register test worker
+    let worker = WorkerInfo {
+        id: "load_test_worker".to_string(),
+        hostname: "load-test-host".to_string(),
+        ip_address: "192.168.1.101".to_string(),
+        supported_task_types: vec!["shell".to_string()],
+        max_concurrent_tasks: 10,
+        current_task_count: 0,
+        status: WorkerStatus::Alive,
+        last_heartbeat: Utc::now(),
+        registered_at: Utc::now(),
+    };
+
+    worker_repo.register(&worker).await?;
+
+    // Get load statistics
+    let stats = worker_repo.get_worker_load_stats().await?;
+    let worker_stats = stats.iter().find(|s| s.worker_id == worker.id);
+    assert!(worker_stats.is_some());
+
+    let worker_stats = worker_stats.unwrap();
+    assert_eq!(worker_stats.max_concurrent_tasks, 10);
+    assert_eq!(worker_stats.current_task_count, 0);
+    assert_eq!(worker_stats.load_percentage, 0.0);
+
+    // Test cleanup
+    worker_repo.unregister(&worker.id).await?;
+
+    Ok(())
+}
+
+/// Test task filtering and pagination
+#[tokio::test]
+async fn test_task_filtering_and_pagination() -> Result<()> {
+    let container = DatabaseTestContainer::new().await?;
+    container.run_migrations().await?;
+
+    let task_repo = PostgresTaskRepository::new(container.pool.clone());
+
+    // Create multiple tasks with different types and statuses
+    let tasks_data = vec![
+        ("shell_task_1", "shell", TaskStatus::Active),
+        ("shell_task_2", "shell", TaskStatus::Inactive),
+        ("http_task_1", "http", TaskStatus::Active),
+        ("http_task_2", "http", TaskStatus::Active),
+    ];
+
+    for (name, task_type, status) in tasks_data {
+        let task = Task {
+            id: 0,
+            name: name.to_string(),
+            task_type: task_type.to_string(),
+            schedule: "0 0 * * *".to_string(),
+            parameters: serde_json::json!({}),
+            timeout_seconds: 300,
+            max_retries: 3,
+            status,
+            dependencies: vec![],
+            shard_config: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        task_repo.create(&task).await?;
+    }
+
+    // Test filter by status
+    let active_filter = TaskFilter {
+        status: Some(TaskStatus::Active),
+        task_type: None,
+        name_pattern: None,
+        limit: None,
+        offset: None,
+    };
+    let active_tasks = task_repo.list(&active_filter).await?;
+    assert!(active_tasks.len() >= 3); // At least 3 active tasks
+
+    // Test filter by task type
+    let shell_filter = TaskFilter {
+        status: None,
+        task_type: Some("shell".to_string()),
+        name_pattern: None,
+        limit: None,
+        offset: None,
+    };
+    let shell_tasks = task_repo.list(&shell_filter).await?;
+    assert!(shell_tasks.len() >= 2); // At least 2 shell tasks
+
+    // Test name pattern filter
+    let name_filter = TaskFilter {
+        status: None,
+        task_type: None,
+        name_pattern: Some("shell".to_string()),
+        limit: None,
+        offset: None,
+    };
+    let name_filtered_tasks = task_repo.list(&name_filter).await?;
+    assert!(name_filtered_tasks.len() >= 2); // At least 2 tasks with "shell" in name
+
+    // Test pagination
+    let paginated_filter = TaskFilter {
+        status: Some(TaskStatus::Active),
+        task_type: None,
+        name_pattern: None,
+        limit: Some(2),
+        offset: Some(0),
+    };
+    let paginated_tasks = task_repo.list(&paginated_filter).await?;
+    assert!(paginated_tasks.len() <= 2); // Should return at most 2 tasks
+
+    Ok(())
+}
+
+/// Test concurrent operations
+#[tokio::test]
+async fn test_concurrent_operations() -> Result<()> {
+    let container = DatabaseTestContainer::new().await?;
+    container.run_migrations().await?;
+
+    let task_repo = PostgresTaskRepository::new(container.pool.clone());
+    let task_run_repo = PostgresTaskRunRepository::new(container.pool.clone());
+
+    // Create a task first
+    let task = Task {
+        id: 0,
+        name: "concurrent_test_task".to_string(),
+        task_type: "shell".to_string(),
+        schedule: "0 0 * * *".to_string(),
+        parameters: serde_json::json!({}),
+        timeout_seconds: 300,
+        max_retries: 3,
+        status: TaskStatus::Active,
+        dependencies: vec![],
+        shard_config: None,
+        created_at: Utc::now(),
+        updated_at: Utc::now(),
+    };
+
+    let created_task = task_repo.create(&task).await?;
+
+    // Create multiple task runs concurrently
+    let task_runs: Vec<TaskRun> = (0..10)
+        .map(|i| TaskRun {
+            id: 0,
+            task_id: created_task.id,
+            status: TaskRunStatus::Pending,
+            worker_id: Some(format!("worker_{}", i)),
+            retry_count: 0,
+            shard_index: None,
+            shard_total: None,
+            scheduled_at: Utc::now(),
+            started_at: None,
+            completed_at: None,
+            result: None,
+            error_message: None,
+            created_at: Utc::now(),
+        })
+        .collect();
+
+    let mut futures = Vec::new();
+    for task_run in &task_runs {
+        futures.push(task_run_repo.create(task_run));
+    }
+
+    let results = futures::future::join_all(futures).await;
+    let successful_creates = results.into_iter().filter(|r| r.is_ok()).count();
+
+    // Should create most or all task runs successfully
+    assert!(successful_creates >= 8);
 
     Ok(())
 }
