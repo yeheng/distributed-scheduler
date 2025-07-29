@@ -2,7 +2,6 @@ use scheduler_api::create_app;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
-use tracing_subscriber;
 
 // Mock implementations for testing
 struct MockTaskRepository;
