@@ -33,15 +33,58 @@ pub struct TaskExecutionContext {
 }
 
 /// 任务运行状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, sqlx::Type)]
-#[sqlx(type_name = "task_run_status", rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum TaskRunStatus {
+    #[serde(rename = "PENDING")]
     Pending,
+    #[serde(rename = "DISPATCHED")]
     Dispatched,
+    #[serde(rename = "RUNNING")]
     Running,
+    #[serde(rename = "COMPLETED")]
     Completed,
+    #[serde(rename = "FAILED")]
     Failed,
+    #[serde(rename = "TIMEOUT")]
     Timeout,
+}
+
+impl sqlx::Type<sqlx::Postgres> for TaskRunStatus {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for TaskRunStatus {
+    fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s {
+            "PENDING" => Ok(TaskRunStatus::Pending),
+            "DISPATCHED" => Ok(TaskRunStatus::Dispatched),
+            "RUNNING" => Ok(TaskRunStatus::Running),
+            "COMPLETED" => Ok(TaskRunStatus::Completed),
+            "FAILED" => Ok(TaskRunStatus::Failed),
+            "TIMEOUT" => Ok(TaskRunStatus::Timeout),
+            _ => Err(format!("Invalid task run status: {s}").into()),
+        }
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TaskRunStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            TaskRunStatus::Pending => "PENDING",
+            TaskRunStatus::Dispatched => "DISPATCHED",
+            TaskRunStatus::Running => "RUNNING",
+            TaskRunStatus::Completed => "COMPLETED",
+            TaskRunStatus::Failed => "FAILED",
+            TaskRunStatus::Timeout => "TIMEOUT",
+        };
+        <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
+    }
 }
 
 /// 任务执行结果

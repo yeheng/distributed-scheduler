@@ -11,13 +11,12 @@ use scheduler_infrastructure::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 use sqlx::PgPool;
-use testcontainers::runners::SyncRunner;
-use testcontainers::ImageExt;
+use testcontainers::{runners::AsyncRunner, ContainerAsync, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 
 /// 测试环境设置
 struct IntegrationTestSetup {
-    _postgres_container: testcontainers::Container<Postgres>,
+    _postgres_container: ContainerAsync<Postgres>,
     pub message_queue: MockMessageQueue,
     pub task_repo: PostgresTaskRepository,
     pub task_run_repo: PostgresTaskRunRepository,
@@ -33,10 +32,10 @@ impl IntegrationTestSetup {
             .with_password("test_password")
             .with_tag("16-alpine");
 
-        let postgres_container = postgres_image.start().unwrap();
+        let postgres_container = postgres_image.start().await.unwrap();
         let db_connection_string = format!(
             "postgresql://test_user:test_password@127.0.0.1:{}/scheduler_integration_test",
-            postgres_container.get_host_port_ipv4(5432).unwrap()
+            postgres_container.get_host_port_ipv4(5432).await.unwrap()
         );
 
         let pool = PgPool::connect(&db_connection_string).await.unwrap();

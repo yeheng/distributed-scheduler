@@ -137,6 +137,7 @@ pub async fn create_task(
     State(state): State<AppState>,
     Json(request): Json<CreateTaskRequest>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    tracing::debug!("Creating task with request: {:?}", request);
     // 验证输入参数
     if request.name.trim().is_empty() {
         return Err(ApiError::BadRequest("任务名称不能为空".to_string()));
@@ -196,9 +197,16 @@ pub async fn create_task(
     }
 
     // 保存任务到数据库
-    let created_task = state.task_repo.create(&task).await?;
+    let created_task = match state.task_repo.create(&task).await {
+        Ok(task) => task,
+        Err(e) => {
+            tracing::error!("Failed to create task: {:?}", e);
+            return Err(e.into());
+        }
+    };
     let response = TaskResponse::from(created_task);
 
+    tracing::debug!("Successfully created task: {:?}", response);
     Ok(created(response))
 }
 
@@ -265,6 +273,8 @@ pub async fn get_task(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    tracing::debug!("Getting task with id: {}", id);
+
     // 获取任务基本信息
     let task = state
         .task_repo
@@ -272,13 +282,39 @@ pub async fn get_task(
         .await?
         .ok_or(ApiError::NotFound)?;
 
-    // 获取最近的执行记录
-    let recent_runs = state.task_run_repo.get_recent_runs(id, 10).await?;
+    tracing::debug!("Found task: {:?}", task.name);
+
+    // 获取最近的执行记录 (handle errors gracefully)
+    let recent_runs = state
+        .task_run_repo
+        .get_recent_runs(id, 10)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::warn!("Failed to get recent runs for task {}: {:?}", id, e);
+            Vec::new()
+        });
     let recent_run_responses: Vec<TaskRunResponse> =
         recent_runs.into_iter().map(TaskRunResponse::from).collect();
 
-    // 获取执行统计信息
-    let execution_stats = state.task_run_repo.get_execution_stats(id, 30).await?;
+    // 获取执行统计信息 (handle errors gracefully)
+    let execution_stats = state
+        .task_run_repo
+        .get_execution_stats(id, 30)
+        .await
+        .unwrap_or_else(|e| {
+            tracing::warn!("Failed to get execution stats for task {}: {:?}", id, e);
+            // Return default stats
+            scheduler_core::traits::TaskExecutionStats {
+                task_id: id,
+                total_runs: 0,
+                successful_runs: 0,
+                failed_runs: 0,
+                timeout_runs: 0,
+                average_execution_time_ms: None,
+                success_rate: 0.0,
+                last_execution: None,
+            }
+        });
 
     // 构建响应
     let mut response = TaskResponse::from(task);

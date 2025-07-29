@@ -1,4 +1,4 @@
-use scheduler_core::config::*;
+use crate::config::*;
 use std::env;
 use std::fs;
 use tempfile::NamedTempFile;

@@ -19,11 +19,42 @@ pub struct Task {
 }
 
 /// 任务状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, sqlx::Type, PartialEq, Eq)]
-#[sqlx(type_name = "task_status", rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TaskStatus {
+    #[serde(rename = "ACTIVE")]
     Active,
+    #[serde(rename = "INACTIVE")]
     Inactive,
+}
+
+impl sqlx::Type<sqlx::Postgres> for TaskStatus {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for TaskStatus {
+    fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s {
+            "ACTIVE" => Ok(TaskStatus::Active),
+            "INACTIVE" => Ok(TaskStatus::Inactive),
+            _ => Err(format!("Invalid task status: {s}").into()),
+        }
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TaskStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            TaskStatus::Active => "ACTIVE",
+            TaskStatus::Inactive => "INACTIVE",
+        };
+        <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
+    }
 }
 
 /// 分片配置

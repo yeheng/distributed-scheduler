@@ -22,8 +22,8 @@ impl ShutdownManager {
     }
 
     /// 订阅关闭信号
-    pub fn subscribe(&self) -> broadcast::Receiver<()> {
-        let shutdown_tx = self.shutdown_tx.blocking_read();
+    pub async fn subscribe(&self) -> broadcast::Receiver<()> {
+        let shutdown_tx = self.shutdown_tx.read().await;
         if let Some(ref tx) = *shutdown_tx {
             tx.subscribe()
         } else {
@@ -70,7 +70,7 @@ impl ShutdownManager {
 
     /// 等待关闭完成
     pub async fn wait_for_shutdown(&self) {
-        let mut rx = self.subscribe();
+        let mut rx = self.subscribe().await;
         let _ = rx.recv().await;
     }
 }
@@ -95,7 +95,7 @@ mod tests {
         assert!(!manager.is_shutdown().await);
 
         // 订阅关闭信号
-        let mut rx = manager.subscribe();
+        let mut rx = manager.subscribe().await;
 
         // 触发关闭
         manager.shutdown().await;
@@ -113,9 +113,9 @@ mod tests {
         let manager = ShutdownManager::new();
 
         // 创建多个订阅者
-        let mut rx1 = manager.subscribe();
-        let mut rx2 = manager.subscribe();
-        let mut rx3 = manager.subscribe();
+        let mut rx1 = manager.subscribe().await;
+        let mut rx2 = manager.subscribe().await;
+        let mut rx3 = manager.subscribe().await;
 
         // 触发关闭
         manager.shutdown().await;
@@ -138,7 +138,7 @@ mod tests {
         manager.shutdown().await;
 
         // 然后订阅（应该立即收到信号）
-        let mut rx = manager.subscribe();
+        let mut rx = manager.subscribe().await;
 
         let result = timeout(Duration::from_millis(100), rx.recv()).await;
         assert!(result.is_ok());

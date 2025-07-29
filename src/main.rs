@@ -101,7 +101,7 @@ async fn main() -> Result<()> {
     // 启动应用
     let app_handle = {
         let app = Arc::new(app);
-        let shutdown_rx = shutdown_manager.subscribe();
+        let shutdown_rx = shutdown_manager.subscribe().await;
         let app_clone = Arc::clone(&app);
 
         tokio::spawn(async move {

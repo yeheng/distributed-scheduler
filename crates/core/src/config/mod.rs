@@ -3,3 +3,6 @@ pub mod model;
 
 pub use config_loader::ConfigLoader;
 pub use model::AppConfig;
+
+#[cfg(test)]
+mod config_test;

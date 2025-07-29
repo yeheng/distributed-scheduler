@@ -7,25 +7,57 @@ use scheduler_infrastructure::database::postgres_repositories::{
 };
 use sqlx::PgPool;
 use std::sync::Arc;
+use testcontainers::ContainerAsync;
+use testcontainers::{runners::AsyncRunner, ImageExt};
+use testcontainers_modules::postgres::Postgres;
 use tokio::net::TcpListener;
+use tokio::time::{sleep, Duration};
 
 /// 测试应用状态
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
+    #[allow(dead_code)]
+    container: ContainerAsync<Postgres>,
 }
 
 impl TestApp {
     /// 启动测试应用
     pub async fn spawn() -> TestApp {
-        // 设置测试数据库连接
-        let database_url = std::env::var("TEST_DATABASE_URL").unwrap_or_else(|_| {
-            "postgresql://postgres:123456@localhost:5432/scheduler".to_string()
-        });
+        // Start PostgreSQL container
+        let postgres_image = Postgres::default()
+            .with_db_name("scheduler_test")
+            .with_user("test_user")
+            .with_password("test_password")
+            .with_tag("16-alpine");
 
-        let db_pool = PgPool::connect(&database_url)
+        let container = postgres_image
+            .start()
             .await
-            .expect("Failed to connect to test database");
+            .expect("Failed to start postgres container");
+        let port = container
+            .get_host_port_ipv4(5432)
+            .await
+            .expect("Failed to get port");
+
+        let database_url = format!(
+            "postgresql://test_user:test_password@localhost:{}/scheduler_test",
+            port
+        );
+
+        // Wait for database to be ready
+        let mut retry_count = 0;
+        let db_pool = loop {
+            match PgPool::connect(&database_url).await {
+                Ok(pool) => break pool,
+                Err(_) if retry_count < 30 => {
+                    retry_count += 1;
+                    sleep(Duration::from_millis(500)).await;
+                    continue;
+                }
+                Err(e) => panic!("Failed to connect to test database: {}", e),
+            }
+        };
 
         // 运行数据库迁移
         sqlx::migrate!("../../migrations")
@@ -67,7 +99,11 @@ impl TestApp {
                 .expect("Failed to start test server");
         });
 
-        TestApp { address, db_pool }
+        TestApp {
+            address,
+            db_pool,
+            container,
+        }
     }
 
     /// 清理测试数据

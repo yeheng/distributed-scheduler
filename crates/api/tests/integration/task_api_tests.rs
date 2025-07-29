@@ -3,18 +3,28 @@ use serde_json::{json, Value};
 
 #[tokio::test]
 async fn test_create_task_success() {
+    tracing_subscriber::fmt::init();
     let app = TestApp::spawn().await;
 
     let task_data = json!({
         "name": "test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo hello"},
         "timeout_seconds": 300,
         "max_retries": 3
     });
 
+    // First test if the server is responding at all
     let client = reqwest::Client::new();
+    let health_response = client
+        .get(&format!("{}/health", app.address))
+        .send()
+        .await
+        .expect("Failed to execute health check");
+
+    eprintln!("Health check status: {}", health_response.status());
+
     let response = client
         .post(&format!("{}/api/tasks", app.address))
         .json(&task_data)
@@ -22,7 +32,20 @@ async fn test_create_task_success() {
         .await
         .expect("Failed to execute request");
 
-    assert_eq!(response.status(), 201);
+    let status = response.status();
+    if status != 201 {
+        let error_body = response
+            .text()
+            .await
+            .expect("Failed to read error response");
+        eprintln!(
+            "Request data: {}",
+            serde_json::to_string_pretty(&task_data).unwrap()
+        );
+        eprintln!("Response status: {}", status);
+        eprintln!("Response body: {}", error_body);
+        panic!("Expected status 201, got {}. Error: {}", status, error_body);
+    }
 
     let response_body: Value = response.json().await.expect("Failed to parse response");
     assert!(response_body["success"].as_bool().unwrap());
@@ -30,10 +53,10 @@ async fn test_create_task_success() {
     let task = &response_body["data"];
     assert_eq!(task["name"], "test-task");
     assert_eq!(task["task_type"], "shell");
-    assert_eq!(task["schedule"], "0 0 * * *");
+    assert_eq!(task["schedule"], "0 0 0 * * *");
     assert_eq!(task["timeout_seconds"], 300);
     assert_eq!(task["max_retries"], 3);
-    assert_eq!(task["status"], "Active");
+    assert_eq!(task["status"], "ACTIVE");
 
     app.cleanup().await;
 }
@@ -75,7 +98,7 @@ async fn test_create_task_duplicate_name() {
     let task_data = json!({
         "name": "duplicate-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo hello"}
     });
 
@@ -118,7 +141,7 @@ async fn test_list_tasks() {
         let task_data = json!({
             "name": format!("task-{}", i),
             "task_type": "shell",
-            "schedule": "0 0 * * *",
+            "schedule": "0 0 0 * * *",
             "parameters": {"command": format!("echo {}", i)}
         });
 
@@ -160,14 +183,14 @@ async fn test_list_tasks_with_filters() {
     let shell_task = json!({
         "name": "shell-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo shell"}
     });
 
     let http_task = json!({
         "name": "http-task",
         "task_type": "http",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"url": "http://example.com"}
     });
 
@@ -209,7 +232,7 @@ async fn test_get_task() {
     let task_data = json!({
         "name": "get-test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
     });
 
@@ -234,7 +257,15 @@ async fn test_get_task() {
         .await
         .expect("Failed to execute request");
 
-    assert_eq!(response.status(), 200);
+    let status = response.status();
+    if status != 200 {
+        let error_body = response
+            .text()
+            .await
+            .expect("Failed to read error response");
+        eprintln!("Get task failed. Status: {}, Error: {}", status, error_body);
+        panic!("Expected status 200, got {}", status);
+    }
 
     let response_body: Value = response.json().await.expect("Failed to parse response");
     assert!(response_body["success"].as_bool().unwrap());
@@ -272,7 +303,7 @@ async fn test_update_task() {
     let task_data = json!({
         "name": "update-test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
     });
 
@@ -293,7 +324,7 @@ async fn test_update_task() {
     // Update the task
     let update_data = json!({
         "name": "updated-task-name",
-        "schedule": "0 1 * * *",
+        "schedule": "0 0 1 * * *",
         "timeout_seconds": 600
     });
 
@@ -304,12 +335,23 @@ async fn test_update_task() {
         .await
         .expect("Failed to execute request");
 
-    assert_eq!(response.status(), 200);
+    let status = response.status();
+    if status != 200 {
+        let error_body = response
+            .text()
+            .await
+            .expect("Failed to read error response");
+        eprintln!(
+            "Update task failed. Status: {}, Error: {}",
+            status, error_body
+        );
+        panic!("Expected status 200, got {}", status);
+    }
 
     let response_body: Value = response.json().await.expect("Failed to parse response");
     let task = &response_body["data"];
     assert_eq!(task["name"], "updated-task-name");
-    assert_eq!(task["schedule"], "0 1 * * *");
+    assert_eq!(task["schedule"], "0 0 1 * * *");
     assert_eq!(task["timeout_seconds"], 600);
 
     app.cleanup().await;
@@ -323,7 +365,7 @@ async fn test_delete_task() {
     let task_data = json!({
         "name": "delete-test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
     });
 
@@ -364,7 +406,7 @@ async fn test_delete_task() {
         .expect("Failed to execute request");
 
     let get_body: Value = get_response.json().await.expect("Failed to parse response");
-    assert_eq!(get_body["data"]["status"], "Inactive");
+    assert_eq!(get_body["data"]["status"], "INACTIVE");
 
     app.cleanup().await;
 }
@@ -377,7 +419,7 @@ async fn test_trigger_task() {
     let task_data = json!({
         "name": "trigger-test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
     });
 
@@ -422,7 +464,7 @@ async fn test_get_task_runs() {
     let task_data = json!({
         "name": "runs-test-task",
         "task_type": "shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
     });
 
@@ -487,7 +529,7 @@ async fn test_pagination() {
         let task_data = json!({
             "name": format!("pagination-task-{:02}", i),
             "task_type": "shell",
-            "schedule": "0 0 * * *",
+            "schedule": "0 0 0 * * *",
             "parameters": {"command": format!("echo {}", i)}
         });
 

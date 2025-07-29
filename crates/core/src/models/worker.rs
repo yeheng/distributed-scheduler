@@ -16,11 +16,42 @@ pub struct WorkerInfo {
 }
 
 /// Worker状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, sqlx::Type)]
-#[sqlx(type_name = "worker_status", rename_all = "UPPERCASE")]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum WorkerStatus {
+    #[serde(rename = "ALIVE")]
     Alive,
+    #[serde(rename = "DOWN")]
     Down,
+}
+
+impl sqlx::Type<sqlx::Postgres> for WorkerStatus {
+    fn type_info() -> sqlx::postgres::PgTypeInfo {
+        sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Postgres> for WorkerStatus {
+    fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s {
+            "ALIVE" => Ok(WorkerStatus::Alive),
+            "DOWN" => Ok(WorkerStatus::Down),
+            _ => Err(format!("Invalid worker status: {s}").into()),
+        }
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Postgres> for WorkerStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut sqlx::postgres::PgArgumentBuffer,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            WorkerStatus::Alive => "ALIVE",
+            WorkerStatus::Down => "DOWN",
+        };
+        <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
+    }
 }
 
 /// Worker注册请求
