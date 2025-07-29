@@ -12,13 +12,13 @@ use scheduler_infrastructure::{
 };
 use sqlx::PgPool;
 use std::collections::HashMap;
-use testcontainers::runners::SyncRunner;
+use testcontainers::runners::AsyncRunner;
 use testcontainers::ImageExt;
 use testcontainers_modules::postgres::Postgres;
 
 /// 端到端测试环境设置
 struct E2ETestSetup {
-    _postgres_container: testcontainers::Container<Postgres>,
+    _postgres_container: testcontainers::ContainerAsync<Postgres>,
     pub message_queue: MockMessageQueue,
     pub task_repo: PostgresTaskRepository,
     pub task_run_repo: PostgresTaskRunRepository,
@@ -34,10 +34,10 @@ impl E2ETestSetup {
             .with_password("test_password")
             .with_tag("16-alpine");
 
-        let postgres_container = postgres_image.start().unwrap();
+        let postgres_container = postgres_image.start().await.unwrap();
         let db_connection_string = format!(
             "postgresql://test_user:test_password@127.0.0.1:{}/scheduler_e2e_test",
-            postgres_container.get_host_port_ipv4(5432).unwrap()
+            postgres_container.get_host_port_ipv4(5432).await.unwrap()
         );
 
         let pool = PgPool::connect(&db_connection_string).await.unwrap();

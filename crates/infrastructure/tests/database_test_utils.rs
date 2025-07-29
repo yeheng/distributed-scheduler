@@ -54,16 +54,14 @@ impl DatabaseTestContainer {
         self.create_tasks_table().await?;
         self.create_task_runs_table().await?;
         self.create_workers_table().await?;
+        self.create_task_dependencies_table().await?;
+        self.create_task_locks_table().await?;
         self.create_indexes().await?;
         Ok(())
     }
 
     /// Create tasks table
     async fn create_tasks_table(&self) -> Result<()> {
-        sqlx::query(r#"CREATE TYPE task_status AS ENUM ('ACTIVE', 'INACTIVE')"#)
-            .execute(&self.pool)
-            .await?;
-
         sqlx::query(
             r#"
             CREATE TABLE tasks (
@@ -74,11 +72,15 @@ impl DatabaseTestContainer {
                 parameters JSONB NOT NULL DEFAULT '{}',
                 timeout_seconds INTEGER NOT NULL DEFAULT 300,
                 max_retries INTEGER NOT NULL DEFAULT 0,
-                status task_status NOT NULL DEFAULT 'ACTIVE',
+                status VARCHAR(20) NOT NULL DEFAULT 'ACTIVE',
                 dependencies BIGINT[] DEFAULT '{}',
                 shard_config JSONB,
                 created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                updated_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                
+                CONSTRAINT tasks_status_check CHECK (status IN ('ACTIVE', 'INACTIVE')),
+                CONSTRAINT tasks_timeout_positive CHECK (timeout_seconds > 0),
+                CONSTRAINT tasks_max_retries_non_negative CHECK (max_retries >= 0)
             )
         "#,
         )
@@ -89,16 +91,12 @@ impl DatabaseTestContainer {
 
     /// Create task_runs table
     async fn create_task_runs_table(&self) -> Result<()> {
-        sqlx::query(r#"CREATE TYPE task_run_status AS ENUM ('PENDING', 'DISPATCHED', 'RUNNING', 'COMPLETED', 'FAILED', 'TIMEOUT')"#)
-            .execute(&self.pool)
-            .await?;
-
         sqlx::query(
             r#"
             CREATE TABLE task_runs (
                 id BIGSERIAL PRIMARY KEY,
-                task_id BIGINT NOT NULL REFERENCES tasks(id),
-                status task_run_status NOT NULL DEFAULT 'PENDING',
+                task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                status VARCHAR(20) NOT NULL DEFAULT 'PENDING',
                 worker_id VARCHAR(255),
                 retry_count INTEGER NOT NULL DEFAULT 0,
                 shard_index INTEGER,
@@ -108,7 +106,18 @@ impl DatabaseTestContainer {
                 completed_at TIMESTAMPTZ,
                 result TEXT,
                 error_message TEXT,
-                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                
+                CONSTRAINT task_runs_status_check CHECK (status IN ('PENDING', 'DISPATCHED', 'RUNNING', 'COMPLETED', 'FAILED', 'TIMEOUT')),
+                CONSTRAINT task_runs_retry_count_non_negative CHECK (retry_count >= 0),
+                CONSTRAINT task_runs_shard_valid CHECK (
+                    (shard_index IS NULL AND shard_total IS NULL) OR 
+                    (shard_index IS NOT NULL AND shard_total IS NOT NULL AND shard_index >= 0 AND shard_total > 0 AND shard_index < shard_total)
+                ),
+                CONSTRAINT task_runs_timing_check CHECK (
+                    (started_at IS NULL OR started_at >= scheduled_at) AND
+                    (completed_at IS NULL OR (started_at IS NOT NULL AND completed_at >= started_at))
+                )
             )
         "#,
         )
@@ -119,10 +128,6 @@ impl DatabaseTestContainer {
 
     /// Create workers table
     async fn create_workers_table(&self) -> Result<()> {
-        sqlx::query(r#"CREATE TYPE worker_status AS ENUM ('ALIVE', 'DOWN')"#)
-            .execute(&self.pool)
-            .await?;
-
         sqlx::query(
             r#"
             CREATE TABLE workers (
@@ -132,9 +137,49 @@ impl DatabaseTestContainer {
                 supported_task_types TEXT[] NOT NULL,
                 max_concurrent_tasks INTEGER NOT NULL,
                 current_task_count INTEGER NOT NULL DEFAULT 0,
-                status worker_status NOT NULL DEFAULT 'ALIVE',
+                status VARCHAR(20) NOT NULL DEFAULT 'ALIVE',
                 last_heartbeat TIMESTAMPTZ NOT NULL DEFAULT NOW(),
-                registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW()
+                registered_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                
+                CONSTRAINT workers_status_check CHECK (status IN ('ALIVE', 'DOWN')),
+                CONSTRAINT workers_max_concurrent_positive CHECK (max_concurrent_tasks > 0)
+            )
+        "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Create task dependencies table
+    async fn create_task_dependencies_table(&self) -> Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE task_dependencies (
+                id BIGSERIAL PRIMARY KEY,
+                task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                depends_on_task_id BIGINT NOT NULL REFERENCES tasks(id) ON DELETE CASCADE,
+                created_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                
+                CONSTRAINT task_dependencies_no_self_reference CHECK (task_id != depends_on_task_id),
+                UNIQUE(task_id, depends_on_task_id)
+            )
+        "#,
+        )
+        .execute(&self.pool)
+        .await?;
+        Ok(())
+    }
+
+    /// Create task locks table
+    async fn create_task_locks_table(&self) -> Result<()> {
+        sqlx::query(
+            r#"
+            CREATE TABLE task_locks (
+                task_id BIGINT PRIMARY KEY REFERENCES tasks(id) ON DELETE CASCADE,
+                locked_by VARCHAR(255) NOT NULL,
+                locked_at TIMESTAMPTZ NOT NULL DEFAULT NOW(),
+                expires_at TIMESTAMPTZ NOT NULL
             )
         "#,
         )

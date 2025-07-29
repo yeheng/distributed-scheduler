@@ -1,6 +1,10 @@
 use scheduler_core::config::AppConfig;
 use scheduler_core::config::ConfigLoader;
 use std::env;
+use std::sync::Mutex;
+
+// Mutex to ensure environment variable tests run serially
+static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_config_loader_basic() {
@@ -10,6 +14,8 @@ fn test_config_loader_basic() {
 
 #[test]
 fn test_config_loader_environment_detection() {
+    let _guard = ENV_MUTEX.lock().unwrap();
+
     // 测试默认环境
     env::remove_var("SCHEDULER_ENV");
     assert_eq!(ConfigLoader::current_env(), "development");
@@ -77,6 +83,8 @@ fn test_config_validation_comprehensive() {
 
 #[test]
 fn test_current_env() {
+    let _guard = ENV_MUTEX.lock().unwrap();
+
     // 测试默认环境
     env::remove_var("SCHEDULER_ENV");
     assert_eq!(ConfigLoader::current_env(), "development");
@@ -91,6 +99,8 @@ fn test_current_env() {
 
 #[test]
 fn test_is_development() {
+    let _guard = ENV_MUTEX.lock().unwrap();
+
     env::set_var("SCHEDULER_ENV", "development");
     assert!(ConfigLoader::is_development());
     assert!(!ConfigLoader::is_production());
@@ -105,6 +115,8 @@ fn test_is_development() {
 
 #[test]
 fn test_database_url_override() {
+    let _guard = ENV_MUTEX.lock().unwrap();
+
     let config = AppConfig::default();
 
     // 测试默认值
@@ -122,6 +134,8 @@ fn test_database_url_override() {
 
 #[test]
 fn test_message_queue_url_override() {
+    let _guard = ENV_MUTEX.lock().unwrap();
+
     let config = AppConfig::default();
 
     // 测试默认值

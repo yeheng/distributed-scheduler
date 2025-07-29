@@ -1,19 +1,19 @@
 use sqlx::PgPool;
-use testcontainers::{runners::SyncRunner, ImageExt};
+use testcontainers::{runners::AsyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 
 /// 测试数据库迁移功能
-async fn setup_empty_database() -> (testcontainers::Container<Postgres>, PgPool) {
+async fn setup_empty_database() -> (testcontainers::ContainerAsync<Postgres>, PgPool) {
     let postgres_image = Postgres::default()
         .with_db_name("scheduler_migration_test")
         .with_user("test_user")
         .with_password("test_password")
         .with_tag("16-alpine");
 
-    let container = postgres_image.start().unwrap();
+    let container = postgres_image.start().await.unwrap();
     let connection_string = format!(
         "postgresql://test_user:test_password@127.0.0.1:{}/scheduler_migration_test",
-        container.get_host_port_ipv4(5432).unwrap()
+        container.get_host_port_ipv4(5432).await.unwrap()
     );
 
     let pool = PgPool::connect(&connection_string).await.unwrap();

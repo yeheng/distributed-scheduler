@@ -4,7 +4,12 @@ use scheduler_core::{TaskExecutor as _, TaskRun, TaskRunStatus};
 
 use crate::{HttpExecutor, ShellExecutor};
 
-fn create_test_task_run(params: &str) -> TaskRun {
+fn create_test_task_run_for_type(params: serde_json::Value, task_type: &str) -> TaskRun {
+    let task_info = serde_json::json!({
+        "parameters": params,
+        "task_type": task_type
+    });
+
     TaskRun {
         id: 1,
         task_id: 1,
@@ -16,10 +21,14 @@ fn create_test_task_run(params: &str) -> TaskRun {
         scheduled_at: Utc::now(),
         started_at: Some(Utc::now()),
         completed_at: None,
-        result: Some(params.to_string()),
+        result: Some(task_info.to_string()),
         error_message: None,
         created_at: Utc::now(),
     }
+}
+
+fn create_test_task_run(params: serde_json::Value) -> TaskRun {
+    create_test_task_run_for_type(params, "shell")
 }
 
 #[tokio::test]
@@ -31,7 +40,7 @@ async fn test_shell_executor_echo() {
         "args": ["Hello, World!"]
     });
 
-    let task_run = create_test_task_run(&params.to_string());
+    let task_run = create_test_task_run(params);
     let result = executor.execute(&task_run).await.unwrap();
 
     assert!(result.success);
@@ -48,7 +57,7 @@ async fn test_shell_executor_invalid_command() {
         "command": "nonexistent_command_12345"
     });
 
-    let task_run = create_test_task_run(&params.to_string());
+    let task_run = create_test_task_run(params);
     let result = executor.execute(&task_run).await;
 
     assert!(result.is_err());
@@ -81,7 +90,7 @@ async fn test_http_executor_get_request() {
         "method": "GET"
     });
 
-    let task_run = create_test_task_run(&params.to_string());
+    let task_run = create_test_task_run_for_type(params, "http");
     let result = executor.execute(&task_run).await.unwrap();
 
     assert!(result.success);
