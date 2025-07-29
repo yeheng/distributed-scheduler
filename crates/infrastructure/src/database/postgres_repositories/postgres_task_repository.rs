@@ -66,7 +66,7 @@ impl TaskRepository for PostgresTaskRepository {
         let row = sqlx::query(
             r#"
             INSERT INTO tasks (name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+            VALUES ($1, $2, $3, $4, $5, $6, $7::task_status, $8, $9)
             RETURNING id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at
             "#,
         )
@@ -139,7 +139,7 @@ impl TaskRepository for PostgresTaskRepository {
             r#"
             UPDATE tasks 
             SET name = $2, task_type = $3, schedule = $4, parameters = $5, 
-                timeout_seconds = $6, max_retries = $7, status = $8, 
+                timeout_seconds = $6, max_retries = $7, status = $8::task_status, 
                 dependencies = $9, shard_config = $10, updated_at = NOW()
             WHERE id = $1
             "#,

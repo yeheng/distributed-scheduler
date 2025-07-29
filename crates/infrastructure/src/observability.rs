@@ -263,7 +263,7 @@ pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
 pub fn init_tracing() -> Result<()> {
     // For now, we'll initialize a basic tracing setup without OpenTelemetry
     // due to API compatibility issues. Can be enhanced later with proper OpenTelemetry integration.
-    
+
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),

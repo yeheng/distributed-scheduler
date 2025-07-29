@@ -111,8 +111,8 @@ reqwest = { version = "0.12", features = ["json"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
 
 # 测试相关
-testcontainers = "0.24"
-testcontainers-modules = { version = "0.12", features = ["postgres"] }
+testcontainers = { version = "0.24", features = ["blocking"] }
+testcontainers-modules = { version = "0.12", features = ["postgres", "rabbitmq"] }
 tokio-test = "0.4"
 
 # 其他工具
