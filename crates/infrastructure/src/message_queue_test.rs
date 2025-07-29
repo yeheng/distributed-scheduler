@@ -9,7 +9,7 @@ mod message_queue_test {
         models::{Message, MessageType, StatusUpdateMessage},
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
-    use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage};
+    use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
     use tokio::time::{sleep, Duration};
     use uuid::Uuid;
 
@@ -80,7 +80,9 @@ mod message_queue_test {
     async fn create_rabbit_mqmessage_queue() -> scheduler_core::Result<RabbitMQMessageQueue> {
         let rabbitmq_image = GenericImage::new("rabbitmq", "3-management")
             .with_exposed_port(5672.tcp())
-            .with_exposed_port(15672.tcp());
+            .with_exposed_port(15672.tcp())
+            .with_env_var("RABBITMQ_DEFAULT_USER", "guest")
+            .with_env_var("RABBITMQ_DEFAULT_PASS", "guest");
 
         let _container = rabbitmq_image.start().await.unwrap();
 
