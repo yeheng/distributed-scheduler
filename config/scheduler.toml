@@ -45,4 +45,3 @@ tracing_enabled = true
 metrics_enabled = true
 metrics_endpoint = "/metrics"
 log_level = "info"
-jaeger_endpoint = null

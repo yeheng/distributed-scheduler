@@ -177,24 +177,37 @@ impl MessageQueue for RabbitMQMessageQueue {
         // 获取单个消息
         let get_result = channel
             .basic_get(queue, BasicGetOptions::default())
-            .await
-            .map_err(|e| {
-                SchedulerError::MessageQueue(format!("从队列 {queue} 获取消息失败: {e}"))
-            })?;
+            .await;
 
-        if let Some(delivery) = get_result {
-            let message = self.deserialize_message(&delivery.data)?;
+        match get_result {
+            Ok(Some(delivery)) => {
+                let message = self.deserialize_message(&delivery.data)?;
 
-            // 自动确认消息
-            let channel = self.channel.lock().await;
-            channel
-                .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
-                .await
-                .map_err(|e| SchedulerError::MessageQueue(format!("确认消息失败: {e}")))?;
+                // 自动确认消息
+                let channel = self.channel.lock().await;
+                channel
+                    .basic_ack(delivery.delivery_tag, BasicAckOptions::default())
+                    .await
+                    .map_err(|e| SchedulerError::MessageQueue(format!("确认消息失败: {e}")))?;
 
-            Ok(vec![message])
-        } else {
-            Ok(vec![])
+                Ok(vec![message])
+            }
+            Ok(None) => {
+                // 队列为空或没有消息
+                Ok(vec![])
+            }
+            Err(e) => {
+                // 检查是否是队列不存在的错误
+                let error_msg = e.to_string();
+                if error_msg.contains("NOT_FOUND") || error_msg.contains("404") {
+                    // 队列不存在，返回空结果而不是错误
+                    debug!("队列 {} 不存在，返回空结果", queue);
+                    Ok(vec![])
+                } else {
+                    // 其他错误应该抛出
+                    Err(SchedulerError::MessageQueue(format!("从队列 {queue} 获取消息失败: {e}")))
+                }
+            }
         }
     }
 
@@ -245,10 +258,23 @@ impl MessageQueue for RabbitMQMessageQueue {
                 },
                 FieldTable::default(),
             )
-            .await
-            .map_err(|e| SchedulerError::MessageQueue(format!("获取队列 {queue} 信息失败: {e}")))?;
+            .await;
 
-        Ok(queue_info.message_count())
+        match queue_info {
+            Ok(info) => Ok(info.message_count()),
+            Err(e) => {
+                // 检查是否是队列不存在的错误
+                let error_msg = e.to_string();
+                if error_msg.contains("NOT_FOUND") || error_msg.contains("404") {
+                    // 队列不存在，返回0而不是错误
+                    debug!("队列 {} 不存在，返回大小为0", queue);
+                    Ok(0)
+                } else {
+                    // 其他错误应该抛出
+                    Err(SchedulerError::MessageQueue(format!("获取队列 {queue} 信息失败: {e}")))
+                }
+            }
+        }
     }
 
     /// 清空队列
