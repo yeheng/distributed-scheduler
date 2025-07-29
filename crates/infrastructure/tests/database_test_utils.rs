@@ -1,6 +1,5 @@
 use anyhow::Result;
 use sqlx::{PgPool, Row};
-use std::collections::HashMap;
 use testcontainers::ContainerAsync;
 use testcontainers::{runners::AsyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;
@@ -242,7 +241,7 @@ impl DatabaseTestContainer {
     }
 
     /// Insert test data for task runs
-    pub async fn insert_test_task_run(
+    pub async fn _insert_test_task_run(
         &self,
         task_id: i64,
         status: &str,
@@ -265,7 +264,7 @@ impl DatabaseTestContainer {
     }
 
     /// Insert test data for workers
-    pub async fn insert_test_worker(
+    pub async fn _insert_test_worker(
         &self,
         worker_id: &str,
         hostname: &str,
@@ -319,31 +318,6 @@ impl DatabaseTestContainer {
         }
 
         Ok(true)
-    }
-}
-
-/// Test helper to create multiple test containers with different configurations
-pub struct MultiDatabaseTestSetup {
-    pub containers: HashMap<String, DatabaseTestContainer>,
-}
-
-impl MultiDatabaseTestSetup {
-    /// Create multiple test database containers
-    pub async fn new(container_names: Vec<&str>) -> Result<Self> {
-        let mut containers = HashMap::new();
-
-        for name in container_names {
-            let container = DatabaseTestContainer::new().await?;
-            container.run_migrations().await?;
-            containers.insert(name.to_string(), container);
-        }
-
-        Ok(Self { containers })
-    }
-
-    /// Get a specific test container
-    pub fn get_container(&self, name: &str) -> Option<&DatabaseTestContainer> {
-        self.containers.get(name)
     }
 }
 

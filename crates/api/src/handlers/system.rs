@@ -98,7 +98,7 @@ pub async fn get_system_stats(
 pub async fn get_system_health(
     State(state): State<AppState>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    let mut database_status = "healthy".to_string();
+    let database_status;
     let message_queue_status = "healthy".to_string(); // 暂时设为健康，实际应该检查消息队列连接
     let mut overall_status = "healthy".to_string();
 

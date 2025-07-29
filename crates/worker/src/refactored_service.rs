@@ -8,6 +8,90 @@ use crate::components::{
     DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
 };
 
+/// Configuration for WorkerService
+#[derive(Debug, Clone)]
+pub struct WorkerConfig {
+    pub worker_id: String,
+    pub task_queue: String,
+    pub status_queue: String,
+    pub max_concurrent_tasks: usize,
+    pub heartbeat_interval_seconds: u64,
+    pub poll_interval_ms: u64,
+    pub dispatcher_url: Option<String>,
+    pub hostname: String,
+    pub ip_address: String,
+}
+
+impl WorkerConfig {
+    pub fn builder(
+        worker_id: String,
+        task_queue: String,
+        status_queue: String,
+    ) -> WorkerConfigBuilder {
+        WorkerConfigBuilder::new(worker_id, task_queue, status_queue)
+    }
+}
+
+/// Builder for WorkerConfig
+pub struct WorkerConfigBuilder {
+    config: WorkerConfig,
+}
+
+impl WorkerConfigBuilder {
+    pub fn new(worker_id: String, task_queue: String, status_queue: String) -> Self {
+        Self {
+            config: WorkerConfig {
+                worker_id,
+                task_queue,
+                status_queue,
+                max_concurrent_tasks: 5,
+                heartbeat_interval_seconds: 30,
+                poll_interval_ms: 1000,
+                dispatcher_url: None,
+                hostname: hostname::get()
+                    .unwrap_or_else(|_| "unknown".into())
+                    .to_string_lossy()
+                    .to_string(),
+                ip_address: "127.0.0.1".to_string(),
+            },
+        }
+    }
+
+    pub fn max_concurrent_tasks(mut self, max_concurrent_tasks: usize) -> Self {
+        self.config.max_concurrent_tasks = max_concurrent_tasks;
+        self
+    }
+
+    pub fn heartbeat_interval_seconds(mut self, heartbeat_interval_seconds: u64) -> Self {
+        self.config.heartbeat_interval_seconds = heartbeat_interval_seconds;
+        self
+    }
+
+    pub fn poll_interval_ms(mut self, poll_interval_ms: u64) -> Self {
+        self.config.poll_interval_ms = poll_interval_ms;
+        self
+    }
+
+    pub fn dispatcher_url(mut self, dispatcher_url: String) -> Self {
+        self.config.dispatcher_url = Some(dispatcher_url);
+        self
+    }
+
+    pub fn hostname(mut self, hostname: String) -> Self {
+        self.config.hostname = hostname;
+        self
+    }
+
+    pub fn ip_address(mut self, ip_address: String) -> Self {
+        self.config.ip_address = ip_address;
+        self
+    }
+
+    pub fn build(self) -> WorkerConfig {
+        self.config
+    }
+}
+
 /// Simplified WorkerService that composes focused components
 /// Follows SOLID principles:
 /// - SRP: Each component has a single responsibility  
@@ -25,45 +109,37 @@ pub struct WorkerService {
 impl WorkerService {
     /// Create a new WorkerService with composed components
     pub fn new(
-        worker_id: String,
+        config: WorkerConfig,
         service_locator: Arc<ServiceLocator>,
         executor_registry: Arc<dyn ExecutorRegistry>,
-        task_queue: String,
-        status_queue: String,
-        max_concurrent_tasks: usize,
-        heartbeat_interval_seconds: u64,
-        poll_interval_ms: u64,
-        dispatcher_url: Option<String>,
-        hostname: String,
-        ip_address: String,
     ) -> Self {
         // Create focused components
         let task_execution_manager = Arc::new(TaskExecutionManager::new(
-            worker_id.clone(),
+            config.worker_id.clone(),
             executor_registry,
-            max_concurrent_tasks,
+            config.max_concurrent_tasks,
         ));
 
         let dispatcher_client = Arc::new(DispatcherClient::new(
-            dispatcher_url,
-            worker_id.clone(),
-            hostname,
-            ip_address,
+            config.dispatcher_url,
+            config.worker_id.clone(),
+            config.hostname,
+            config.ip_address,
         ));
 
         let heartbeat_manager = Arc::new(HeartbeatManager::new(
-            worker_id.clone(),
+            config.worker_id.clone(),
             Arc::clone(&service_locator),
-            status_queue,
-            heartbeat_interval_seconds,
+            config.status_queue,
+            config.heartbeat_interval_seconds,
             Arc::clone(&dispatcher_client),
         ));
 
         let worker_lifecycle = Arc::new(WorkerLifecycle::new(
-            worker_id,
+            config.worker_id,
             service_locator,
-            task_queue,
-            poll_interval_ms,
+            config.task_queue,
+            config.poll_interval_ms,
             Arc::clone(&task_execution_manager),
             Arc::clone(&dispatcher_client),
             Arc::clone(&heartbeat_manager),
@@ -171,17 +247,9 @@ impl WorkerService {
 
 /// Builder for WorkerService with fluent interface
 pub struct WorkerServiceBuilder {
-    worker_id: String,
+    config: WorkerConfig,
     service_locator: Arc<ServiceLocator>,
-    task_queue: String,
-    status_queue: String,
     executor_registry: Option<Arc<dyn ExecutorRegistry>>,
-    max_concurrent_tasks: usize,
-    heartbeat_interval_seconds: u64,
-    poll_interval_ms: u64,
-    dispatcher_url: Option<String>,
-    hostname: String,
-    ip_address: String,
 }
 
 impl WorkerServiceBuilder {
@@ -192,20 +260,9 @@ impl WorkerServiceBuilder {
         status_queue: String,
     ) -> Self {
         Self {
-            worker_id,
+            config: WorkerConfig::builder(worker_id, task_queue, status_queue).build(),
             service_locator,
-            task_queue,
-            status_queue,
             executor_registry: None,
-            max_concurrent_tasks: 5,
-            heartbeat_interval_seconds: 30,
-            poll_interval_ms: 1000,
-            dispatcher_url: None,
-            hostname: hostname::get()
-                .unwrap_or_else(|_| "unknown".into())
-                .to_string_lossy()
-                .to_string(),
-            ip_address: "127.0.0.1".to_string(),
         }
     }
 
@@ -215,32 +272,32 @@ impl WorkerServiceBuilder {
     }
 
     pub fn max_concurrent_tasks(mut self, max_concurrent_tasks: usize) -> Self {
-        self.max_concurrent_tasks = max_concurrent_tasks;
+        self.config.max_concurrent_tasks = max_concurrent_tasks;
         self
     }
 
     pub fn heartbeat_interval_seconds(mut self, heartbeat_interval_seconds: u64) -> Self {
-        self.heartbeat_interval_seconds = heartbeat_interval_seconds;
+        self.config.heartbeat_interval_seconds = heartbeat_interval_seconds;
         self
     }
 
     pub fn poll_interval_ms(mut self, poll_interval_ms: u64) -> Self {
-        self.poll_interval_ms = poll_interval_ms;
+        self.config.poll_interval_ms = poll_interval_ms;
         self
     }
 
     pub fn dispatcher_url(mut self, dispatcher_url: String) -> Self {
-        self.dispatcher_url = Some(dispatcher_url);
+        self.config.dispatcher_url = Some(dispatcher_url);
         self
     }
 
     pub fn hostname(mut self, hostname: String) -> Self {
-        self.hostname = hostname;
+        self.config.hostname = hostname;
         self
     }
 
     pub fn ip_address(mut self, ip_address: String) -> Self {
-        self.ip_address = ip_address;
+        self.config.ip_address = ip_address;
         self
     }
 
@@ -250,17 +307,9 @@ impl WorkerServiceBuilder {
         })?;
 
         Ok(WorkerService::new(
-            self.worker_id,
+            self.config,
             self.service_locator,
             executor_registry,
-            self.task_queue,
-            self.status_queue,
-            self.max_concurrent_tasks,
-            self.heartbeat_interval_seconds,
-            self.poll_interval_ms,
-            self.dispatcher_url,
-            self.hostname,
-            self.ip_address,
         ))
     }
 }

@@ -88,32 +88,32 @@ impl DependencyChecker {
         Ok(graph)
     }
 
-    /// 使用深度优先搜索检测循环依赖
-    fn dfs_cycle_detection(
-        &self,
-        graph: &HashMap<i64, Vec<i64>>,
-        node: i64,
-        visited: &mut HashSet<i64>,
-        rec_stack: &mut HashSet<i64>,
-    ) -> bool {
-        visited.insert(node);
-        rec_stack.insert(node);
+    // 使用深度优先搜索检测循环依赖
+    // fn dfs_cycle_detection(
+    //     &self,
+    //     graph: &HashMap<i64, Vec<i64>>,
+    //     node: i64,
+    //     visited: &mut HashSet<i64>,
+    //     rec_stack: &mut HashSet<i64>,
+    // ) -> bool {
+    //     visited.insert(node);
+    //     rec_stack.insert(node);
 
-        if let Some(neighbors) = graph.get(&node) {
-            for &neighbor in neighbors {
-                if !visited.contains(&neighbor) {
-                    if self.dfs_cycle_detection(graph, neighbor, visited, rec_stack) {
-                        return true;
-                    }
-                } else if rec_stack.contains(&neighbor) {
-                    return true;
-                }
-            }
-        }
+    //     if let Some(neighbors) = graph.get(&node) {
+    //         for &neighbor in neighbors {
+    //             if !visited.contains(&neighbor) {
+    //                 if self.dfs_cycle_detection(graph, neighbor, visited, rec_stack) {
+    //                     return true;
+    //                 }
+    //             } else if rec_stack.contains(&neighbor) {
+    //                 return true;
+    //             }
+    //         }
+    //     }
 
-        rec_stack.remove(&node);
-        false
-    }
+    //     rec_stack.remove(&node);
+    //     false
+    // }
 
     /// 使用拓扑排序检测循环依赖
     fn topological_sort_cycle_detection(&self, graph: &HashMap<i64, Vec<i64>>) -> bool {

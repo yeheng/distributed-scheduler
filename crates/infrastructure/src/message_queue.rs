@@ -175,9 +175,7 @@ impl MessageQueue for RabbitMQMessageQueue {
         let channel = self.channel.lock().await;
 
         // 获取单个消息
-        let get_result = channel
-            .basic_get(queue, BasicGetOptions::default())
-            .await;
+        let get_result = channel.basic_get(queue, BasicGetOptions::default()).await;
 
         match get_result {
             Ok(Some(delivery)) => {
@@ -205,7 +203,9 @@ impl MessageQueue for RabbitMQMessageQueue {
                     Ok(vec![])
                 } else {
                     // 其他错误应该抛出
-                    Err(SchedulerError::MessageQueue(format!("从队列 {queue} 获取消息失败: {e}")))
+                    Err(SchedulerError::MessageQueue(format!(
+                        "从队列 {queue} 获取消息失败: {e}"
+                    )))
                 }
             }
         }
@@ -271,7 +271,9 @@ impl MessageQueue for RabbitMQMessageQueue {
                     Ok(0)
                 } else {
                     // 其他错误应该抛出
-                    Err(SchedulerError::MessageQueue(format!("获取队列 {queue} 信息失败: {e}")))
+                    Err(SchedulerError::MessageQueue(format!(
+                        "获取队列 {queue} 信息失败: {e}"
+                    )))
                 }
             }
         }

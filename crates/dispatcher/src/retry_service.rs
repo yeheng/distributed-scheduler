@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 
 use scheduler_core::{
     models::{Message, TaskExecutionMessage, TaskRun, TaskRunStatus},
-    traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
+    traits::{MessageQueue, TaskRepository, TaskRunRepository},
     Result, SchedulerError,
 };
 
@@ -58,7 +58,6 @@ pub trait RetryService: Send + Sync {
 pub struct TaskRetryService {
     task_repo: Arc<dyn TaskRepository>,
     task_run_repo: Arc<dyn TaskRunRepository>,
-    worker_repo: Arc<dyn WorkerRepository>,
     message_queue: Arc<dyn MessageQueue>,
     task_queue_name: String,
     retry_config: RetryConfig,
@@ -69,7 +68,6 @@ impl TaskRetryService {
     pub fn new(
         task_repo: Arc<dyn TaskRepository>,
         task_run_repo: Arc<dyn TaskRunRepository>,
-        worker_repo: Arc<dyn WorkerRepository>,
         message_queue: Arc<dyn MessageQueue>,
         task_queue_name: String,
         retry_config: Option<RetryConfig>,
@@ -77,7 +75,6 @@ impl TaskRetryService {
         Self {
             task_repo,
             task_run_repo,
-            worker_repo,
             message_queue,
             task_queue_name,
             retry_config: retry_config.unwrap_or_default(),
@@ -386,9 +383,7 @@ impl RetryService for TaskRetryService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::test_utils::mocks::{
-        MockTaskRepository, MockTaskRunRepository, MockWorkerRepository,
-    };
+    use crate::test_utils::mocks::{MockTaskRepository, MockTaskRunRepository};
     use scheduler_core::MockMessageQueue;
 
     #[test]
@@ -397,7 +392,6 @@ mod tests {
         let service = TaskRetryService {
             task_repo: Arc::new(MockTaskRepository::new()),
             task_run_repo: Arc::new(MockTaskRunRepository::new()),
-            worker_repo: Arc::new(MockWorkerRepository::new()),
             message_queue: Arc::new(MockMessageQueue::new()),
             task_queue_name: "test".to_string(),
             retry_config: config,

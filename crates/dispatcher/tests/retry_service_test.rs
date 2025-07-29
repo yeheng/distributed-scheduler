@@ -486,7 +486,6 @@ fn create_test_worker(id: &str, status: WorkerStatus) -> WorkerInfo {
 async fn test_handle_failed_task_with_retries_available() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Setup test data
@@ -499,7 +498,6 @@ async fn test_handle_failed_task_with_retries_available() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
@@ -521,7 +519,6 @@ async fn test_handle_failed_task_with_retries_available() {
 async fn test_handle_failed_task_max_retries_exceeded() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Setup test data
@@ -534,7 +531,6 @@ async fn test_handle_failed_task_max_retries_exceeded() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
@@ -554,7 +550,6 @@ async fn test_handle_failed_task_max_retries_exceeded() {
 async fn test_handle_failed_task_inactive_task() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Setup test data
@@ -568,7 +563,6 @@ async fn test_handle_failed_task_inactive_task() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
@@ -588,7 +582,6 @@ async fn test_handle_failed_task_inactive_task() {
 async fn test_handle_timeout_task() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Setup test data
@@ -601,7 +594,6 @@ async fn test_handle_timeout_task() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
@@ -640,7 +632,6 @@ async fn test_handle_worker_failure() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue.clone(),
         "test_queue".to_string(),
         None,
@@ -667,7 +658,6 @@ async fn test_handle_worker_failure() {
 async fn test_scan_retry_tasks() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Setup test data
@@ -689,7 +679,6 @@ async fn test_scan_retry_tasks() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo.clone(),
-        worker_repo,
         message_queue.clone(),
         "test_queue".to_string(),
         None,
@@ -715,7 +704,6 @@ async fn test_scan_retry_tasks() {
 async fn test_calculate_next_retry_time() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     let config = RetryConfig {
@@ -728,7 +716,6 @@ async fn test_calculate_next_retry_time() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo,
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         Some(config),
@@ -767,7 +754,6 @@ async fn test_retry_config_default() {
 async fn test_task_not_found_error() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     // Create task run without corresponding task
@@ -777,7 +763,6 @@ async fn test_task_not_found_error() {
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo,
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
@@ -798,13 +783,11 @@ async fn test_task_not_found_error() {
 async fn test_task_run_not_found_error() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
-    let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
 
     let retry_service = TaskRetryService::new(
         task_repo,
         task_run_repo,
-        worker_repo,
         message_queue,
         "test_queue".to_string(),
         None,
