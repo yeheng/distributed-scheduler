@@ -133,10 +133,10 @@ impl WorkerServiceBuilder {
         ));
 
         Ok(WorkerService {
-            worker_id: self.worker_id,
-            service_locator: self.service_locator,
-            executor_registry,
-            max_concurrent_tasks: self.max_concurrent_tasks,
+            _worker_id: self.worker_id,
+            _service_locator: self.service_locator,
+            _executor_registry: executor_registry,
+            _max_concurrent_tasks: self.max_concurrent_tasks,
             task_execution_manager,
             dispatcher_client,
             heartbeat_manager,
@@ -149,16 +149,16 @@ impl WorkerServiceBuilder {
 /// Follows SRP: Only orchestrates components and provides unified interface
 pub struct WorkerService {
     /// Worker unique identifier
-    worker_id: String,
+    _worker_id: String,
 
     /// Service locator for dependency access
-    service_locator: Arc<ServiceLocator>,
+    _service_locator: Arc<ServiceLocator>,
 
     /// Executor registry for task execution
-    executor_registry: Arc<dyn ExecutorRegistry>,
+    _executor_registry: Arc<dyn ExecutorRegistry>,
 
     /// Maximum concurrent tasks
-    max_concurrent_tasks: usize,
+    _max_concurrent_tasks: usize,
 
     /// Component: Task execution manager
     task_execution_manager: Arc<TaskExecutionManager>,
@@ -207,7 +207,7 @@ impl WorkerService {
     }
 
     /// Check if task is running
-    pub async fn is_task_running(&self, task_run_id: i64) -> bool {
+    pub async fn is_task_running(&self, _task_run_id: i64) -> bool {
         // This would need to be added to TaskExecutionManager
         // For now, return false
         false
@@ -336,8 +336,7 @@ impl WorkerServiceTrait for WorkerService {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scheduler_core::{models::TaskStatusUpdate, ApplicationContext};
-    use tokio::time::{sleep, Duration};
+    use scheduler_core::ApplicationContext;
 
     #[tokio::test]
     async fn test_worker_service_builder() {

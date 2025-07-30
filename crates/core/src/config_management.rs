@@ -187,7 +187,7 @@ impl Environment {
 }
 
 impl Environment {
-    fn as_str(&self) -> &'static str {
+    fn _as_str(&self) -> &'static str {
         match self {
             Environment::Development => "development",
             Environment::Testing => "testing",
@@ -203,7 +203,6 @@ mod tests {
     use async_trait::async_trait;
     use serde::Deserialize;
     use std::collections::HashMap;
-    use tokio::time::{sleep, Duration};
 
     // Mock configuration service for testing
     struct MockConfigService {

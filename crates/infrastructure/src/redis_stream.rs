@@ -545,7 +545,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 获取消费者组信息
-    async fn get_consumer_group_info(&self, queue: &str) -> Result<()> {
+    async fn _get_consumer_group_info(&self, queue: &str) -> Result<()> {
         let mut conn = self.get_connection().await?;
         let group_name = self.get_consumer_group_name(queue);
 

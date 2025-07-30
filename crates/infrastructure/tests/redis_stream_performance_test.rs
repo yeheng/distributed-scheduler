@@ -463,7 +463,7 @@ async fn test_high_load_stress() -> Result<()> {
 
     // 启动消费者
     let mut consumer_handles = Vec::new();
-    for consumer_id in 0..NUM_CONSUMERS {
+    for _consumer_id in 0..NUM_CONSUMERS {
         let queue_clone = queue.clone();
         let consumed_count_clone = consumed_count.clone();
         let acked_count_clone = acked_count.clone();

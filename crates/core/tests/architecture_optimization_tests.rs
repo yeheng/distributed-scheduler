@@ -163,8 +163,8 @@ async fn test_error_handling_statistics() {
     let handler = DefaultErrorHandler::new();
 
     // Handle some errors to generate statistics
-    let error = SchedulerError::MessageQueue("Test error".to_string());
-    let context = ErrorContext {
+    let _error = SchedulerError::MessageQueue("Test error".to_string());
+    let _context = ErrorContext {
         component: "test_component".to_string(),
         operation: "test_operation".to_string(),
         severity: ErrorSeverity::Error,
