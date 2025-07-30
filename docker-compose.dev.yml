@@ -1,0 +1,92 @@
+# Docker Compose 开发环境配置 - 仅启动依赖服务
+
+version: '3.8'
+
+services:
+  # ============================================================================
+  # 数据库服务 - PostgreSQL
+  # ============================================================================
+  postgres:
+    image: postgres:15-alpine
+    container_name: scheduler-dev-postgres
+    environment:
+      POSTGRES_DB: scheduler
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: 123456
+      POSTGRES_INITDB_ARGS: "--encoding=UTF8 --locale=C"
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres_dev_data:/var/lib/postgresql/data
+    networks:
+      - scheduler-dev-network
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U postgres -d scheduler"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================================
+  # 消息队列服务 - RabbitMQ
+  # ============================================================================
+  rabbitmq:
+    image: rabbitmq:3.12-management-alpine
+    container_name: scheduler-dev-rabbitmq
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+      RABBITMQ_DEFAULT_VHOST: /
+    ports:
+      - "5672:5672"    # AMQP 端口
+      - "15672:15672"  # 管理界面端口
+    volumes:
+      - rabbitmq_dev_data:/var/lib/rabbitmq
+    networks:
+      - scheduler-dev-network
+    healthcheck:
+      test: ["CMD", "rabbitmq-diagnostics", "ping"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+    restart: unless-stopped
+
+  # ============================================================================
+  # Redis (可选，用于缓存)
+  # ============================================================================
+  redis:
+    image: redis:7-alpine
+    container_name: scheduler-dev-redis
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_dev_data:/data
+    networks:
+      - scheduler-dev-network
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    profiles:
+      - cache
+
+# ============================================================================
+# 网络配置
+# ============================================================================
+networks:
+  scheduler-dev-network:
+    driver: bridge
+    name: scheduler-dev-network
+
+# ============================================================================
+# 数据卷配置
+# ============================================================================
+volumes:
+  postgres_dev_data:
+    name: scheduler-dev-postgres-data
+  rabbitmq_dev_data:
+    name: scheduler-dev-rabbitmq-data
+  redis_dev_data:
+    name: scheduler-dev-redis-data
