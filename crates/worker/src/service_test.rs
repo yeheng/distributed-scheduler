@@ -4,11 +4,11 @@ use std::time::Duration;
 use chrono::Utc;
 use scheduler_core::{
     models::TaskStatusUpdate, ApplicationContext, DefaultExecutorRegistry, MockMessageQueue,
-    ServiceLocator, TaskRunStatus, WorkerServiceTrait,
+    ServiceLocator, TaskRunStatus,
 };
 use tokio::time::sleep;
 
-use crate::WorkerService;
+use crate::{WorkerService, WorkerServiceTrait as _};
 
 /// 创建测试用的服务定位器
 async fn create_test_service_locator() -> Arc<ServiceLocator> {

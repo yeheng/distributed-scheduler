@@ -1,5 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
+use scheduler_core::errors::SchedulerError;
 use scheduler_core::models::{TaskRun, TaskRunStatus};
 use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_infrastructure::database::postgres::{
@@ -125,14 +126,14 @@ async fn test_repository_error_handling() -> Result<()> {
     assert!(delete_result.is_err()); // Should error for non-existent task
     assert!(matches!(
         delete_result,
-        Err(scheduler_core::SchedulerError::TaskNotFound { id: 999 })
+        Err(SchedulerError::TaskNotFound { id: 999 })
     ));
 
     let delete_result = task_run_repo.delete(999).await;
     assert!(delete_result.is_err()); // Should error for non-existent task run
     assert!(matches!(
         delete_result,
-        Err(scheduler_core::SchedulerError::TaskRunNotFound { id: 999 })
+        Err(SchedulerError::TaskRunNotFound { id: 999 })
     ));
 
     Ok(())

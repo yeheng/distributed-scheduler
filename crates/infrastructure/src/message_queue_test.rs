@@ -79,7 +79,8 @@ mod message_queue_test {
         message
     }
 
-    async fn create_rabbit_mqmessage_queue() -> scheduler_core::Result<RabbitMQMessageQueue> {
+    async fn create_rabbit_mqmessage_queue() -> scheduler_core::errors::Result<RabbitMQMessageQueue>
+    {
         let rabbitmq_image = GenericImage::new("rabbitmq", "3-management")
             .with_exposed_port(5672.tcp())
             .with_exposed_port(15672.tcp())

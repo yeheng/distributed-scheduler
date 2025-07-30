@@ -4,8 +4,9 @@ use tracing::{debug, info};
 
 use scheduler_core::{
     config::model::{MessageQueueConfig, MessageQueueType},
+    errors::Result,
+    errors::SchedulerError,
     traits::MessageQueue,
-    Result, SchedulerError,
 };
 
 use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};

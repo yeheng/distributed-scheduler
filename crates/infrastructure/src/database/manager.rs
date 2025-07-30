@@ -1,6 +1,7 @@
 use scheduler_core::{
+    errors::Result,
+    errors::SchedulerError,
     traits::{TaskRepository, TaskRunRepository, WorkerRepository},
-    Result,
 };
 
 // Import existing repository implementations
@@ -43,7 +44,7 @@ impl DatabasePool {
                     .max_connections(max_connections)
                     .connect(url)
                     .await
-                    .map_err(scheduler_core::SchedulerError::Database)?;
+                    .map_err(SchedulerError::Database)?;
                 Ok(DatabasePool::PostgreSQL(pool))
             }
             DatabaseType::SQLite => {
@@ -51,7 +52,7 @@ impl DatabasePool {
                     .max_connections(max_connections)
                     .connect(url)
                     .await
-                    .map_err(scheduler_core::SchedulerError::Database)?;
+                    .map_err(SchedulerError::Database)?;
                 Ok(DatabasePool::SQLite(pool))
             }
         }
@@ -70,13 +71,13 @@ impl DatabasePool {
                 sqlx::query("SELECT 1")
                     .execute(pool)
                     .await
-                    .map_err(scheduler_core::SchedulerError::Database)?;
+                    .map_err(SchedulerError::Database)?;
             }
             DatabasePool::SQLite(pool) => {
                 sqlx::query("SELECT 1")
                     .execute(pool)
                     .await
-                    .map_err(scheduler_core::SchedulerError::Database)?;
+                    .map_err(SchedulerError::Database)?;
             }
         }
         Ok(())

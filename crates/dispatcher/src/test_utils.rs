@@ -281,7 +281,9 @@ pub mod mocks {
             Ok(0)
         }
 
-        async fn get_worker_load_stats(&self) -> Result<Vec<scheduler_core::WorkerLoadStats>> {
+        async fn get_worker_load_stats(
+            &self,
+        ) -> Result<Vec<scheduler_core::traits::repository::WorkerLoadStats>> {
             Ok(vec![])
         }
 

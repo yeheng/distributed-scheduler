@@ -1,8 +1,8 @@
 use std::sync::Arc;
 
 use crate::{
+    errors::{Result, SchedulerError},
     traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
-    Result, SchedulerError,
 };
 
 /// Simplified service container - stores only essential services

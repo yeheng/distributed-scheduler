@@ -8,7 +8,9 @@ use std::time::{Duration, Instant};
 use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{models::Message, traits::MessageQueue, Result, SchedulerError};
+use scheduler_core::{
+    errors::Result, errors::SchedulerError, models::Message, traits::MessageQueue,
+};
 
 /// Redis Stream消息队列实现
 ///

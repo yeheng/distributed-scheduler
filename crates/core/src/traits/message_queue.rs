@@ -5,7 +5,7 @@ use std::{
 
 use async_trait::async_trait;
 
-use crate::{models::Message, Result};
+use crate::{errors::Result, models::Message};
 
 /// 消息队列抽象接口
 #[async_trait]

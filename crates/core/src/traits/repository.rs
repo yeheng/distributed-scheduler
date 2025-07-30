@@ -1,5 +1,5 @@
+use crate::errors::Result;
 use crate::models::{Task, TaskFilter, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
-use crate::Result;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 

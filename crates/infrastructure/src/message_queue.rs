@@ -4,8 +4,8 @@ use lapin::{
     Consumer, Queue,
 };
 use scheduler_core::{
-    config::model::MessageQueueConfig, models::Message, traits::MessageQueue, Result,
-    SchedulerError,
+    config::model::MessageQueueConfig, errors::Result, errors::SchedulerError, models::Message,
+    traits::MessageQueue,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;

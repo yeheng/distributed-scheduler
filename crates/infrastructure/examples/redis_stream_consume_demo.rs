@@ -37,10 +37,13 @@ async fn main() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "demo".to_string(),
         consumer_id: "demo_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
     // Create message queue instance
-    let queue = RedisStreamMessageQueue::new(config.clone())?;
+    let queue = RedisStreamMessageQueue::new(config.clone()).await.unwrap();
     let demo_queue = "demo_consume_queue";
 
     println!("✅ Created Redis Stream message queue");
@@ -124,7 +127,7 @@ async fn main() -> Result<()> {
         consumer_id: "demo_consumer_2".to_string(),
         ..config.clone()
     };
-    let queue2 = RedisStreamMessageQueue::new(config2)?;
+    let queue2 = RedisStreamMessageQueue::new(config2).await.unwrap();
 
     // Publish more messages
     for i in 6..=8 {

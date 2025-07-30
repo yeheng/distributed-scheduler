@@ -30,12 +30,15 @@ async fn main() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "demo".to_string(),
         consumer_id: "demo_publisher".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
     println!("📡 Connecting to Redis at {}:{}", config.host, config.port);
 
     // Create message queue instance
-    let queue = match RedisStreamMessageQueue::new(config) {
+    let queue = match RedisStreamMessageQueue::new(config).await {
         Ok(q) => {
             println!("✅ Successfully created Redis Stream message queue");
             q

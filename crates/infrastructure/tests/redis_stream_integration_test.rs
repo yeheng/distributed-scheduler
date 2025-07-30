@@ -113,7 +113,7 @@ async fn test_redis_stream_publish_with_retry() -> Result<()> {
         pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
 
     // Create multiple test messages
     let messages: Vec<Message> = (0..3)
@@ -183,7 +183,7 @@ async fn test_redis_stream_publish_with_retry() -> Result<()> {
 #[ignore] // Ignore by default since it requires Redis
 async fn test_redis_stream_queue_management() -> Result<()> {
     let config = RedisStreamConfig::default();
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
 
     let test_queue = "queue_management_test";
 
@@ -219,7 +219,7 @@ async fn test_redis_stream_queue_management() -> Result<()> {
 #[tokio::test]
 async fn test_redis_stream_error_handling() -> Result<()> {
     let config = RedisStreamConfig::default();
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
 
     // Create a test message
     let task_execution = TaskExecutionMessage {
@@ -263,7 +263,7 @@ async fn test_redis_stream_error_handling() -> Result<()> {
 #[tokio::test]
 async fn test_message_serialization_edge_cases() -> Result<()> {
     let config = RedisStreamConfig::default();
-    let _queue = RedisStreamMessageQueue::new(config)?;
+    let _queue = RedisStreamMessageQueue::new(config).await?;
 
     // Test with message containing special characters
     let task_execution = TaskExecutionMessage {
@@ -323,7 +323,7 @@ async fn test_redis_stream_consume_messages() -> Result<()> {
         pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "consume_test_queue";
 
     // Clean up any existing data
@@ -444,6 +444,9 @@ async fn test_redis_stream_consumer_groups() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "group_test".to_string(),
         consumer_id: "consumer_1".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
     let config2 = RedisStreamConfig {
@@ -451,8 +454,8 @@ async fn test_redis_stream_consumer_groups() -> Result<()> {
         ..config1.clone()
     };
 
-    let queue1 = RedisStreamMessageQueue::new(config1)?;
-    let queue2 = RedisStreamMessageQueue::new(config2)?;
+    let queue1 = RedisStreamMessageQueue::new(config1).await?;
+    let queue2 = RedisStreamMessageQueue::new(config2).await?;
     let test_queue = "consumer_group_test_queue";
 
     // Clean up any existing data
@@ -523,7 +526,7 @@ async fn test_redis_stream_ack_message() -> Result<()> {
         pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "ack_test_queue";
 
     // Clean up any existing data
@@ -638,7 +641,7 @@ async fn test_redis_stream_nack_message_with_requeue() -> Result<()> {
         pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "nack_requeue_test_queue";
 
     // Clean up any existing data
@@ -774,9 +777,12 @@ async fn test_redis_stream_nack_message_without_requeue() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "nack_no_requeue_test".to_string(),
         consumer_id: "nack_no_requeue_test_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "nack_no_requeue_test_queue";
 
     // Clean up any existing data
@@ -942,9 +948,12 @@ async fn test_redis_stream_concurrent_operations() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "concurrent_test".to_string(),
         consumer_id: "concurrent_test_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
-    let queue = Arc::new(RedisStreamMessageQueue::new(config)?);
+    let queue = Arc::new(RedisStreamMessageQueue::new(config).await?);
     let test_queue = "concurrent_test_queue";
 
     // Clean up any existing data
@@ -1148,6 +1157,9 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "multi_consumer_test".to_string(),
         consumer_id: "consumer_1".to_string(), // Will be overridden
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
     const NUM_CONSUMERS: usize = 3;
@@ -1155,7 +1167,7 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
     let test_queue = "multi_consumer_test_queue";
 
     // Create publisher
-    let publisher = RedisStreamMessageQueue::new(base_config.clone())?;
+    let publisher = RedisStreamMessageQueue::new(base_config.clone()).await?;
     let _ = publisher.purge_queue(test_queue).await;
 
     // Publish messages
@@ -1192,7 +1204,7 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
         let mut config = base_config.clone();
         config.consumer_id = format!("consumer_{}", consumer_id);
 
-        let consumer = RedisStreamMessageQueue::new(config)?;
+        let consumer = RedisStreamMessageQueue::new(config).await?;
         let consumed_counts_clone = Arc::clone(&consumed_counts);
 
         let handle = tokio::spawn(async move {
@@ -1310,9 +1322,12 @@ async fn test_redis_stream_failure_recovery() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "failure_recovery_test".to_string(),
         consumer_id: "recovery_test_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "failure_recovery_test_queue";
 
     // Clean up any existing data
@@ -1468,6 +1483,9 @@ async fn test_redis_stream_rabbitmq_equivalence() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "equivalence_test".to_string(),
         consumer_id: "equivalence_test_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
     // RabbitMQ configuration
@@ -1485,7 +1503,7 @@ async fn test_redis_stream_rabbitmq_equivalence() -> Result<()> {
     };
 
     // Create both queue implementations
-    let redis_queue = RedisStreamMessageQueue::new(redis_config)?;
+    let redis_queue = RedisStreamMessageQueue::new(redis_config).await?;
 
     let rabbitmq_result = timeout(
         Duration::from_secs(5),
@@ -1691,9 +1709,12 @@ async fn test_redis_stream_performance_benchmark() -> Result<()> {
         retry_delay_seconds: 1,
         consumer_group_prefix: "perf_test".to_string(),
         consumer_id: "perf_test_consumer".to_string(),
+        pool_min_idle: 1,
+        pool_max_open: 10,
+        pool_timeout_seconds: 30,
     };
 
-    let queue = RedisStreamMessageQueue::new(config)?;
+    let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "performance_test_queue";
 
     // Clean up any existing data

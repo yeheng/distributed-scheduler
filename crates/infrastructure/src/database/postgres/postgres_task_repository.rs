@@ -1,9 +1,10 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
+    errors::Result,
+    errors::SchedulerError,
     models::{Task, TaskFilter, TaskStatus},
     traits::TaskRepository,
-    Result, SchedulerError,
 };
 use sqlx::{PgPool, Row};
 use tracing::debug;

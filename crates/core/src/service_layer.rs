@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::{
+    errors::{Result, SchedulerError},
     models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
-    Result,
 };
 
 /// 服务层抽象 - 任务控制服务
@@ -376,9 +376,8 @@ impl<C: ConfigurationService> ConfigurationServiceExt for C {
     {
         match self.get_config_value(key).await? {
             Some(value) => {
-                let typed_value: T = serde_json::from_value(value).map_err(|e| {
-                    crate::SchedulerError::Internal(format!("配置反序列化失败: {e}"))
-                })?;
+                let typed_value: T = serde_json::from_value(value)
+                    .map_err(|e| SchedulerError::Internal(format!("配置反序列化失败: {e}")))?;
                 Ok(Some(typed_value))
             }
             None => Ok(None),
@@ -390,7 +389,7 @@ impl<C: ConfigurationService> ConfigurationServiceExt for C {
         T: serde::Serialize + std::marker::Sync,
     {
         let json_value = serde_json::to_value(value)
-            .map_err(|e| crate::SchedulerError::Internal(format!("配置序列化失败: {e}")))?;
+            .map_err(|e| SchedulerError::Internal(format!("配置序列化失败: {e}")))?;
         self.set_config_value(key, &json_value).await
     }
 }
