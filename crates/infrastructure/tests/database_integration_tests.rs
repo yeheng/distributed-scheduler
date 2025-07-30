@@ -131,7 +131,7 @@ async fn test_task_run_repository_integration() {
     assert!(created_run.id > 0);
     assert_eq!(created_run.task_id, created_task.id);
     assert_eq!(created_run.status, TaskRunStatus::Pending);
-    assert_eq!(created_run.scheduled_at, scheduled_time);
+    assert_eq!(created_run.scheduled_at.naive_utc(), scheduled_time.naive_utc());
 
     // 测试状态更新
     let worker_id = "integration-test-worker";

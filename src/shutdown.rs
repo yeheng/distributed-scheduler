@@ -64,12 +64,12 @@ impl ShutdownManager {
     }
 
     /// 检查是否已经关闭
-    pub async fn is_shutdown(&self) -> bool {
+    pub async fn _is_shutdown(&self) -> bool {
         *self.is_shutdown.read().await
     }
 
     /// 等待关闭完成
-    pub async fn wait_for_shutdown(&self) {
+    pub async fn _wait_for_shutdown(&self) {
         let mut rx = self.subscribe().await;
         let _ = rx.recv().await;
     }
@@ -92,7 +92,7 @@ mod tests {
         let manager = ShutdownManager::new();
 
         // 初始状态应该是未关闭
-        assert!(!manager.is_shutdown().await);
+        assert!(!manager._is_shutdown().await);
 
         // 订阅关闭信号
         let mut rx = manager.subscribe().await;
@@ -105,7 +105,7 @@ mod tests {
         assert!(result.is_ok());
 
         // 状态应该是已关闭
-        assert!(manager.is_shutdown().await);
+        assert!(manager._is_shutdown().await);
     }
 
     #[tokio::test]
@@ -150,11 +150,11 @@ mod tests {
 
         // 第一次关闭
         manager.shutdown().await;
-        assert!(manager.is_shutdown().await);
+        assert!(manager._is_shutdown().await);
 
         // 第二次关闭应该是无操作
         manager.shutdown().await;
-        assert!(manager.is_shutdown().await);
+        assert!(manager._is_shutdown().await);
     }
 
     #[tokio::test]
@@ -164,7 +164,7 @@ mod tests {
         // 在另一个任务中等待关闭
         let manager_clone = manager.clone();
         let wait_handle = tokio::spawn(async move {
-            manager_clone.wait_for_shutdown().await;
+            manager_clone._wait_for_shutdown().await;
         });
 
         // 稍等一下然后触发关闭
