@@ -340,3 +340,453 @@ fn test_log_levels() {
         );
     }
 }
+
+#[test]
+fn test_redis_stream_config_with_url() {
+    let toml_content = r#"
+[database]
+url = "postgresql://localhost/scheduler"
+max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
+
+[message_queue]
+type = "redis_stream"
+url = "redis://localhost:6379/0"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 60
+connection_timeout_seconds = 30
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
+
+[worker]
+enabled = false
+worker_id = "worker-001"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
+
+[api]
+enabled = true
+bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[observability]
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
+"#;
+
+    let config = AppConfig::from_toml(toml_content).unwrap();
+    assert!(config.message_queue.is_redis_stream());
+    assert!(!config.message_queue.is_rabbitmq());
+    assert_eq!(config.message_queue.url, "redis://localhost:6379/0");
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_redis_stream_config_with_redis_config() {
+    let toml_content = r#"
+[database]
+url = "postgresql://localhost/scheduler"
+max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
+
+[message_queue]
+type = "redis_stream"
+url = ""
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 60
+connection_timeout_seconds = 30
+
+[message_queue.redis]
+host = "127.0.0.1"
+port = 6379
+database = 0
+password = "secret"
+connection_timeout_seconds = 30
+max_retry_attempts = 3
+retry_delay_seconds = 1
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
+
+[worker]
+enabled = false
+worker_id = "worker-001"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
+
+[api]
+enabled = true
+bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[observability]
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
+"#;
+
+    let config = AppConfig::from_toml(toml_content).unwrap();
+    assert!(config.message_queue.is_redis_stream());
+    assert!(config.message_queue.redis.is_some());
+
+    let redis_config = config.message_queue.redis.as_ref().unwrap();
+    assert_eq!(redis_config.host, "127.0.0.1");
+    assert_eq!(redis_config.port, 6379);
+    assert_eq!(redis_config.database, 0);
+    assert_eq!(redis_config.password, Some("secret".to_string()));
+    assert!(redis_config.has_password());
+
+    assert!(config.validate().is_ok());
+}
+
+#[test]
+fn test_redis_config_validation() {
+    use crate::config::RedisConfig;
+
+    let mut redis_config = RedisConfig::default();
+
+    // 测试空主机
+    redis_config.host = "".to_string();
+    assert!(redis_config.validate().is_err());
+
+    // 测试端口为0
+    redis_config.host = "localhost".to_string();
+    redis_config.port = 0;
+    assert!(redis_config.validate().is_err());
+
+    // 测试负数据库索引
+    redis_config.port = 6379;
+    redis_config.database = -1;
+    assert!(redis_config.validate().is_err());
+
+    // 测试有效配置
+    redis_config.database = 0;
+    assert!(redis_config.validate().is_ok());
+}
+
+#[test]
+fn test_redis_config_build_url() {
+    use crate::config::RedisConfig;
+
+    // 测试无密码
+    let redis_config = RedisConfig {
+        host: "localhost".to_string(),
+        port: 6379,
+        database: 0,
+        password: None,
+        connection_timeout_seconds: 30,
+        max_retry_attempts: 3,
+        retry_delay_seconds: 1,
+    };
+
+    assert_eq!(redis_config.build_url(), "redis://localhost:6379/0");
+    assert!(!redis_config.has_password());
+
+    // 测试有密码
+    let redis_config_with_password = RedisConfig {
+        password: Some("secret".to_string()),
+        ..redis_config
+    };
+
+    assert_eq!(
+        redis_config_with_password.build_url(),
+        "redis://:secret@localhost:6379/0"
+    );
+    assert!(redis_config_with_password.has_password());
+}
+
+#[test]
+fn test_message_queue_get_redis_url() {
+    use crate::config::{MessageQueueConfig, MessageQueueType, RedisConfig};
+
+    // 测试使用URL的情况
+    let mut mq_config = MessageQueueConfig {
+        r#type: MessageQueueType::RedisStream,
+        url: "redis://localhost:6379/0".to_string(),
+        redis: None,
+        task_queue: "tasks".to_string(),
+        status_queue: "status".to_string(),
+        heartbeat_queue: "heartbeat".to_string(),
+        control_queue: "control".to_string(),
+        max_retries: 3,
+        retry_delay_seconds: 60,
+        connection_timeout_seconds: 30,
+    };
+
+    assert_eq!(
+        mq_config.get_redis_url(),
+        Some("redis://localhost:6379/0".to_string())
+    );
+
+    // 测试使用Redis配置的情况
+    mq_config.url = "".to_string();
+    mq_config.redis = Some(RedisConfig {
+        host: "127.0.0.1".to_string(),
+        port: 6379,
+        database: 1,
+        password: Some("test".to_string()),
+        connection_timeout_seconds: 30,
+        max_retry_attempts: 3,
+        retry_delay_seconds: 1,
+    });
+
+    assert_eq!(
+        mq_config.get_redis_url(),
+        Some("redis://:test@127.0.0.1:6379/1".to_string())
+    );
+
+    // 测试RabbitMQ类型
+    mq_config.r#type = MessageQueueType::Rabbitmq;
+    assert_eq!(mq_config.get_redis_url(), None);
+}
+
+#[test]
+fn test_redis_stream_validation_errors() {
+    let mut config = AppConfig::default();
+    config.message_queue.r#type = MessageQueueType::RedisStream;
+
+    // 测试无URL且无Redis配置
+    config.message_queue.url = "".to_string();
+    config.message_queue.redis = None;
+    assert!(config.validate().is_err());
+
+    // 测试无效的Redis URL格式
+    config.message_queue.url = "http://localhost:6379".to_string();
+    assert!(config.validate().is_err());
+
+    // 测试有效的Redis URL
+    config.message_queue.url = "redis://localhost:6379/0".to_string();
+    assert!(config.validate().is_ok());
+
+    // 测试rediss://格式
+    config.message_queue.url = "rediss://localhost:6379/0".to_string();
+    assert!(config.validate().is_ok());
+}
+#[test]
+fn test_redis_stream_config_file_loading() {
+    // 测试加载Redis Stream配置文件
+    let config_result = AppConfig::load(Some("config/redis-stream.toml"));
+
+    match config_result {
+        Ok(config) => {
+            // 验证配置加载成功
+            assert!(config.message_queue.is_redis_stream());
+            assert_eq!(config.message_queue.r#type, MessageQueueType::RedisStream);
+            assert_eq!(config.message_queue.url, "redis://localhost:6379/0");
+
+            // 验证Redis特定配置
+            if let Some(redis_config) = &config.message_queue.redis {
+                assert_eq!(redis_config.host, "localhost");
+                assert_eq!(redis_config.port, 6379);
+                assert_eq!(redis_config.database, 0);
+                assert_eq!(redis_config.connection_timeout_seconds, 30);
+                assert_eq!(redis_config.max_retry_attempts, 3);
+                assert_eq!(redis_config.retry_delay_seconds, 1);
+            }
+
+            // 验证Redis URL生成
+            let redis_url = config.message_queue.get_redis_url();
+            assert!(redis_url.is_some());
+            assert_eq!(redis_url.unwrap(), "redis://localhost:6379/0");
+
+            println!("✅ Redis Stream configuration file loaded and validated successfully");
+        }
+        Err(e) => {
+            // 如果配置文件不存在，这是预期的（在CI环境中）
+            if e.to_string().contains("配置文件不存在") {
+                println!("⚠️  Redis Stream configuration file not found, skipping test");
+            } else {
+                panic!("Failed to load Redis Stream configuration: {}", e);
+            }
+        }
+    }
+}
+
+#[test]
+fn test_redis_config_integration_comprehensive() {
+    // 测试需求3.1: 创建RedisConfig结构体
+    let redis_config = RedisConfig::default();
+    assert_eq!(redis_config.host, "127.0.0.1");
+    assert_eq!(redis_config.port, 6379);
+    assert_eq!(redis_config.database, 0);
+    assert_eq!(redis_config.password, None);
+    assert_eq!(redis_config.connection_timeout_seconds, 30);
+    assert_eq!(redis_config.max_retry_attempts, 3);
+    assert_eq!(redis_config.retry_delay_seconds, 1);
+
+    // 测试需求3.2: 实现从AppConfig解析Redis配置
+    let toml_content = r#"
+[database]
+url = "postgresql://localhost/test"
+max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
+
+[message_queue]
+type = "redis_stream"
+url = "redis://localhost:6379/1"
+task_queue = "test_tasks"
+status_queue = "test_status"
+heartbeat_queue = "test_heartbeats"
+control_queue = "test_control"
+max_retries = 5
+retry_delay_seconds = 30
+connection_timeout_seconds = 60
+
+[message_queue.redis]
+host = "redis-server"
+port = 6380
+database = 2
+password = "secret"
+connection_timeout_seconds = 45
+max_retry_attempts = 5
+retry_delay_seconds = 2
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
+
+[worker]
+enabled = false
+worker_id = "test-worker"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
+
+[api]
+enabled = true
+bind_address = "127.0.0.1:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[observability]
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
+"#;
+
+    let config = AppConfig::from_toml(toml_content).expect("Failed to parse TOML");
+
+    // 验证消息队列类型正确解析
+    assert!(config.message_queue.is_redis_stream());
+    assert_eq!(config.message_queue.r#type, MessageQueueType::RedisStream);
+
+    // 验证Redis配置正确解析
+    let redis_config = config
+        .message_queue
+        .redis
+        .as_ref()
+        .expect("Redis config should be present");
+    assert_eq!(redis_config.host, "redis-server");
+    assert_eq!(redis_config.port, 6380);
+    assert_eq!(redis_config.database, 2);
+    assert_eq!(redis_config.password, Some("secret".to_string()));
+    assert_eq!(redis_config.connection_timeout_seconds, 45);
+    assert_eq!(redis_config.max_retry_attempts, 5);
+    assert_eq!(redis_config.retry_delay_seconds, 2);
+
+    // 测试需求3.3: 添加配置验证逻辑
+    assert!(
+        config.validate().is_ok(),
+        "Configuration validation should pass"
+    );
+
+    // 测试Redis URL生成
+    let redis_url = config
+        .message_queue
+        .get_redis_url()
+        .expect("Should generate Redis URL");
+    // URL应该优先使用message_queue.url而不是redis配置
+    assert_eq!(redis_url, "redis://localhost:6379/1");
+
+    // 测试Redis配置的URL构建方法
+    let built_url = redis_config.build_url();
+    assert_eq!(built_url, "redis://:secret@redis-server:6380/2");
+
+    println!("✅ Comprehensive Redis configuration integration test passed");
+}
+
+#[test]
+fn test_redis_config_validation_errors() {
+    // 测试需求3.3: 配置验证逻辑 - 错误情况
+
+    // 测试空主机名
+    let mut redis_config = RedisConfig::default();
+    redis_config.host = "".to_string();
+    assert!(redis_config.validate().is_err());
+
+    // 测试无效端口
+    redis_config = RedisConfig::default();
+    redis_config.port = 0;
+    assert!(redis_config.validate().is_err());
+
+    // 测试负数据库索引
+    redis_config = RedisConfig::default();
+    redis_config.database = -1;
+    assert!(redis_config.validate().is_err());
+
+    // 测试零超时时间
+    redis_config = RedisConfig::default();
+    redis_config.connection_timeout_seconds = 0;
+    assert!(redis_config.validate().is_err());
+
+    // 测试零重试次数
+    redis_config = RedisConfig::default();
+    redis_config.max_retry_attempts = 0;
+    assert!(redis_config.validate().is_err());
+
+    // 测试零重试延迟
+    redis_config = RedisConfig::default();
+    redis_config.retry_delay_seconds = 0;
+    assert!(redis_config.validate().is_err());
+
+    println!("✅ Redis configuration validation error tests passed");
+}

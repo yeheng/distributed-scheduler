@@ -2,60 +2,60 @@
 
 ## 实施计划
 
-- [ ] 1. 扩展配置模型支持Redis Stream
+- [x] 1. 扩展配置模型支持Redis Stream
   - 在MessageQueueConfig中添加Redis配置支持
   - 添加MessageQueueType枚举
   - 实现配置验证逻辑
   - _需求: 3.1, 3.2, 3.3_
 
-- [ ] 2. 创建Redis Stream消息队列基础结构
+- [x] 2. 创建Redis Stream消息队列基础结构
   - 创建新的crate或模块结构
   - 添加redis-rs依赖到Cargo.toml
   - 创建RedisStreamMessageQueue结构体
   - 实现基本的构造函数
   - _需求: 1.1, 1.6_
 
-- [ ] 3. 实现配置集成
+- [x] 3. 实现配置集成
   - 创建RedisConfig结构体
   - 实现从AppConfig解析Redis配置
   - 添加配置验证逻辑
   - _需求: 3.1, 3.2, 3.3_
 
-- [ ] 4. 实现MessageQueue trait - 消息发布
+- [x] 4. 实现MessageQueue trait - 消息发布
   - 实现publish_message方法
   - 添加消息序列化逻辑
   - 实现Stream创建逻辑
   - 添加错误处理和重试机制
   - _需求: 1.1, 1.2, 1.4, 1.5_
 
-- [ ] 5. 实现MessageQueue trait - 消息消费
+- [x] 5. 实现MessageQueue trait - 消息消费
   - 实现consume_messages方法
   - 创建消费者组管理逻辑
   - 实现消息反序列化
   - 添加消费者组自动创建
   - _需求: 1.1, 1.3, 1.7_
 
-- [ ] 6. 实现MessageQueue trait - 消息确认
+- [x] 6. 实现MessageQueue trait - 消息确认
   - 实现ack_message方法
   - 实现nack_message方法
   - 添加重新入队逻辑
   - _需求: 1.8, 2.1_
 
-- [ ] 7. 实现MessageQueue trait - 队列管理
+- [x] 7. 实现MessageQueue trait - 队列管理
   - 实现create_queue方法
   - 实现delete_queue方法
   - 实现get_queue_size方法
   - 实现purge_queue方法
   - _需求: 1.1, 1.5_
 
-- [ ] 8. 创建集成测试
+- [x] 8. 创建集成测试
   - 创建Redis Stream集成测试
   - 添加并发测试用例
   - 实现故障恢复测试
   - 验证与RabbitMQ实现的等价性
   - _需求: 2.2, 4.1, 4.2, 4.3, 4.4_
 
-- [ ] 9. 创建配置切换机制
+- [x] 9. 创建配置切换机制
   - 实现基于配置的消息队列工厂
   - 添加运行时切换支持
   - 创建配置示例文件

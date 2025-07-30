@@ -1,33 +1,27 @@
-# 开发环境配置文件
+# RabbitMQ消息队列配置示例
+# 这个配置文件展示了如何配置系统使用RabbitMQ作为消息队列
 
 [database]
-url = "postgresql://postgres:123456@localhost:5432/scheduler"
+url = "postgresql://localhost/scheduler"
 max_connections = 10
 min_connections = 1
 connection_timeout_seconds = 30
 idle_timeout_seconds = 600
 
 [message_queue]
-# 消息队列类型: "rabbitmq" 或 "redis_stream"
-# type = "rabbitmq"
-url = "amqp://guest:guest@localhost:5672"
+# 消息队列类型：rabbitmq 或 redis_stream
+type = "rabbitmq"
+# RabbitMQ连接URL
+url = "amqp://guest:guest@localhost:5672/"
+# 队列名称配置
 task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
+# 重试配置
 max_retries = 3
 retry_delay_seconds = 60
 connection_timeout_seconds = 30
-
-# Redis Stream配置示例（当type = "redis_stream"时使用）
-# [message_queue.redis]
-# host = "localhost"
-# port = 6379
-# database = 0
-# password = ""
-# connection_timeout_seconds = 30
-# max_retry_attempts = 3
-# retry_delay_seconds = 1
 
 [dispatcher]
 enabled = true
@@ -38,7 +32,7 @@ dispatch_strategy = "round_robin"
 
 [worker]
 enabled = false
-worker_id = "dev-worker-001"
+worker_id = "rabbitmq-worker-001"
 hostname = "localhost"
 ip_address = "127.0.0.1"
 max_concurrent_tasks = 5
@@ -48,7 +42,7 @@ task_poll_interval_seconds = 5
 
 [api]
 enabled = true
-bind_address = "127.0.0.1:8080"
+bind_address = "0.0.0.0:8080"
 cors_enabled = true
 cors_origins = ["*"]
 request_timeout_seconds = 30
@@ -58,5 +52,5 @@ max_request_size_mb = 10
 tracing_enabled = true
 metrics_enabled = true
 metrics_endpoint = "/metrics"
-log_level = "debug"
-jaeger_endpoint = "http://localhost:14268/api/traces"
+log_level = "info"
+# jaeger_endpoint = "http://localhost:14268/api/traces"  # 可选的Jaeger端点

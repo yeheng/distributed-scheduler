@@ -1,31 +1,41 @@
+# Redis Stream消息队列配置示例
+# 这个配置文件展示了如何配置系统使用Redis Stream作为消息队列
+
 [database]
-url = "postgresql://postgres:123456@localhost/scheduler"
+url = "postgresql://localhost/scheduler"
 max_connections = 10
 min_connections = 1
 connection_timeout_seconds = 30
 idle_timeout_seconds = 600
 
 [message_queue]
-# 消息队列类型: "rabbitmq" 或 "redis_stream"
-# type = "rabbitmq"
-url = "amqp://localhost:5672"
+# 消息队列类型：redis_stream 或 rabbitmq
+type = "redis_stream"
+# Redis URL（可选，如果提供了redis配置段则可以为空）
+url = "redis://localhost:6379/0"
+# 队列名称配置
 task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
+# 重试配置
 max_retries = 3
 retry_delay_seconds = 60
 connection_timeout_seconds = 30
 
-# Redis Stream配置示例（当type = "redis_stream"时使用）
-# [message_queue.redis]
-# host = "localhost"
-# port = 6379
-# database = 0
-# password = ""
-# connection_timeout_seconds = 30
-# max_retry_attempts = 3
-# retry_delay_seconds = 1
+# Redis特定配置（可选，如果提供了url则可以省略）
+[message_queue.redis]
+host = "127.0.0.1"
+port = 6379
+database = 0
+# password = "your_redis_password"  # 如果Redis需要密码认证
+connection_timeout_seconds = 30
+max_retry_attempts = 3
+retry_delay_seconds = 1
+# 连接池配置
+pool_min_idle = 1
+pool_max_open = 10
+pool_timeout_seconds = 30
 
 [dispatcher]
 enabled = true
@@ -36,7 +46,7 @@ dispatch_strategy = "round_robin"
 
 [worker]
 enabled = false
-worker_id = "worker-001"
+worker_id = "redis-worker-001"
 hostname = "localhost"
 ip_address = "127.0.0.1"
 max_concurrent_tasks = 5
@@ -57,3 +67,4 @@ tracing_enabled = true
 metrics_enabled = true
 metrics_endpoint = "/metrics"
 log_level = "info"
+# jaeger_endpoint = "http://localhost:14268/api/traces"  # 可选的Jaeger端点

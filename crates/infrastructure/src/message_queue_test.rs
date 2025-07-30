@@ -5,7 +5,7 @@ mod message_queue_test {
     use crate::*;
     use chrono::Utc;
     use scheduler_core::{
-        config::model::MessageQueueConfig,
+        config::model::{MessageQueueConfig, MessageQueueType},
         models::{Message, MessageType, StatusUpdateMessage},
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
@@ -27,8 +27,10 @@ mod message_queue_test {
     /// Get test configuration from environment variables or defaults
     fn get_test_config() -> MessageQueueConfig {
         MessageQueueConfig {
+            r#type: MessageQueueType::Rabbitmq,
             url: env::var("TEST_RABBITMQ_URL")
                 .unwrap_or_else(|_| "amqp://guest:guest@localhost:5672".to_string()),
+            redis: None,
             task_queue: env::var("TEST_TASK_QUEUE").unwrap_or_else(|_| "test_tasks".to_string()),
             status_queue: env::var("TEST_STATUS_QUEUE")
                 .unwrap_or_else(|_| "test_status".to_string()),
