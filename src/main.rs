@@ -74,15 +74,15 @@ async fn main() -> Result<()> {
     init_logging(log_level, log_format)?;
 
     info!("启动分布式任务调度系统");
-    info!("配置文件: {}", config_path);
-    info!("运行模式: {}", mode_str);
+    info!("配置文件: {config_path}");
+    info!("运行模式: {mode_str}");
     if let Some(id) = worker_id {
         info!("Worker ID: {}", id);
     }
 
     // 加载配置
     let mut config = AppConfig::load(Some(config_path))
-        .with_context(|| format!("加载配置文件失败: {}", config_path))?;
+        .with_context(|| format!("加载配置文件失败: {config_path}"))?;
 
     // 如果指定了worker-id，覆盖配置中的worker_id
     if let Some(id) = worker_id {
@@ -106,7 +106,7 @@ async fn main() -> Result<()> {
 
         tokio::spawn(async move {
             if let Err(e) = app_clone.run(shutdown_rx).await {
-                error!("应用运行失败: {}", e);
+                error!("应用运行失败: {e}");
             }
         })
     };
@@ -123,7 +123,7 @@ async fn main() -> Result<()> {
     match tokio::time::timeout(Duration::from_secs(30), app_handle).await {
         Ok(result) => {
             if let Err(e) = result {
-                error!("应用关闭时发生错误: {}", e);
+                error!("应用关闭时发生错误: {e}");
             } else {
                 info!("应用已优雅关闭");
             }
@@ -158,7 +158,7 @@ fn init_logging(log_level: &str, log_format: &str) -> Result<()> {
                 .context("初始化Pretty日志格式失败")?;
         }
         _ => {
-            return Err(anyhow::anyhow!("不支持的日志格式: {}", log_format));
+            return Err(anyhow::anyhow!("不支持的日志格式: {log_format}"));
         }
     }
 
@@ -187,7 +187,7 @@ fn parse_app_mode(mode_str: &str, config: &AppConfig) -> Result<AppMode> {
             Ok(AppMode::Api)
         }
         "all" => Ok(AppMode::All),
-        _ => Err(anyhow::anyhow!("不支持的运行模式: {}", mode_str)),
+        _ => Err(anyhow::anyhow!("不支持的运行模式: {mode_str}")),
     }
 }
 
