@@ -5,38 +5,45 @@ use scheduler_core::{
     traits::TaskRepository,
     Result, SchedulerError,
 };
-use sqlx::{PgPool, Row};
+use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
-/// PostgreSQL任务仓储实现
-pub struct PostgresTaskRepository {
-    pool: PgPool,
+/// SQLite任务仓储实现
+pub struct SqliteTaskRepository {
+    pool: SqlitePool,
 }
 
-impl PostgresTaskRepository {
-    /// 创建新的PostgreSQL任务仓储
-    pub fn new(pool: PgPool) -> Self {
+impl SqliteTaskRepository {
+    /// 创建新的SQLite任务仓储
+    pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
 
     /// 将数据库行转换为Task模型
-    fn row_to_task(row: &sqlx::postgres::PgRow) -> Result<Task> {
-        let dependencies: Vec<i64> = row
-            .try_get::<Vec<i64>, _>("dependencies")
-            .unwrap_or_default();
+    fn row_to_task(row: &sqlx::sqlite::SqliteRow) -> Result<Task> {
+        let dependencies_json: Option<String> = row.try_get("dependencies").ok();
+
+        let dependencies: Vec<i64> = if let Some(json_str) = dependencies_json {
+            serde_json::from_str(&json_str).unwrap_or_default()
+        } else {
+            Vec::new()
+        };
 
         let shard_config = row
-            .try_get::<Option<serde_json::Value>, _>("shard_config")
+            .try_get::<Option<String>, _>("shard_config")
             .ok()
             .flatten()
-            .and_then(|v| serde_json::from_value(v).ok());
+            .and_then(|json_str| serde_json::from_str(&json_str).ok());
 
         Ok(Task {
             id: row.try_get("id")?,
             name: row.try_get("name")?,
             task_type: row.try_get("task_type")?,
             schedule: row.try_get("schedule")?,
-            parameters: row.try_get("parameters")?,
+            parameters: row
+                .try_get::<String, _>("parameters")?
+                .parse()
+                .map_err(|e| SchedulerError::Serialization(format!("解析参数失败: {e}")))?,
             timeout_seconds: row.try_get("timeout_seconds")?,
             max_retries: row.try_get("max_retries")?,
             status: row.try_get("status")?,
@@ -49,15 +56,21 @@ impl PostgresTaskRepository {
 }
 
 #[async_trait]
-impl TaskRepository for PostgresTaskRepository {
+impl TaskRepository for SqliteTaskRepository {
     /// 创建新任务
     async fn create(&self, task: &Task) -> Result<Task> {
         let shard_config_json = task
             .shard_config
             .as_ref()
-            .map(serde_json::to_value)
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|e| SchedulerError::Serialization(format!("序列化分片配置失败: {e}")))?;
+
+        let dependencies_json = serde_json::to_string(&task.dependencies)
+            .map_err(|e| SchedulerError::Serialization(format!("序列化依赖列表失败: {e}")))?;
+
+        let parameters_json = serde_json::to_string(&task.parameters)
+            .map_err(|e| SchedulerError::Serialization(format!("序列化参数失败: {e}")))?;
 
         let row = sqlx::query(
             r#"
@@ -69,11 +82,11 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(&task.name)
         .bind(&task.task_type)
         .bind(&task.schedule)
-        .bind(&task.parameters)
+        .bind(parameters_json)
         .bind(task.timeout_seconds)
         .bind(task.max_retries)
         .bind(task.status)
-        .bind(&task.dependencies)
+        .bind(dependencies_json)
         .bind(shard_config_json)
         .fetch_one(&self.pool)
         .await
@@ -124,16 +137,22 @@ impl TaskRepository for PostgresTaskRepository {
         let shard_config_json = task
             .shard_config
             .as_ref()
-            .map(serde_json::to_value)
+            .map(serde_json::to_string)
             .transpose()
             .map_err(|e| SchedulerError::Serialization(format!("序列化分片配置失败: {e}")))?;
+
+        let dependencies_json = serde_json::to_string(&task.dependencies)
+            .map_err(|e| SchedulerError::Serialization(format!("序列化依赖列表失败: {e}")))?;
+
+        let parameters_json = serde_json::to_string(&task.parameters)
+            .map_err(|e| SchedulerError::Serialization(format!("序列化参数失败: {e}")))?;
 
         let result = sqlx::query(
             r#"
             UPDATE tasks 
             SET name = $2, task_type = $3, schedule = $4, parameters = $5, 
                 timeout_seconds = $6, max_retries = $7, status = $8, 
-                dependencies = $9, shard_config = $10, updated_at = NOW()
+                dependencies = $9, shard_config = $10, updated_at = datetime('now')
             WHERE id = $1
             "#,
         )
@@ -141,11 +160,11 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(&task.name)
         .bind(&task.task_type)
         .bind(&task.schedule)
-        .bind(&task.parameters)
+        .bind(parameters_json)
         .bind(task.timeout_seconds)
         .bind(task.max_retries)
         .bind(task.status)
-        .bind(&task.dependencies)
+        .bind(dependencies_json)
         .bind(shard_config_json)
         .execute(&self.pool)
         .await
@@ -193,7 +212,7 @@ impl TaskRepository for PostgresTaskRepository {
 
         if filter.name_pattern.is_some() {
             bind_count += 1;
-            query.push_str(&format!(" AND name ILIKE ${bind_count}"));
+            query.push_str(&format!(" AND name LIKE ${bind_count}"));
         }
 
         query.push_str(" ORDER BY created_at DESC");
@@ -322,13 +341,23 @@ impl TaskRepository for PostgresTaskRepository {
             TaskStatus::Inactive => "INACTIVE",
         };
 
-        let result =
-            sqlx::query("UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = ANY($2)")
-                .bind(status_str)
-                .bind(task_ids)
-                .execute(&self.pool)
-                .await
-                .map_err(SchedulerError::Database)?;
+        // SQLite doesn't support ANY() operator, use IN clause instead
+        let placeholders: Vec<String> =
+            (0..task_ids.len()).map(|i| format!("${}", i + 2)).collect();
+        let query = format!(
+            "UPDATE tasks SET status = $1, updated_at = datetime('now') WHERE id IN ({})",
+            placeholders.join(", ")
+        );
+
+        let mut sqlx_query = sqlx::query(&query).bind(status_str);
+        for &task_id in task_ids {
+            sqlx_query = sqlx_query.bind(task_id);
+        }
+
+        let result = sqlx_query
+            .execute(&self.pool)
+            .await
+            .map_err(SchedulerError::Database)?;
 
         debug!(
             "批量更新 {} 个任务状态为 {}",

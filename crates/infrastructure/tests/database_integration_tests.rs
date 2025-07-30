@@ -3,7 +3,7 @@ use scheduler_core::{
     models::{Task, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
     traits::{TaskRepository, TaskRunRepository, WorkerRepository},
 };
-use scheduler_infrastructure::{
+use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 use sqlx::PgPool;

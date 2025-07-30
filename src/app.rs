@@ -14,7 +14,7 @@ use scheduler_dispatcher::{
     controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
 };
 use scheduler_infrastructure::{
-    database::postgres_repositories::{
+    database::postgres::{
         PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
     },
     message_queue::RabbitMQMessageQueue,

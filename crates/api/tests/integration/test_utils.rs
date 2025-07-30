@@ -2,7 +2,7 @@ use scheduler_api::routes::{create_routes, AppState};
 use scheduler_core::traits::{
     TaskControlService, TaskRepository, TaskRunRepository, WorkerRepository,
 };
-use scheduler_infrastructure::database::postgres_repositories::{
+use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 use sqlx::PgPool;

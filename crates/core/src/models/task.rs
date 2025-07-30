@@ -33,9 +33,26 @@ impl sqlx::Type<sqlx::Postgres> for TaskStatus {
     }
 }
 
+impl sqlx::Type<sqlx::Sqlite> for TaskStatus {
+    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+        <str as sqlx::Type<sqlx::Sqlite>>::type_info()
+    }
+}
+
 impl<'r> sqlx::Decode<'r, sqlx::Postgres> for TaskStatus {
     fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <&str as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s {
+            "ACTIVE" => Ok(TaskStatus::Active),
+            "INACTIVE" => Ok(TaskStatus::Inactive),
+            _ => Err(format!("Invalid task status: {s}").into()),
+        }
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for TaskStatus {
+    fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Sqlite>>::decode(value)?;
         match s {
             "ACTIVE" => Ok(TaskStatus::Active),
             "INACTIVE" => Ok(TaskStatus::Inactive),
@@ -54,6 +71,19 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TaskStatus {
             TaskStatus::Inactive => "INACTIVE",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for TaskStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'q>>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            TaskStatus::Active => "ACTIVE",
+            TaskStatus::Inactive => "INACTIVE",
+        };
+        <&str as sqlx::Encode<sqlx::Sqlite>>::encode(s, buf)
     }
 }
 

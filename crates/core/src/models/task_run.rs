@@ -33,7 +33,7 @@ pub struct TaskExecutionContext {
 }
 
 /// 任务运行状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TaskRunStatus {
     #[serde(rename = "PENDING")]
     Pending,
@@ -52,6 +52,44 @@ pub enum TaskRunStatus {
 impl sqlx::Type<sqlx::Postgres> for TaskRunStatus {
     fn type_info() -> sqlx::postgres::PgTypeInfo {
         sqlx::postgres::PgTypeInfo::with_name("VARCHAR")
+    }
+}
+
+impl sqlx::Type<sqlx::Sqlite> for TaskRunStatus {
+    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+        <str as sqlx::Type<sqlx::Sqlite>>::type_info()
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for TaskRunStatus {
+    fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Sqlite>>::decode(value)?;
+        match s {
+            "PENDING" => Ok(TaskRunStatus::Pending),
+            "DISPATCHED" => Ok(TaskRunStatus::Dispatched),
+            "RUNNING" => Ok(TaskRunStatus::Running),
+            "COMPLETED" => Ok(TaskRunStatus::Completed),
+            "FAILED" => Ok(TaskRunStatus::Failed),
+            "TIMEOUT" => Ok(TaskRunStatus::Timeout),
+            _ => Err(format!("Invalid task run status: {s}").into()),
+        }
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for TaskRunStatus {
+    fn encode_by_ref(
+        &self,
+        buf: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'q>>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            TaskRunStatus::Pending => "PENDING",
+            TaskRunStatus::Dispatched => "DISPATCHED",
+            TaskRunStatus::Running => "RUNNING",
+            TaskRunStatus::Completed => "COMPLETED",
+            TaskRunStatus::Failed => "FAILED",
+            TaskRunStatus::Timeout => "TIMEOUT",
+        };
+        <&str as sqlx::Encode<sqlx::Sqlite>>::encode(s, buf)
     }
 }
 
@@ -86,7 +124,6 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TaskRunStatus {
         <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
     }
 }
-
 /// 任务执行结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskResult {

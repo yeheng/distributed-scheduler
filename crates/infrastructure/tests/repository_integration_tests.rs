@@ -4,7 +4,7 @@ use scheduler_core::models::{
     Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
 };
 use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};
-use scheduler_infrastructure::database::postgres_repositories::{
+use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 

@@ -16,7 +16,7 @@ pub struct WorkerInfo {
 }
 
 /// Worker状态
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum WorkerStatus {
     #[serde(rename = "ALIVE")]
     Alive,
@@ -30,9 +30,26 @@ impl sqlx::Type<sqlx::Postgres> for WorkerStatus {
     }
 }
 
+impl sqlx::Type<sqlx::Sqlite> for WorkerStatus {
+    fn type_info() -> sqlx::sqlite::SqliteTypeInfo {
+        <&str as sqlx::Type<sqlx::Sqlite>>::type_info()
+    }
+}
+
 impl<'r> sqlx::Decode<'r, sqlx::Postgres> for WorkerStatus {
     fn decode(value: sqlx::postgres::PgValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
         let s = <&str as sqlx::Decode<sqlx::Postgres>>::decode(value)?;
+        match s {
+            "ALIVE" => Ok(WorkerStatus::Alive),
+            "DOWN" => Ok(WorkerStatus::Down),
+            _ => Err(format!("Invalid worker status: {s}").into()),
+        }
+    }
+}
+
+impl<'r> sqlx::Decode<'r, sqlx::Sqlite> for WorkerStatus {
+    fn decode(value: sqlx::sqlite::SqliteValueRef<'r>) -> Result<Self, sqlx::error::BoxDynError> {
+        let s = <&str as sqlx::Decode<sqlx::Sqlite>>::decode(value)?;
         match s {
             "ALIVE" => Ok(WorkerStatus::Alive),
             "DOWN" => Ok(WorkerStatus::Down),
@@ -51,6 +68,19 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for WorkerStatus {
             WorkerStatus::Down => "DOWN",
         };
         <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
+    }
+}
+
+impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for WorkerStatus {
+    fn encode_by_ref(
+        &self,
+        args: &mut Vec<sqlx::sqlite::SqliteArgumentValue<'q>>,
+    ) -> Result<sqlx::encode::IsNull, Box<dyn std::error::Error + Send + Sync>> {
+        let s = match self {
+            WorkerStatus::Alive => "ALIVE",
+            WorkerStatus::Down => "DOWN",
+        };
+        <&str as sqlx::Encode<sqlx::Sqlite>>::encode(s, args)
     }
 }
 
