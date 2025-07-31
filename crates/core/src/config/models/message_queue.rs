@@ -203,7 +203,7 @@ impl Default for MessageQueueConfig {
     fn default() -> Self {
         Self {
             r#type: MessageQueueType::default(),
-            url: "amqp://localhost:5672".to_string(),
+            url: "redis://localhost:6379".to_string(),
             redis: None,
             task_queue: "tasks".to_string(),
             status_queue: "status_updates".to_string(),

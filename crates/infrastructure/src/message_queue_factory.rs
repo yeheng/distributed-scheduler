@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 use scheduler_core::{
-    config::model::{MessageQueueConfig, MessageQueueType},
+    config::models::{MessageQueueConfig, MessageQueueType},
     SchedulerResult,
     errors::SchedulerError,
     traits::MessageQueue,
@@ -261,7 +261,7 @@ impl MessageQueue for MessageQueueManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scheduler_core::config::model::{MessageQueueConfig, MessageQueueType, RedisConfig};
+    use scheduler_core::config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
 
     #[test]
     fn test_validate_rabbitmq_config() {

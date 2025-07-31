@@ -49,7 +49,7 @@ fn test_message_queue_validation() {
     assert!(config.validate().is_err());
 
     // Test valid URL
-    config.url = "amqp://localhost:5672".to_string();
+    config.url = "redis://localhost:6379".to_string();
     assert!(config.validate().is_ok());
 
     // Test empty queue name

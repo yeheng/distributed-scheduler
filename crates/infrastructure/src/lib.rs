@@ -9,6 +9,3 @@ pub use message_queue::*;
 pub use message_queue_factory::*;
 pub use observability::*;
 pub use redis_stream::*;
-
-#[cfg(test)]
-mod message_queue_test;

@@ -6,6 +6,9 @@ fn test_rabbitmq_config() {
 [database]
 url = "postgresql://localhost/scheduler"
 max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
 
 [message_queue]
 type = "rabbitmq"
@@ -14,18 +17,34 @@ task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 5
+connection_timeout_seconds = 30
 
 [dispatcher]
 enabled = true
 schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
 
 [worker]
 enabled = false
 worker_id = "worker-001"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
 
 [api]
 enabled = true
 bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
 
 [observability]
 tracing_enabled = true
@@ -47,6 +66,9 @@ fn test_redis_stream_config_with_url() {
 [database]
 url = "postgresql://localhost/scheduler"
 max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
 
 [message_queue]
 type = "redis_stream"
@@ -55,18 +77,34 @@ task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 5
+connection_timeout_seconds = 30
 
 [dispatcher]
 enabled = true
 schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
 
 [worker]
 enabled = false
 worker_id = "worker-001"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
 
 [api]
 enabled = true
 bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
 
 [observability]
 tracing_enabled = true
@@ -88,6 +126,9 @@ fn test_redis_stream_config_with_redis_config() {
 [database]
 url = "postgresql://localhost/scheduler"
 max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
 
 [message_queue]
 type = "redis_stream"
@@ -96,6 +137,9 @@ task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 5
+connection_timeout_seconds = 30
 
 [message_queue.redis]
 host = "127.0.0.1"
@@ -109,14 +153,27 @@ retry_delay_seconds = 1
 [dispatcher]
 enabled = true
 schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
 
 [worker]
 enabled = false
 worker_id = "worker-001"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
 
 [api]
 enabled = true
 bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
 
 [observability]
 tracing_enabled = true
@@ -163,7 +220,7 @@ fn test_message_queue_type_detection() {
     
     // Test RabbitMQ detection
     mq_config.r#type = crate::config::models::MessageQueueType::Rabbitmq;
-    mq_config.url = "amqp://localhost:5672".to_string();
+    mq_config.url = "redis://localhost:6379".to_string();
     assert!(mq_config.is_rabbitmq());
     assert!(!mq_config.is_redis_stream());
     

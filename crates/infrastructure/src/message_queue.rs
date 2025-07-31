@@ -4,7 +4,7 @@ use lapin::{
     Consumer, Queue,
 };
 use scheduler_core::{
-    config::model::MessageQueueConfig, SchedulerResult, errors::SchedulerError, models::Message,
+    config::models::MessageQueueConfig, SchedulerResult, errors::SchedulerError, models::Message,
     traits::MessageQueue,
 };
 use std::sync::Arc;

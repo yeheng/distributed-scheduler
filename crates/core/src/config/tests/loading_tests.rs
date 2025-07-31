@@ -61,7 +61,7 @@ enabled = true
 bind_address = "127.0.0.1:9090"
 
 [message_queue]
-url = "amqp://test:5672"
+url = "redis://test:6379"
 task_queue = "test_tasks"
 status_queue = "test_status"
 heartbeat_queue = "test_heartbeats"

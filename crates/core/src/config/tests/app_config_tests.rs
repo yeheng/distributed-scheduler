@@ -48,7 +48,7 @@ request_timeout_seconds = 30
 max_request_size_mb = 10
 
 [message_queue]
-url = "amqp://test:5672"
+url = "redis://test:6379"
 task_queue = "test_tasks"
 status_queue = "test_status"
 heartbeat_queue = "test_heartbeats"

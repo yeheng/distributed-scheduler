@@ -51,13 +51,13 @@ request_timeout_seconds = 30
 max_request_size_mb = 10
 
 [message_queue]
-url = "amqp://test:5672"
+url = "redis://test:6379"
 task_queue = "test_tasks"
 status_queue = "test_status"
 heartbeat_queue = "test_heartbeats"
 control_queue = "test_control"
 max_retries = 3
-retry_delay_seconds = 60
+retry_delay_seconds = 5
 connection_timeout_seconds = 30
 
 [observability]
@@ -115,7 +115,7 @@ fn test_config_validation_message_queue() {
     assert!(config.validate().is_err());
 
     // 测试有效URL
-    config.message_queue.url = "amqp://localhost:5672".to_string();
+    config.message_queue.url = "redis://localhost:6379".to_string();
     assert!(config.validate().is_ok());
 
     // 测试空队列名称
@@ -359,7 +359,7 @@ status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
 max_retries = 3
-retry_delay_seconds = 60
+retry_delay_seconds = 5
 connection_timeout_seconds = 30
 
 [dispatcher]
@@ -419,7 +419,7 @@ status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
 control_queue = "control"
 max_retries = 3
-retry_delay_seconds = 60
+retry_delay_seconds = 5
 connection_timeout_seconds = 30
 
 [message_queue.redis]

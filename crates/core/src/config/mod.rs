@@ -9,7 +9,6 @@ pub mod environment;
 // Hot-reload functionality
 pub mod hot_reload;
 // Configuration builders and utilities
-pub mod builder_simplified;
 // Organized configuration models
 pub mod models;
 // Service implementations
@@ -20,7 +19,6 @@ pub mod tests;
 
 // Legacy modules for backward compatibility
 pub mod config_loader;
-pub mod model;
 pub mod builder;
 
 // Re-export key types and traits for easier imports
@@ -31,12 +29,10 @@ pub use environment::{Environment, ConfigProfile};
 pub use hot_reload::{HotReloadManager, ConfigChangeEvent};
 pub use models::{AppConfig, DatabaseConfig, MessageQueueConfig, MessageQueueType, RedisConfig, DispatcherConfig, WorkerConfig, ApiConfig, ObservabilityConfig};
 pub use services::{ConfigurationService as ServiceTrait, ConfigCache};
-pub use builder::InMemoryConfigService;
-pub use builder_simplified::{ConfigBuilder, ConfigManager};
+pub use builder::{InMemoryConfigService, ConfigBuilder, ConfigManager};
 
 // Legacy exports
 pub use config_loader::ConfigLoader as LegacyConfigLoader;
-pub use model::{AppConfig as LegacyAppConfig, MessageQueueConfig as LegacyMessageQueueConfig, MessageQueueType as LegacyMessageQueueType, RedisConfig as LegacyRedisConfig};
 
 #[cfg(test)]
 mod config_test;

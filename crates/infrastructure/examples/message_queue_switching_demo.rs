@@ -1,5 +1,5 @@
 use scheduler_core::{
-    config::model::{MessageQueueConfig, MessageQueueType, RedisConfig},
+    config::models::{MessageQueueConfig, MessageQueueType, RedisConfig},
     models::{Message, TaskExecutionMessage},
     traits::MessageQueue,
 };

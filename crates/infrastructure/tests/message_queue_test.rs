@@ -2,13 +2,13 @@
 mod message_queue_test {
     use std::env;
 
-    use crate::*;
     use chrono::Utc;
     use scheduler_core::{
-        config::model::{MessageQueueConfig, MessageQueueType},
+        config::models::{MessageQueueConfig, MessageQueueType},
         models::{Message, MessageType, StatusUpdateMessage},
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
+    use scheduler_infrastructure::RabbitMQMessageQueue;
     use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
     use tokio::time::{sleep, Duration};
     use uuid::Uuid;
