@@ -1,4 +1,4 @@
-use crate::{models::*, *};
+use scheduler_core::{models::*, *};
 use chrono::Utc;
 use serde_json::json;
 use std::collections::HashMap;

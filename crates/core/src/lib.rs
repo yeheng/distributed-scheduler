@@ -1,7 +1,5 @@
 pub mod circuit_breaker;
 pub mod config;
-pub mod config_management;
-pub mod config_simple_enhanced;
 pub mod container;
 pub mod error_handling;
 pub mod errors;
@@ -14,8 +12,7 @@ pub mod service_layer;
 pub mod traits;
 
 pub use circuit_breaker::*;
-pub use config_management::*;
-pub use config_simple_enhanced::*;
+pub use config::*;
 pub use container::*;
 pub use error_handling::*;
 pub use executor_registry::*;

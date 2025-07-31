@@ -7,6 +7,3 @@ pub use message::*;
 pub use task::*;
 pub use task_run::*;
 pub use worker::*;
-
-#[cfg(test)]
-mod message_queue_test;

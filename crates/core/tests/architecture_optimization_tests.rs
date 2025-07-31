@@ -2,12 +2,12 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use scheduler_core::{
-    config_management::{ConfigBuilder, Environment},
+    config::{typesafe::ConfigBuilder, manager::ConfigSource, Environment},
     error_handling::{
         DefaultErrorHandler, ErrorAction, ErrorContext, ErrorHandler, ErrorHandlingMiddleware,
         ErrorSeverity,
     },
-    SchedulerResult, errors::SchedulerError,
+    errors::SchedulerError,
 };
 
 /// Test error handling middleware
@@ -50,62 +50,23 @@ async fn test_error_handling_middleware() {
 /// Test typed configuration
 #[tokio::test]
 async fn test_typed_configuration() {
-    // Mock configuration service
-    #[derive(Clone)]
-    struct MockConfigService {
-        config: Arc<tokio::sync::RwLock<std::collections::HashMap<String, serde_json::Value>>>,
-    }
+    let builder = ConfigBuilder::new()
+        .add_source(ConfigSource::Memory {
+            data: serde_json::json!({"test_string": "hello"}),
+        });
 
-    #[async_trait::async_trait]
-    impl scheduler_core::config_management::ConfigurationService for MockConfigService {
-        async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<serde_json::Value>> {
-            let config = self.config.read().await;
-            Ok(config.get(key).cloned())
-        }
+    // Build the manager and load configuration
+    let manager = builder.build();
+    manager.load().await.unwrap();
 
-        async fn set_config_value(&self, key: &str, value: &serde_json::Value) -> SchedulerResult<()> {
-            let mut config = self.config.write().await;
-            config.insert(key.to_string(), value.clone());
-            Ok(())
-        }
-
-        async fn delete_config(&self, key: &str) -> SchedulerResult<bool> {
-            let mut config = self.config.write().await;
-            Ok(config.remove(key).is_some())
-        }
-
-        async fn list_config_keys(&self) -> SchedulerResult<Vec<String>> {
-            let config = self.config.read().await;
-            Ok(config.keys().cloned().collect())
-        }
-
-        async fn reload_config(&self) -> SchedulerResult<()> {
-            Ok(())
-        }
-    }
-
-    let service = Arc::new(MockConfigService {
-        config: Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new())),
-    });
-
-    let builder = ConfigBuilder::new(service);
-
-    // Test setting and getting a string value
-    builder
-        .set(
-            "test_string",
-            &serde_json::Value::String("hello".to_string()),
-        )
-        .await
-        .unwrap();
-    let result: Option<String> = builder.get("test_string").await.unwrap();
-    assert_eq!(result, Some("hello".to_string()));
+    // Test getting a string value
+    let result: String = manager.get("test_string").await.unwrap();
+    assert_eq!(result, "hello".to_string());
 
     // Test with default value
-    let result: String = builder
+    let result: String = manager
         .get_or_default("nonexistent_key", "default".to_string())
-        .await
-        .unwrap();
+        .await;
     assert_eq!(result, "default");
 }
 
