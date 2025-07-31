@@ -2,7 +2,7 @@ use scheduler_core::config::{AppConfig, ConfigLoader};
 use std::env;
 
 fn main() -> anyhow::Result<()> {
-    println!("=== 分布式任务调度系统配置管理示例 ===\n");
+    eprintln!("=== 分布式任务调度系统配置管理示例 ===\n");
 
     // 1. 加载默认配置
     println!("1. 加载默认配置:");
@@ -137,6 +137,6 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
     env::remove_var("SCHEDULER_WORKER_WORKER_ID");
     env::remove_var("SCHEDULER_OBSERVABILITY_LOG_LEVEL");
 
-    println!("\n=== 配置管理示例完成 ===");
+    eprintln!("\n=== 配置管理示例完成 ===");
     Ok(())
 }

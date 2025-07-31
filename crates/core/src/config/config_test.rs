@@ -268,15 +268,15 @@ fn test_config_environment_override() {
 
     // 由于环境变量的嵌套结构可能需要特殊处理，我们先验证基本功能
     // 如果环境变量覆盖工作正常，这些值应该被覆盖
-    println!(
+    eprintln!(
         "Database max_connections: {}",
         config.database.max_connections
     );
-    println!(
+    eprintln!(
         "Dispatcher schedule_interval_seconds: {}",
         config.dispatcher.schedule_interval_seconds
     );
-    println!("Worker worker_id: {}", config.worker.worker_id);
+    eprintln!("Worker worker_id: {}", config.worker.worker_id);
 
     // 清理环境变量
     env::remove_var("SCHEDULER_DATABASE_MAX_CONNECTIONS");
@@ -627,12 +627,12 @@ fn test_redis_stream_config_file_loading() {
             assert!(redis_url.is_some());
             assert_eq!(redis_url.unwrap(), "redis://localhost:6379/0");
 
-            println!("✅ Redis Stream configuration file loaded and validated successfully");
+            eprintln!("✅ Redis Stream configuration file loaded and validated successfully");
         }
         Err(e) => {
             // 如果配置文件不存在，这是预期的（在CI环境中）
             if e.to_string().contains("配置文件不存在") {
-                println!("⚠️  Redis Stream configuration file not found, skipping test");
+                eprintln!("⚠️  Redis Stream configuration file not found, skipping test");
             } else {
                 panic!("Failed to load Redis Stream configuration: {}", e);
             }
@@ -751,7 +751,7 @@ log_level = "info"
     let built_url = redis_config.build_url();
     assert_eq!(built_url, "redis://:secret@redis-server:6380/2");
 
-    println!("✅ Comprehensive Redis configuration integration test passed");
+    eprintln!("✅ Comprehensive Redis configuration integration test passed");
 }
 
 #[test]
@@ -788,5 +788,5 @@ fn test_redis_config_validation_errors() {
     redis_config.retry_delay_seconds = 0;
     assert!(redis_config.validate().is_err());
 
-    println!("✅ Redis configuration validation error tests passed");
+    eprintln!("✅ Redis configuration validation error tests passed");
 }
