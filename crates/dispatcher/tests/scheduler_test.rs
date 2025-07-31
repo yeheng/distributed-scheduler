@@ -41,7 +41,7 @@ mod tests {
 
     #[async_trait]
     impl MessageQueue for MockMessageQueue {
-        async fn publish_message(&self, queue: &str, message: &Message) -> Result<()> {
+        async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
             let mut queues = self.queues.lock().unwrap();
             queues
                 .entry(queue.to_string())
@@ -50,39 +50,39 @@ mod tests {
             Ok(())
         }
 
-        async fn consume_messages(&self, queue: &str) -> Result<Vec<Message>> {
+        async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
             let mut queues = self.queues.lock().unwrap();
             let messages = queues.remove(queue).unwrap_or_default();
             Ok(messages)
         }
 
-        async fn ack_message(&self, _message_id: &str) -> Result<()> {
+        async fn ack_message(&self, _message_id: &str) -> SchedulerResult<()> {
             Ok(())
         }
 
-        async fn nack_message(&self, _message_id: &str, _requeue: bool) -> Result<()> {
+        async fn nack_message(&self, _message_id: &str, _requeue: bool) -> SchedulerResult<()> {
             Ok(())
         }
 
-        async fn create_queue(&self, queue: &str, _durable: bool) -> Result<()> {
+        async fn create_queue(&self, queue: &str, _durable: bool) -> SchedulerResult<()> {
             let mut queues = self.queues.lock().unwrap();
             queues.entry(queue.to_string()).or_default();
             Ok(())
         }
 
-        async fn delete_queue(&self, queue: &str) -> Result<()> {
+        async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
             let mut queues = self.queues.lock().unwrap();
             queues.remove(queue);
             Ok(())
         }
 
-        async fn get_queue_size(&self, queue: &str) -> Result<u32> {
+        async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
             let queues = self.queues.lock().unwrap();
             let size = queues.get(queue).map(|q| q.len()).unwrap_or(0) as u32;
             Ok(size)
         }
 
-        async fn purge_queue(&self, queue: &str) -> Result<()> {
+        async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
             let mut queues = self.queues.lock().unwrap();
             if let Some(queue_messages) = queues.get_mut(queue) {
                 queue_messages.clear();
@@ -111,7 +111,7 @@ mod tests {
 
     #[async_trait]
     impl TaskRepository for MockTaskRepository {
-        async fn create(&self, task: &Task) -> Result<Task> {
+        async fn create(&self, task: &Task) -> SchedulerResult<Task> {
             let mut tasks = self.tasks.lock().unwrap();
             let mut new_task = task.clone();
             new_task.id = (tasks.len() + 1) as i64;
@@ -119,34 +119,34 @@ mod tests {
             Ok(new_task)
         }
 
-        async fn get_by_id(&self, id: i64) -> Result<Option<Task>> {
+        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.get(&id).cloned())
         }
 
-        async fn get_by_name(&self, name: &str) -> Result<Option<Task>> {
+        async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().find(|t| t.name == name).cloned())
         }
 
-        async fn update(&self, task: &Task) -> Result<()> {
+        async fn update(&self, task: &Task) -> SchedulerResult<()> {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.insert(task.id, task.clone());
             Ok(())
         }
 
-        async fn delete(&self, id: i64) -> Result<()> {
+        async fn delete(&self, id: i64) -> SchedulerResult<()> {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.remove(&id);
             Ok(())
         }
 
-        async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> Result<Vec<Task>> {
+        async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().cloned().collect())
         }
 
-        async fn get_active_tasks(&self) -> Result<Vec<Task>> {
+        async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks
                 .values()
@@ -155,19 +155,19 @@ mod tests {
                 .collect())
         }
 
-        async fn get_schedulable_tasks(&self, _current_time: DateTime<Utc>) -> Result<Vec<Task>> {
+        async fn get_schedulable_tasks(&self, _current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>> {
             self.get_active_tasks().await
         }
 
-        async fn check_dependencies(&self, _task_id: i64) -> Result<bool> {
+        async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
             Ok(true)
         }
 
-        async fn get_dependencies(&self, _task_id: i64) -> Result<Vec<Task>> {
+        async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
             Ok(vec![])
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> Result<()> {
+        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
             Ok(())
         }
     }
@@ -190,7 +190,7 @@ mod tests {
 
     #[async_trait]
     impl TaskRunRepository for MockTaskRunRepository {
-        async fn create(&self, task_run: &TaskRun) -> Result<TaskRun> {
+        async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
             let mut task_runs = self.task_runs.lock().unwrap();
             let mut next_id = self.next_id.lock().unwrap();
 
@@ -202,24 +202,24 @@ mod tests {
             Ok(new_run)
         }
 
-        async fn get_by_id(&self, id: i64) -> Result<Option<TaskRun>> {
+        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             Ok(task_runs.get(&id).cloned())
         }
 
-        async fn update(&self, task_run: &TaskRun) -> Result<()> {
+        async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
             let mut task_runs = self.task_runs.lock().unwrap();
             task_runs.insert(task_run.id, task_run.clone());
             Ok(())
         }
 
-        async fn delete(&self, id: i64) -> Result<()> {
+        async fn delete(&self, id: i64) -> SchedulerResult<()> {
             let mut task_runs = self.task_runs.lock().unwrap();
             task_runs.remove(&id);
             Ok(())
         }
 
-        async fn get_by_task_id(&self, task_id: i64) -> Result<Vec<TaskRun>> {
+        async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             Ok(task_runs
                 .values()
@@ -228,7 +228,7 @@ mod tests {
                 .collect())
         }
 
-        async fn get_by_worker_id(&self, worker_id: &str) -> Result<Vec<TaskRun>> {
+        async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             Ok(task_runs
                 .values()
@@ -237,7 +237,7 @@ mod tests {
                 .collect())
         }
 
-        async fn get_by_status(&self, status: TaskRunStatus) -> Result<Vec<TaskRun>> {
+        async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             Ok(task_runs
                 .values()
@@ -246,11 +246,11 @@ mod tests {
                 .collect())
         }
 
-        async fn get_pending_runs(&self, _limit: Option<i64>) -> Result<Vec<TaskRun>> {
+        async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
             self.get_by_status(TaskRunStatus::Pending).await
         }
 
-        async fn get_running_runs(&self) -> Result<Vec<TaskRun>> {
+        async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             Ok(task_runs
                 .values()
@@ -259,7 +259,7 @@ mod tests {
                 .collect())
         }
 
-        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> Result<Vec<TaskRun>> {
+        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
             Ok(vec![])
         }
 
@@ -268,7 +268,7 @@ mod tests {
             id: i64,
             status: TaskRunStatus,
             worker_id: Option<&str>,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             let mut task_runs = self.task_runs.lock().unwrap();
             if let Some(run) = task_runs.get_mut(&id) {
                 run.status = status;
@@ -284,7 +284,7 @@ mod tests {
             id: i64,
             result: Option<&str>,
             error_message: Option<&str>,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             let mut task_runs = self.task_runs.lock().unwrap();
             if let Some(run) = task_runs.get_mut(&id) {
                 run.result = result.map(|s| s.to_string());
@@ -293,7 +293,7 @@ mod tests {
             Ok(())
         }
 
-        async fn get_recent_runs(&self, task_id: i64, limit: i64) -> Result<Vec<TaskRun>> {
+        async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
             let task_runs = self.task_runs.lock().unwrap();
             let mut runs: Vec<_> = task_runs
                 .values()
@@ -310,11 +310,11 @@ mod tests {
             &self,
             _task_id: i64,
             _days: i32,
-        ) -> Result<scheduler_core::traits::repository::TaskExecutionStats> {
+        ) -> SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats> {
             todo!()
         }
 
-        async fn cleanup_old_runs(&self, _days: i32) -> Result<u64> {
+        async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
             Ok(0)
         }
 
@@ -322,7 +322,7 @@ mod tests {
             &self,
             _run_ids: &[i64],
             _status: TaskRunStatus,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }

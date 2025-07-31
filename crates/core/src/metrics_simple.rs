@@ -6,7 +6,7 @@ use std::time::{Duration, Instant, SystemTime, UNIX_EPOCH};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::errors::Result;
+use crate::SchedulerResult;
 
 /// Metric type
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
@@ -126,7 +126,7 @@ impl Metric {
     }
 
     /// Convert to JSON string
-    pub fn to_json(&self) -> Result<String> {
+    pub fn to_json(&self) -> SchedulerResult<String> {
         serde_json::to_string(self).map_err(|e| {
             crate::errors::SchedulerError::Internal(format!("Failed to serialize metric: {e}"))
         })
@@ -432,7 +432,7 @@ impl SimpleMetricsCollector {
     }
 
     /// Export metrics as JSON
-    pub async fn export_json(&self) -> Result<String> {
+    pub async fn export_json(&self) -> SchedulerResult<String> {
         let metrics = self.collect().await;
         serde_json::to_string(&metrics).map_err(|e| {
             crate::errors::SchedulerError::Internal(format!("Failed to export metrics: {e}"))
@@ -440,7 +440,7 @@ impl SimpleMetricsCollector {
     }
 
     /// Export metrics as Prometheus format
-    pub async fn export_prometheus(&self) -> Result<String> {
+    pub async fn export_prometheus(&self) -> SchedulerResult<String> {
         let metrics = self.collect().await;
         let mut result = String::new();
 

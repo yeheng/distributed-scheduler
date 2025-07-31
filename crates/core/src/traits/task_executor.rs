@@ -5,7 +5,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
-    errors::Result,
+    SchedulerResult,
     models::{TaskResult, TaskRun},
 };
 
@@ -64,10 +64,10 @@ pub struct ExecutorStatus {
 #[async_trait]
 pub trait TaskExecutor: Send + Sync {
     /// 执行任务 - 新的增强接口
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> Result<TaskResult>;
+    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult>;
 
     /// 执行任务 - 保持向后兼容的原有接口
-    async fn execute(&self, task_run: &TaskRun) -> Result<TaskResult> {
+    async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
         // 默认实现，从TaskRun中提取参数构建上下文
         let task_info = task_run
             .result
@@ -122,13 +122,13 @@ pub trait TaskExecutor: Send + Sync {
     }
 
     /// 取消正在执行的任务
-    async fn cancel(&self, task_run_id: i64) -> Result<()>;
+    async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()>;
 
     /// 检查任务是否仍在运行
-    async fn is_running(&self, task_run_id: i64) -> Result<bool>;
+    async fn is_running(&self, task_run_id: i64) -> SchedulerResult<bool>;
 
     /// 获取执行器状态信息
-    async fn get_status(&self) -> Result<ExecutorStatus> {
+    async fn get_status(&self) -> SchedulerResult<ExecutorStatus> {
         Ok(ExecutorStatus {
             name: self.name().to_string(),
             version: self.version().to_string(),
@@ -141,17 +141,17 @@ pub trait TaskExecutor: Send + Sync {
     }
 
     /// 健康检查
-    async fn health_check(&self) -> Result<bool> {
+    async fn health_check(&self) -> SchedulerResult<bool> {
         Ok(true)
     }
 
     /// 预热执行器（可选实现）
-    async fn warm_up(&self) -> Result<()> {
+    async fn warm_up(&self) -> SchedulerResult<()> {
         Ok(())
     }
 
     /// 清理资源（可选实现）
-    async fn cleanup(&self) -> Result<()> {
+    async fn cleanup(&self) -> SchedulerResult<()> {
         Ok(())
     }
 }
@@ -165,13 +165,13 @@ pub trait ExecutorFactory: Send + Sync {
         &self,
         executor_type: &str,
         config: &ExecutorConfig,
-    ) -> Result<Arc<dyn TaskExecutor>>;
+    ) -> SchedulerResult<Arc<dyn TaskExecutor>>;
 
     /// 获取支持的执行器类型
     fn supported_types(&self) -> Vec<String>;
 
     /// 验证执行器配置
-    fn validate_config(&self, executor_type: &str, config: &ExecutorConfig) -> Result<()>;
+    fn validate_config(&self, executor_type: &str, config: &ExecutorConfig) -> SchedulerResult<()>;
 }
 
 /// 执行器配置
@@ -203,7 +203,7 @@ impl Default for ExecutorConfig {
 #[async_trait]
 pub trait ExecutorRegistry: Send + Sync {
     /// 注册执行器 - 使用Arc确保线程安全
-    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> Result<()>;
+    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> SchedulerResult<()>;
 
     /// 获取执行器(返回Arc包装以支持异步)
     async fn get(&self, name: &str) -> Option<Arc<dyn TaskExecutor>>;
@@ -212,7 +212,7 @@ pub trait ExecutorRegistry: Send + Sync {
     async fn list_executors(&self) -> Vec<String>;
 
     /// 移除执行器
-    async fn unregister(&mut self, name: &str) -> Result<bool>;
+    async fn unregister(&mut self, name: &str) -> SchedulerResult<bool>;
 
     /// 清空所有执行器
     async fn clear(&mut self);
@@ -224,11 +224,11 @@ pub trait ExecutorRegistry: Send + Sync {
     async fn count(&self) -> usize;
 
     /// 获取所有执行器的状态
-    async fn get_all_status(&self) -> Result<HashMap<String, ExecutorStatus>>;
+    async fn get_all_status(&self) -> SchedulerResult<HashMap<String, ExecutorStatus>>;
 
     /// 健康检查所有执行器
-    async fn health_check_all(&self) -> Result<HashMap<String, bool>>;
+    async fn health_check_all(&self) -> SchedulerResult<HashMap<String, bool>>;
 
     /// 获取支持指定任务类型的执行器
-    async fn get_by_task_type(&self, task_type: &str) -> Result<Vec<Arc<dyn TaskExecutor>>>;
+    async fn get_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>>;
 }

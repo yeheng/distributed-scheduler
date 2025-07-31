@@ -6,7 +6,7 @@ use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::errors::Result;
+use crate::SchedulerResult;
 
 /// Log level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Serialize, Deserialize)]
@@ -25,7 +25,7 @@ pub enum LogLevel {
 
 impl LogLevel {
     /// Parse log level from string
-    pub fn from_str(level: &str) -> Result<Self> {
+    pub fn from_str(level: &str) -> SchedulerResult<Self> {
         match level.to_lowercase().as_str() {
             "trace" => Ok(LogLevel::Trace),
             "debug" => Ok(LogLevel::Debug),
@@ -121,14 +121,14 @@ impl LogEntry {
     }
 
     /// Convert to JSON string
-    pub fn to_json(&self) -> Result<String> {
+    pub fn to_json(&self) -> SchedulerResult<String> {
         serde_json::to_string(self).map_err(|e| {
             crate::errors::SchedulerError::Internal(format!("Failed to serialize log entry: {e}"))
         })
     }
 
     /// Convert to pretty JSON string
-    pub fn to_pretty_json(&self) -> Result<String> {
+    pub fn to_pretty_json(&self) -> SchedulerResult<String> {
         serde_json::to_string_pretty(self).map_err(|e| {
             crate::errors::SchedulerError::Internal(format!("Failed to serialize log entry: {e}"))
         })
@@ -139,13 +139,13 @@ impl LogEntry {
 #[async_trait]
 pub trait LogAppender: Send + Sync {
     /// Append log entry
-    async fn append(&self, entry: &LogEntry) -> Result<()>;
+    async fn append(&self, entry: &LogEntry) -> SchedulerResult<()>;
 
     /// Flush pending logs
-    async fn flush(&self) -> Result<()>;
+    async fn flush(&self) -> SchedulerResult<()>;
 
     /// Shutdown appender
-    async fn shutdown(&self) -> Result<()>;
+    async fn shutdown(&self) -> SchedulerResult<()>;
 }
 
 /// Console appender - Output logs to console
@@ -183,7 +183,7 @@ impl ConsoleAppender {
 
 #[async_trait]
 impl LogAppender for ConsoleAppender {
-    async fn append(&self, entry: &LogEntry) -> Result<()> {
+    async fn append(&self, entry: &LogEntry) -> SchedulerResult<()> {
         if entry.level < self.min_level {
             return Ok(());
         }
@@ -239,12 +239,12 @@ impl LogAppender for ConsoleAppender {
         Ok(())
     }
 
-    async fn flush(&self) -> Result<()> {
+    async fn flush(&self) -> SchedulerResult<()> {
         // Console output is immediately flushed
         Ok(())
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&self) -> SchedulerResult<()> {
         Ok(())
     }
 }
@@ -301,7 +301,7 @@ impl MemoryAppender {
 
 #[async_trait]
 impl LogAppender for MemoryAppender {
-    async fn append(&self, entry: &LogEntry) -> Result<()> {
+    async fn append(&self, entry: &LogEntry) -> SchedulerResult<()> {
         let mut logs = self.logs.write().await;
         logs.push(entry.clone());
 
@@ -313,11 +313,11 @@ impl LogAppender for MemoryAppender {
         Ok(())
     }
 
-    async fn flush(&self) -> Result<()> {
+    async fn flush(&self) -> SchedulerResult<()> {
         Ok(())
     }
 
-    async fn shutdown(&self) -> Result<()> {
+    async fn shutdown(&self) -> SchedulerResult<()> {
         Ok(())
     }
 }
@@ -377,7 +377,7 @@ impl Logger {
     }
 
     /// Create logger with custom configuration
-    pub fn with_config(component: String, config: LoggerConfig) -> Result<Self> {
+    pub fn with_config(component: String, config: LoggerConfig) -> SchedulerResult<Self> {
         let mut appenders: Vec<Arc<dyn LogAppender>> = Vec::new();
 
         for appender_name in &config.appenders {
@@ -567,7 +567,7 @@ impl Logger {
     }
 
     /// Flush all appenders
-    pub async fn flush(&self) -> Result<()> {
+    pub async fn flush(&self) -> SchedulerResult<()> {
         for appender in &self.appenders {
             appender.flush().await?;
         }
@@ -575,7 +575,7 @@ impl Logger {
     }
 
     /// Shutdown logger
-    pub async fn shutdown(&self) -> Result<()> {
+    pub async fn shutdown(&self) -> SchedulerResult<()> {
         for appender in &self.appenders {
             appender.shutdown().await?;
         }
@@ -587,7 +587,7 @@ impl Logger {
 static GLOBAL_LOGGER: std::sync::OnceLock<Arc<Logger>> = std::sync::OnceLock::new();
 
 /// Initialize global logger
-pub fn init_global_logger(component: String) -> Result<Arc<Logger>> {
+pub fn init_global_logger(component: String) -> SchedulerResult<Arc<Logger>> {
     let logger = Arc::new(Logger::new(component));
     GLOBAL_LOGGER.set(logger.clone()).map_err(|_| {
         crate::errors::SchedulerError::Internal("Global logger already initialized".to_string())
@@ -599,7 +599,7 @@ pub fn init_global_logger(component: String) -> Result<Arc<Logger>> {
 pub fn init_global_logger_with_config(
     component: String,
     config: LoggerConfig,
-) -> Result<Arc<Logger>> {
+) -> SchedulerResult<Arc<Logger>> {
     let logger = Arc::new(Logger::with_config(component, config)?);
     GLOBAL_LOGGER.set(logger.clone()).map_err(|_| {
         crate::errors::SchedulerError::Internal("Global logger already initialized".to_string())

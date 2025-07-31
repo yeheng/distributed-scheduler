@@ -7,7 +7,7 @@ use tracing::{debug, warn};
 use scheduler_core::{
     models::Task,
     traits::{TaskRepository, TaskRunRepository},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 
 /// 任务依赖检查器
@@ -28,16 +28,16 @@ pub struct DependencyCheckResult {
 #[async_trait]
 pub trait DependencyCheckService: Send + Sync {
     /// 检查任务依赖关系
-    async fn check_dependencies(&self, task: &Task) -> Result<DependencyCheckResult>;
+    async fn check_dependencies(&self, task: &Task) -> SchedulerResult<DependencyCheckResult>;
 
     /// 验证任务依赖关系（检查循环依赖）
-    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> Result<()>;
+    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<()>;
 
     /// 检测循环依赖
-    async fn detect_circular_dependency(&self, task_id: i64, dependencies: &[i64]) -> Result<bool>;
+    async fn detect_circular_dependency(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<bool>;
 
     /// 获取任务的所有传递依赖
-    async fn get_transitive_dependencies(&self, task_id: i64) -> Result<Vec<i64>>;
+    async fn get_transitive_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<i64>>;
 }
 
 impl DependencyChecker {
@@ -53,7 +53,7 @@ impl DependencyChecker {
     }
 
     /// 检查单个依赖任务的状态
-    async fn check_single_dependency(&self, dep_task_id: i64) -> Result<bool> {
+    async fn check_single_dependency(&self, dep_task_id: i64) -> SchedulerResult<bool> {
         // 获取依赖任务的最近执行记录
         let recent_runs = self.task_run_repo.get_recent_runs(dep_task_id, 1).await?;
 
@@ -77,7 +77,7 @@ impl DependencyChecker {
     }
 
     /// 构建任务依赖图
-    async fn build_dependency_graph(&self) -> Result<HashMap<i64, Vec<i64>>> {
+    async fn build_dependency_graph(&self) -> SchedulerResult<HashMap<i64, Vec<i64>>> {
         let all_tasks = self.task_repo.get_active_tasks().await?;
         let mut graph = HashMap::new();
 
@@ -161,7 +161,7 @@ impl DependencyChecker {
     }
 
     /// 获取任务的传递依赖（使用广度优先搜索）
-    async fn get_transitive_dependencies_bfs(&self, task_id: i64) -> Result<Vec<i64>> {
+    async fn get_transitive_dependencies_bfs(&self, task_id: i64) -> SchedulerResult<Vec<i64>> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
         let mut result = Vec::new();
@@ -200,7 +200,7 @@ impl DependencyChecker {
 #[async_trait]
 impl DependencyCheckService for DependencyChecker {
     /// 检查任务依赖关系
-    async fn check_dependencies(&self, task: &Task) -> Result<DependencyCheckResult> {
+    async fn check_dependencies(&self, task: &Task) -> SchedulerResult<DependencyCheckResult> {
         if task.dependencies.is_empty() {
             return Ok(DependencyCheckResult {
                 can_execute: true,
@@ -236,7 +236,7 @@ impl DependencyCheckService for DependencyChecker {
     }
 
     /// 验证任务依赖关系（检查循环依赖）
-    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> Result<()> {
+    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<()> {
         // 检查是否存在自依赖
         if dependencies.contains(&task_id) {
             return Err(SchedulerError::CircularDependency);
@@ -266,7 +266,7 @@ impl DependencyCheckService for DependencyChecker {
         &self,
         task_id: i64,
         new_dependencies: &[i64],
-    ) -> Result<bool> {
+    ) -> SchedulerResult<bool> {
         // 构建当前的依赖图
         let mut graph = self.build_dependency_graph().await?;
 
@@ -287,7 +287,7 @@ impl DependencyCheckService for DependencyChecker {
     }
 
     /// 获取任务的所有传递依赖
-    async fn get_transitive_dependencies(&self, task_id: i64) -> Result<Vec<i64>> {
+    async fn get_transitive_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<i64>> {
         self.get_transitive_dependencies_bfs(task_id).await
     }
 }

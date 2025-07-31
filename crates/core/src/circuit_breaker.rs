@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{Result, SchedulerError};
+use crate::{SchedulerResult, SchedulerError};
 
 /// Circuit breaker state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -183,10 +183,10 @@ impl CircuitBreaker {
     }
 
     /// Execute operation with circuit breaker protection
-    pub async fn execute<F, Fut, T>(&self, operation: F) -> Result<T>
+    pub async fn execute<F, Fut, T>(&self, operation: F) -> SchedulerResult<T>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Result<T>>,
+        Fut: std::future::Future<Output = SchedulerResult<T>>,
     {
         // Check if we should allow the call
         if !self.should_allow_call().await {
@@ -343,10 +343,10 @@ impl CircuitBreakerMiddleware {
     }
 
     /// Execute operation with circuit breaker protection
-    pub async fn execute<F, Fut, T>(&self, operation_name: &str, operation: F) -> Result<T>
+    pub async fn execute<F, Fut, T>(&self, operation_name: &str, operation: F) -> SchedulerResult<T>
     where
         F: FnOnce() -> Fut,
-        Fut: std::future::Future<Output = Result<T>>,
+        Fut: std::future::Future<Output = SchedulerResult<T>>,
     {
         match self.circuit_breaker.execute(operation).await {
             Ok(result) => Ok(result),
@@ -368,7 +368,7 @@ impl CircuitBreakerMiddleware {
     }
 
     /// Reset circuit breaker
-    pub async fn reset(&self) -> Result<()> {
+    pub async fn reset(&self) -> SchedulerResult<()> {
         self.circuit_breaker.reset().await;
         Ok(())
     }
@@ -402,7 +402,7 @@ mod tests {
 
         // Fail 3 times to open circuit
         for _ in 0..3 {
-            let result: Result<()> = cb
+            let result: SchedulerResult<()> = cb
                 .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
                 .await;
             assert!(result.is_err());
@@ -432,7 +432,7 @@ mod tests {
 
         // Fail 2 times to open circuit
         for _ in 0..2 {
-            let _: Result<()> = cb
+            let _: SchedulerResult<()> = cb
                 .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
                 .await;
         }
@@ -491,7 +491,7 @@ mod tests {
         assert_eq!(result.unwrap(), "success");
 
         // Failed operation
-        let result: Result<String> = middleware
+        let result: SchedulerResult<String> = middleware
             .execute("test_operation", || async {
                 Err(SchedulerError::Internal("Test error".to_string()))
             })
@@ -516,7 +516,7 @@ mod tests {
         let cb = CircuitBreaker::with_config(config);
 
         // First failure
-        let _: Result<()> = cb
+        let _: SchedulerResult<()> = cb
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
@@ -526,7 +526,7 @@ mod tests {
 
         // Wait and fail again in half-open
         tokio::time::sleep(Duration::from_millis(150)).await;
-        let _: Result<()> = cb
+        let _: SchedulerResult<()> = cb
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
@@ -535,7 +535,7 @@ mod tests {
 
         // Wait and fail again
         tokio::time::sleep(Duration::from_millis(250)).await;
-        let _: Result<()> = cb
+        let _: SchedulerResult<()> = cb
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
@@ -544,7 +544,7 @@ mod tests {
 
         // Should be capped at max
         tokio::time::sleep(Duration::from_millis(450)).await;
-        let _: Result<()> = cb
+        let _: SchedulerResult<()> = cb
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 

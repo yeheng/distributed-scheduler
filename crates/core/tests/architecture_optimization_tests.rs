@@ -7,7 +7,7 @@ use scheduler_core::{
         DefaultErrorHandler, ErrorAction, ErrorContext, ErrorHandler, ErrorHandlingMiddleware,
         ErrorSeverity,
     },
-    errors::{Result, SchedulerError},
+    SchedulerResult, errors::SchedulerError,
 };
 
 /// Test error handling middleware
@@ -58,28 +58,28 @@ async fn test_typed_configuration() {
 
     #[async_trait::async_trait]
     impl scheduler_core::config_management::ConfigurationService for MockConfigService {
-        async fn get_config_value(&self, key: &str) -> Result<Option<serde_json::Value>> {
+        async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<serde_json::Value>> {
             let config = self.config.read().await;
             Ok(config.get(key).cloned())
         }
 
-        async fn set_config_value(&self, key: &str, value: &serde_json::Value) -> Result<()> {
+        async fn set_config_value(&self, key: &str, value: &serde_json::Value) -> SchedulerResult<()> {
             let mut config = self.config.write().await;
             config.insert(key.to_string(), value.clone());
             Ok(())
         }
 
-        async fn delete_config(&self, key: &str) -> Result<bool> {
+        async fn delete_config(&self, key: &str) -> SchedulerResult<bool> {
             let mut config = self.config.write().await;
             Ok(config.remove(key).is_some())
         }
 
-        async fn list_config_keys(&self) -> Result<Vec<String>> {
+        async fn list_config_keys(&self) -> SchedulerResult<Vec<String>> {
             let config = self.config.read().await;
             Ok(config.keys().cloned().collect())
         }
 
-        async fn reload_config(&self) -> Result<()> {
+        async fn reload_config(&self) -> SchedulerResult<()> {
             Ok(())
         }
     }

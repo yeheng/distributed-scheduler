@@ -1,4 +1,4 @@
-use scheduler_core::config::{AppConfig, ConfigLoader};
+use scheduler_core::config::{AppConfig, LegacyConfigLoader};
 use std::env;
 
 fn main() -> anyhow::Result<()> {
@@ -94,7 +94,7 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
     println!("   SCHEDULER_OBSERVABILITY_LOG_LEVEL=warn");
 
     // 使用ConfigLoader加载配置（会应用环境变量覆盖）
-    let config_with_env = ConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
+    let config_with_env = LegacyConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
     println!("   加载后的配置:");
     println!(
         "   数据库最大连接数: {}",
@@ -117,19 +117,22 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
 
     // 6. 环境检测
     println!("\n6. 环境检测:");
-    println!("   当前环境: {}", ConfigLoader::current_env());
-    println!("   是否为开发环境: {}", ConfigLoader::is_development());
-    println!("   是否为生产环境: {}", ConfigLoader::is_production());
+    println!("   当前环境: {}", LegacyConfigLoader::current_env());
+    println!(
+        "   是否为开发环境: {}",
+        LegacyConfigLoader::is_development()
+    );
+    println!("   是否为生产环境: {}", LegacyConfigLoader::is_production());
 
     // 7. 数据库和消息队列URL获取（支持常见环境变量覆盖）
     println!("\n7. 连接字符串获取:");
     println!(
         "   数据库URL: {}",
-        ConfigLoader::get_database_url(&config_with_env)
+        LegacyConfigLoader::get_database_url(&config_with_env)
     );
     println!(
         "   消息队列URL: {}",
-        ConfigLoader::get_message_queue_url(&config_with_env)
+        LegacyConfigLoader::get_message_queue_url(&config_with_env)
     );
 
     // 清理环境变量

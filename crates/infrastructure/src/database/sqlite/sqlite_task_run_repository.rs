@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
-    errors::Result,
+    SchedulerResult,
     errors::SchedulerError,
     models::{TaskRun, TaskRunStatus},
     traits::{TaskExecutionStats, TaskRunRepository},
@@ -21,7 +21,7 @@ impl SqliteTaskRunRepository {
     }
 
     /// 将数据库行转换为TaskRun模型
-    fn row_to_task_run(row: &sqlx::sqlite::SqliteRow) -> Result<TaskRun> {
+    fn row_to_task_run(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<TaskRun> {
         Ok(TaskRun {
             id: row.try_get("id")?,
             task_id: row.try_get("task_id")?,
@@ -43,7 +43,7 @@ impl SqliteTaskRunRepository {
 #[async_trait]
 impl TaskRunRepository for SqliteTaskRunRepository {
     /// 创建新的任务运行
-    async fn create(&self, task_run: &TaskRun) -> Result<TaskRun> {
+    async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
         let row = sqlx::query(
             r#"
             INSERT INTO task_runs (task_id, status, worker_id, retry_count, shard_index, shard_total, 
@@ -77,7 +77,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 根据ID获取任务运行
-    async fn get_by_id(&self, id: i64) -> Result<Option<TaskRun>> {
+    async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
         let row = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, 
                     scheduled_at, started_at, completed_at, result, error_message, created_at 
@@ -95,7 +95,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 更新任务执行实例
-    async fn update(&self, task_run: &TaskRun) -> Result<()> {
+    async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
         let result = sqlx::query(
             r#"
             UPDATE task_runs 
@@ -128,7 +128,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 删除任务执行实例
-    async fn delete(&self, id: i64) -> Result<()> {
+    async fn delete(&self, id: i64) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM task_runs WHERE id = $1")
             .bind(id)
             .execute(&self.pool)
@@ -144,7 +144,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 根据任务ID获取执行实例列表
-    async fn get_by_task_id(&self, task_id: i64) -> Result<Vec<TaskRun>> {
+    async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total,
                     scheduled_at, started_at, completed_at, result, error_message, created_at
@@ -155,12 +155,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 根据Worker ID获取执行实例列表
-    async fn get_by_worker_id(&self, worker_id: &str) -> Result<Vec<TaskRun>> {
+    async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total,
                     scheduled_at, started_at, completed_at, result, error_message, created_at
@@ -171,12 +171,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取指定状态的任务运行
-    async fn get_by_status(&self, status: TaskRunStatus) -> Result<Vec<TaskRun>> {
+    async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, 
                     scheduled_at, started_at, completed_at, result, error_message, created_at 
@@ -187,12 +187,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取等待执行的任务运行
-    async fn get_pending_runs(&self, limit: Option<i64>) -> Result<Vec<TaskRun>> {
+    async fn get_pending_runs(&self, limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
         let mut query = "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, 
                                 scheduled_at, started_at, completed_at, result, error_message, created_at 
                          FROM task_runs WHERE status = 'PENDING' AND scheduled_at <= datetime('now') 
@@ -207,12 +207,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
             .await
             .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取正在运行的任务执行实例
-    async fn get_running_runs(&self) -> Result<Vec<TaskRun>> {
+    async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, 
                     scheduled_at, started_at, completed_at, result, error_message, created_at 
@@ -222,12 +222,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取超时的任务运行
-    async fn get_timeout_runs(&self, timeout_seconds: i64) -> Result<Vec<TaskRun>> {
+    async fn get_timeout_runs(&self, timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, 
                     scheduled_at, started_at, completed_at, result, error_message, created_at 
@@ -242,7 +242,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -252,7 +252,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         id: i64,
         status: TaskRunStatus,
         worker_id: Option<&str>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let mut query = "UPDATE task_runs SET status = $1".to_string();
         let mut param_count = 1;
 
@@ -314,7 +314,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         id: i64,
         result: Option<&str>,
         error_message: Option<&str>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let query_result =
             sqlx::query("UPDATE task_runs SET result = $1, error_message = $2 WHERE id = $3")
                 .bind(result)
@@ -333,7 +333,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 获取任务的最近执行记录
-    async fn get_recent_runs(&self, task_id: i64, limit: i64) -> Result<Vec<TaskRun>> {
+    async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total,
                     scheduled_at, started_at, completed_at, result, error_message, created_at
@@ -345,12 +345,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: Result<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取任务执行统计信息
-    async fn get_execution_stats(&self, task_id: i64, days: i32) -> Result<TaskExecutionStats> {
+    async fn get_execution_stats(&self, task_id: i64, days: i32) -> SchedulerResult<TaskExecutionStats> {
         let row = sqlx::query(
             r#"
             SELECT 
@@ -397,7 +397,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 清理过期的任务执行记录
-    async fn cleanup_old_runs(&self, days: i32) -> Result<u64> {
+    async fn cleanup_old_runs(&self, days: i32) -> SchedulerResult<u64> {
         let result = sqlx::query(
             "DELETE FROM task_runs WHERE created_at < datetime('now', '-' || $1 || ' days')",
         )
@@ -412,7 +412,7 @@ impl TaskRunRepository for SqliteTaskRunRepository {
     }
 
     /// 批量更新任务执行状态
-    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> Result<()> {
+    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> SchedulerResult<()> {
         if run_ids.is_empty() {
             return Ok(());
         }

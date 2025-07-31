@@ -4,7 +4,7 @@ use lapin::{
     Consumer, Queue,
 };
 use scheduler_core::{
-    config::model::MessageQueueConfig, errors::Result, errors::SchedulerError, models::Message,
+    config::model::MessageQueueConfig, SchedulerResult, errors::SchedulerError, models::Message,
     traits::MessageQueue,
 };
 use std::sync::Arc;
@@ -20,7 +20,7 @@ pub struct RabbitMQMessageQueue {
 
 impl RabbitMQMessageQueue {
     /// 创建新的RabbitMQ消息队列实例
-    pub async fn new(config: MessageQueueConfig) -> Result<Self> {
+    pub async fn new(config: MessageQueueConfig) -> SchedulerResult<Self> {
         let connection = Connection::connect(&config.url, ConnectionProperties::default())
             .await
             .map_err(|e| SchedulerError::MessageQueue(format!("连接RabbitMQ失败: {e}")))?;
@@ -45,7 +45,7 @@ impl RabbitMQMessageQueue {
     }
 
     /// 初始化所有必需的队列
-    async fn initialize_queues(&self) -> Result<()> {
+    async fn initialize_queues(&self) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
 
         // 创建任务队列
@@ -74,7 +74,7 @@ impl RabbitMQMessageQueue {
         channel: &Channel,
         queue_name: &str,
         durable: bool,
-    ) -> Result<Queue> {
+    ) -> SchedulerResult<Queue> {
         let queue = channel
             .queue_declare(
                 queue_name,
@@ -96,19 +96,19 @@ impl RabbitMQMessageQueue {
     }
 
     /// 序列化消息
-    fn serialize_message(&self, message: &Message) -> Result<Vec<u8>> {
+    fn serialize_message(&self, message: &Message) -> SchedulerResult<Vec<u8>> {
         serde_json::to_vec(message)
             .map_err(|e| SchedulerError::Serialization(format!("序列化消息失败: {e}")))
     }
 
     /// 反序列化消息
-    fn deserialize_message(&self, data: &[u8]) -> Result<Message> {
+    fn deserialize_message(&self, data: &[u8]) -> SchedulerResult<Message> {
         serde_json::from_slice(data)
             .map_err(|e| SchedulerError::Serialization(format!("反序列化消息: {e}")))
     }
 
     /// 创建消费者
-    pub async fn create_consumer(&self, queue: &str, consumer_tag: &str) -> Result<Consumer> {
+    pub async fn create_consumer(&self, queue: &str, consumer_tag: &str) -> SchedulerResult<Consumer> {
         let channel = self.channel.lock().await;
         let consumer = channel
             .basic_consume(
@@ -130,7 +130,7 @@ impl RabbitMQMessageQueue {
     }
 
     /// 关闭连接
-    pub async fn close(&self) -> Result<()> {
+    pub async fn close(&self) -> SchedulerResult<()> {
         self.connection
             .close(200, "正常关闭")
             .await
@@ -144,7 +144,7 @@ impl RabbitMQMessageQueue {
 #[async_trait]
 impl MessageQueue for RabbitMQMessageQueue {
     /// 发布消息到指定队列
-    async fn publish_message(&self, queue: &str, message: &Message) -> Result<()> {
+    async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
         let payload = self.serialize_message(message)?;
 
@@ -171,7 +171,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 从指定队列消费消息
-    async fn consume_messages(&self, queue: &str) -> Result<Vec<Message>> {
+    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         let channel = self.channel.lock().await;
 
         // 获取单个消息
@@ -212,7 +212,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 确认消息处理完成
-    async fn ack_message(&self, message_id: &str) -> Result<()> {
+    async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         // 在实际实现中，需要跟踪delivery_tag
         // 这里简化处理
         debug!("确认消息: {}", message_id);
@@ -220,7 +220,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 拒绝消息并重新入队
-    async fn nack_message(&self, message_id: &str, requeue: bool) -> Result<()> {
+    async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()> {
         // 在实际实现中，需要跟踪delivery_tag
         // 这里简化处理
         debug!("拒绝消息: {}, 重新入队: {}", message_id, requeue);
@@ -228,14 +228,14 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 创建队列
-    async fn create_queue(&self, queue: &str, durable: bool) -> Result<()> {
+    async fn create_queue(&self, queue: &str, durable: bool) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
         self.declare_queue(&channel, queue, durable).await?;
         Ok(())
     }
 
     /// 删除队列
-    async fn delete_queue(&self, queue: &str) -> Result<()> {
+    async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
         channel
             .queue_delete(queue, QueueDeleteOptions::default())
@@ -247,7 +247,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 获取队列中的消息数量
-    async fn get_queue_size(&self, queue: &str) -> Result<u32> {
+    async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
         let channel = self.channel.lock().await;
         let queue_info = channel
             .queue_declare(
@@ -280,7 +280,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     }
 
     /// 清空队列
-    async fn purge_queue(&self, queue: &str) -> Result<()> {
+    async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
         channel
             .queue_purge(queue, QueuePurgeOptions::default())

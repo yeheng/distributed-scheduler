@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use scheduler_core::{
     models::{Message, StatusUpdateMessage, TaskResult, TaskStatusUpdate},
-    Result, ServiceLocator, TaskRunStatus,
+    SchedulerResult, ServiceLocator, TaskRunStatus,
 };
 use tokio::sync::broadcast;
 use tokio::time::interval;
@@ -47,7 +47,7 @@ impl HeartbeatManager {
                 + Send
                 + Sync,
         >,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let mut heartbeat_interval = interval(Duration::from_secs(self.heartbeat_interval_seconds));
         let dispatcher_client = Arc::clone(&self.dispatcher_client);
         let service_locator = Arc::clone(&self.service_locator);
@@ -80,7 +80,7 @@ impl HeartbeatManager {
     }
 
     /// Send status update
-    pub async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()> {
+    pub async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         let message_queue = self.service_locator.message_queue().await?;
 
         // Convert TaskStatusUpdate to StatusUpdateMessage
@@ -109,7 +109,7 @@ impl HeartbeatManager {
     async fn send_message_queue_heartbeat(
         service_locator: &ServiceLocator,
         worker_id: &str,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let message_queue = service_locator.message_queue().await?;
 
         let heartbeat_data = StatusUpdateMessage {

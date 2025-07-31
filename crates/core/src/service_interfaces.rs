@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use crate::{
-    errors::Result,
+    SchedulerResult,
     models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
 };
 
@@ -17,75 +17,75 @@ pub mod task_services {
     #[async_trait]
     pub trait TaskControlService: Send + Sync {
         /// Trigger task execution manually
-        async fn trigger_task(&self, task_id: i64) -> Result<TaskRun>;
+        async fn trigger_task(&self, task_id: i64) -> SchedulerResult<TaskRun>;
 
         /// Pause task execution
-        async fn pause_task(&self, task_id: i64) -> Result<()>;
+        async fn pause_task(&self, task_id: i64) -> SchedulerResult<()>;
 
         /// Resume paused task
-        async fn resume_task(&self, task_id: i64) -> Result<()>;
+        async fn resume_task(&self, task_id: i64) -> SchedulerResult<()>;
 
         /// Restart task run instance
-        async fn restart_task_run(&self, task_run_id: i64) -> Result<TaskRun>;
+        async fn restart_task_run(&self, task_run_id: i64) -> SchedulerResult<TaskRun>;
 
         /// Abort task run instance
-        async fn abort_task_run(&self, task_run_id: i64) -> Result<()>;
+        async fn abort_task_run(&self, task_run_id: i64) -> SchedulerResult<()>;
 
         /// Cancel all running instances of a task
-        async fn cancel_all_task_runs(&self, task_id: i64) -> Result<usize>;
+        async fn cancel_all_task_runs(&self, task_id: i64) -> SchedulerResult<usize>;
 
         /// Check if task has running instances
-        async fn has_running_instances(&self, task_id: i64) -> Result<bool>;
+        async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool>;
 
         /// Get recent execution history
-        async fn get_recent_executions(&self, task_id: i64, limit: usize) -> Result<Vec<TaskRun>>;
+        async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>>;
     }
 
     /// Task scheduler service - Handle task scheduling and execution
     #[async_trait]
     pub trait TaskSchedulerService: Send + Sync {
         /// Start the scheduler
-        async fn start(&self) -> Result<()>;
+        async fn start(&self) -> SchedulerResult<()>;
 
         /// Stop the scheduler
-        async fn stop(&self) -> Result<()>;
+        async fn stop(&self) -> SchedulerResult<()>;
 
         /// Schedule single task
-        async fn schedule_task(&self, task: &Task) -> Result<()>;
+        async fn schedule_task(&self, task: &Task) -> SchedulerResult<()>;
 
         /// Schedule multiple tasks
-        async fn schedule_tasks(&self, tasks: &[Task]) -> Result<()>;
+        async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()>;
 
         /// Scan and schedule pending tasks
-        async fn scan_and_schedule(&self) -> Result<Vec<TaskRun>>;
+        async fn scan_and_schedule(&self) -> SchedulerResult<Vec<TaskRun>>;
 
         /// Check task dependencies
-        async fn check_dependencies(&self, task: &Task) -> Result<bool>;
+        async fn check_dependencies(&self, task: &Task) -> SchedulerResult<bool>;
 
         /// Create task run instance
-        async fn create_task_run(&self, task: &Task) -> Result<TaskRun>;
+        async fn create_task_run(&self, task: &Task) -> SchedulerResult<TaskRun>;
 
         /// Dispatch task to queue
-        async fn dispatch_to_queue(&self, task_run: &TaskRun) -> Result<()>;
+        async fn dispatch_to_queue(&self, task_run: &TaskRun) -> SchedulerResult<()>;
 
         /// Check if scheduler is running
         async fn is_running(&self) -> bool;
 
         /// Get scheduler statistics
-        async fn get_stats(&self) -> Result<SchedulerStats>;
+        async fn get_stats(&self) -> SchedulerResult<SchedulerStats>;
 
         /// Reload scheduler configuration
-        async fn reload_config(&self) -> Result<()>;
+        async fn reload_config(&self) -> SchedulerResult<()>;
     }
 
     /// Task dispatch service - Handle task distribution to workers
     #[async_trait]
     pub trait TaskDispatchService: Send + Sync {
         /// Dispatch task to specific worker
-        async fn dispatch_task(&self, task_run: &TaskRun, worker_id: &str) -> Result<()>;
+        async fn dispatch_task(&self, task_run: &TaskRun, worker_id: &str) -> SchedulerResult<()>;
 
         /// Batch dispatch multiple tasks
-        async fn dispatch_tasks(&self, dispatches: &[(TaskRun, String)]) -> Result<()>;
+        async fn dispatch_tasks(&self, dispatches: &[(TaskRun, String)]) -> SchedulerResult<()>;
 
         /// Handle task status updates
         async fn handle_status_update(
@@ -93,13 +93,13 @@ pub mod task_services {
             task_run_id: i64,
             status: TaskRunStatus,
             error_message: Option<String>,
-        ) -> Result<()>;
+        ) -> SchedulerResult<()>;
 
         /// Redispatch failed tasks
-        async fn redispatch_failed_tasks(&self) -> Result<usize>;
+        async fn redispatch_failed_tasks(&self) -> SchedulerResult<usize>;
 
         /// Get dispatch statistics
-        async fn get_dispatch_stats(&self) -> Result<DispatchStats>;
+        async fn get_dispatch_stats(&self) -> SchedulerResult<DispatchStats>;
     }
 }
 
@@ -111,58 +111,58 @@ pub mod worker_services {
     #[async_trait]
     pub trait WorkerManagementService: Send + Sync {
         /// Register new worker
-        async fn register_worker(&self, worker: &WorkerInfo) -> Result<()>;
+        async fn register_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
 
         /// Unregister worker
-        async fn unregister_worker(&self, worker_id: &str) -> Result<()>;
+        async fn unregister_worker(&self, worker_id: &str) -> SchedulerResult<()>;
 
         /// Update worker status
-        async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> Result<()>;
+        async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()>;
 
         /// Get list of active workers
-        async fn get_active_workers(&self) -> Result<Vec<WorkerInfo>>;
+        async fn get_active_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
         /// Get worker details
-        async fn get_worker_details(&self, worker_id: &str) -> Result<Option<WorkerInfo>>;
+        async fn get_worker_details(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>>;
 
         /// Check worker health
-        async fn check_worker_health(&self, worker_id: &str) -> Result<bool>;
+        async fn check_worker_health(&self, worker_id: &str) -> SchedulerResult<bool>;
 
         /// Get worker load statistics
-        async fn get_worker_load_stats(&self) -> Result<HashMap<String, WorkerLoadStats>>;
+        async fn get_worker_load_stats(&self) -> SchedulerResult<HashMap<String, WorkerLoadStats>>;
 
         /// Select best worker for task type
-        async fn select_best_worker(&self, task_type: &str) -> Result<Option<String>>;
+        async fn select_best_worker(&self, task_type: &str) -> SchedulerResult<Option<String>>;
 
         /// Process worker heartbeat
         async fn process_heartbeat(
             &self,
             worker_id: &str,
             heartbeat_data: &WorkerHeartbeat,
-        ) -> Result<()>;
+        ) -> SchedulerResult<()>;
     }
 
     /// Worker health service - Handle worker monitoring and health checks
     #[async_trait]
     pub trait WorkerHealthService: Send + Sync {
         /// Perform health check on worker
-        async fn perform_health_check(&self, worker_id: &str) -> Result<HealthCheckResult>;
+        async fn perform_health_check(&self, worker_id: &str) -> SchedulerResult<HealthCheckResult>;
 
         /// Get worker health status
-        async fn get_worker_health_status(&self, worker_id: &str) -> Result<WorkerHealthStatus>;
+        async fn get_worker_health_status(&self, worker_id: &str) -> SchedulerResult<WorkerHealthStatus>;
 
         /// Update worker health metrics
         async fn update_health_metrics(
             &self,
             worker_id: &str,
             metrics: WorkerHealthMetrics,
-        ) -> Result<()>;
+        ) -> SchedulerResult<()>;
 
         /// Get unhealthy workers
-        async fn get_unhealthy_workers(&self) -> Result<Vec<String>>;
+        async fn get_unhealthy_workers(&self) -> SchedulerResult<Vec<String>>;
 
         /// Handle worker failure
-        async fn handle_worker_failure(&self, worker_id: &str) -> Result<()>;
+        async fn handle_worker_failure(&self, worker_id: &str) -> SchedulerResult<()>;
     }
 }
 
@@ -174,22 +174,22 @@ pub mod system_services {
     #[async_trait]
     pub trait ConfigurationService: Send + Sync {
         /// Get configuration value
-        async fn get_config_value(&self, key: &str) -> Result<Option<Value>>;
+        async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<Value>>;
 
         /// Set configuration value
-        async fn set_config_value(&self, key: &str, value: &Value) -> Result<()>;
+        async fn set_config_value(&self, key: &str, value: &Value) -> SchedulerResult<()>;
 
         /// Delete configuration
-        async fn delete_config(&self, key: &str) -> Result<bool>;
+        async fn delete_config(&self, key: &str) -> SchedulerResult<bool>;
 
         /// List all configuration keys
-        async fn list_config_keys(&self) -> Result<Vec<String>>;
+        async fn list_config_keys(&self) -> SchedulerResult<Vec<String>>;
 
         /// Reload configuration
-        async fn reload_config(&self) -> Result<()>;
+        async fn reload_config(&self) -> SchedulerResult<()>;
 
         /// Watch for configuration changes
-        async fn watch_config(&self, key: &str) -> Result<Box<dyn ConfigWatcher>>;
+        async fn watch_config(&self, key: &str) -> SchedulerResult<Box<dyn ConfigWatcher>>;
     }
 
     /// Monitoring service - Handle system monitoring and metrics
@@ -201,41 +201,41 @@ pub mod system_services {
             name: &str,
             value: f64,
             tags: &HashMap<String, String>,
-        ) -> Result<()>;
+        ) -> SchedulerResult<()>;
 
         /// Record event
-        async fn record_event(&self, event_type: &str, data: &Value) -> Result<()>;
+        async fn record_event(&self, event_type: &str, data: &Value) -> SchedulerResult<()>;
 
         /// Get system health
-        async fn get_system_health(&self) -> Result<SystemHealth>;
+        async fn get_system_health(&self) -> SchedulerResult<SystemHealth>;
 
         /// Get performance metrics
         async fn get_performance_metrics(
             &self,
             time_range: TimeRange,
-        ) -> Result<PerformanceMetrics>;
+        ) -> SchedulerResult<PerformanceMetrics>;
 
         /// Set alert rule
-        async fn set_alert_rule(&self, rule: &AlertRule) -> Result<()>;
+        async fn set_alert_rule(&self, rule: &AlertRule) -> SchedulerResult<()>;
 
         /// Check alerts
-        async fn check_alerts(&self) -> Result<Vec<Alert>>;
+        async fn check_alerts(&self) -> SchedulerResult<Vec<Alert>>;
     }
 
     /// Audit service - Handle audit logging and compliance
     #[async_trait]
     pub trait AuditService: Send + Sync {
         /// Log audit event
-        async fn log_event(&self, event: &AuditEvent) -> Result<()>;
+        async fn log_event(&self, event: &AuditEvent) -> SchedulerResult<()>;
 
         /// Query audit events
-        async fn query_events(&self, query: &AuditQuery) -> Result<Vec<AuditEvent>>;
+        async fn query_events(&self, query: &AuditQuery) -> SchedulerResult<Vec<AuditEvent>>;
 
         /// Get audit statistics
-        async fn get_audit_stats(&self, time_range: TimeRange) -> Result<AuditStats>;
+        async fn get_audit_stats(&self, time_range: TimeRange) -> SchedulerResult<AuditStats>;
 
         /// Export audit events
-        async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> Result<Vec<u8>>;
+        async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> SchedulerResult<Vec<u8>>;
     }
 }
 
@@ -245,30 +245,30 @@ pub trait ServiceFactory: Send + Sync {
     /// Task management services
     async fn create_task_control_service(
         &self,
-    ) -> Result<Box<dyn task_services::TaskControlService>>;
+    ) -> SchedulerResult<Box<dyn task_services::TaskControlService>>;
     async fn create_task_scheduler_service(
         &self,
-    ) -> Result<Box<dyn task_services::TaskSchedulerService>>;
+    ) -> SchedulerResult<Box<dyn task_services::TaskSchedulerService>>;
     async fn create_task_dispatch_service(
         &self,
-    ) -> Result<Box<dyn task_services::TaskDispatchService>>;
+    ) -> SchedulerResult<Box<dyn task_services::TaskDispatchService>>;
 
     /// Worker management services
     async fn create_worker_management_service(
         &self,
-    ) -> Result<Box<dyn worker_services::WorkerManagementService>>;
+    ) -> SchedulerResult<Box<dyn worker_services::WorkerManagementService>>;
     async fn create_worker_health_service(
         &self,
-    ) -> Result<Box<dyn worker_services::WorkerHealthService>>;
+    ) -> SchedulerResult<Box<dyn worker_services::WorkerHealthService>>;
 
     /// System services
     async fn create_configuration_service(
         &self,
-    ) -> Result<Box<dyn system_services::ConfigurationService>>;
+    ) -> SchedulerResult<Box<dyn system_services::ConfigurationService>>;
     async fn create_monitoring_service(
         &self,
-    ) -> Result<Box<dyn system_services::MonitoringService>>;
-    async fn create_audit_service(&self) -> Result<Box<dyn system_services::AuditService>>;
+    ) -> SchedulerResult<Box<dyn system_services::MonitoringService>>;
+    async fn create_audit_service(&self) -> SchedulerResult<Box<dyn system_services::AuditService>>;
 }
 
 // Data structures for services
@@ -491,8 +491,8 @@ pub enum ExportFormat {
 /// Configuration watcher
 #[async_trait]
 pub trait ConfigWatcher: Send + Sync {
-    async fn wait_for_change(&mut self) -> Result<ConfigChange>;
-    async fn stop(&mut self) -> Result<()>;
+    async fn wait_for_change(&mut self) -> SchedulerResult<ConfigChange>;
+    async fn stop(&mut self) -> SchedulerResult<()>;
 }
 
 /// Configuration change

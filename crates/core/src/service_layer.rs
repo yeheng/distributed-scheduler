@@ -2,7 +2,7 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::{
-    errors::{Result, SchedulerError},
+    SchedulerResult, errors::SchedulerError,
     models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
 };
 
@@ -10,53 +10,53 @@ use crate::{
 #[async_trait]
 pub trait TaskControlService: Send + Sync {
     /// 手动触发任务
-    async fn trigger_task(&self, task_id: i64) -> Result<TaskRun>;
+    async fn trigger_task(&self, task_id: i64) -> SchedulerResult<TaskRun>;
 
     /// 暂停任务
-    async fn pause_task(&self, task_id: i64) -> Result<()>;
+    async fn pause_task(&self, task_id: i64) -> SchedulerResult<()>;
 
     /// 恢复任务
-    async fn resume_task(&self, task_id: i64) -> Result<()>;
+    async fn resume_task(&self, task_id: i64) -> SchedulerResult<()>;
 
     /// 重启任务运行实例
-    async fn restart_task_run(&self, task_run_id: i64) -> Result<TaskRun>;
+    async fn restart_task_run(&self, task_run_id: i64) -> SchedulerResult<TaskRun>;
 
     /// 中止任务运行实例
-    async fn abort_task_run(&self, task_run_id: i64) -> Result<()>;
+    async fn abort_task_run(&self, task_run_id: i64) -> SchedulerResult<()>;
 
     /// 批量取消任务的所有运行实例
-    async fn cancel_all_task_runs(&self, task_id: i64) -> Result<usize>;
+    async fn cancel_all_task_runs(&self, task_id: i64) -> SchedulerResult<usize>;
 
     /// 检查任务是否有运行中的实例
-    async fn has_running_instances(&self, task_id: i64) -> Result<bool>;
+    async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool>;
 
     /// 获取任务的最近执行历史
-    async fn get_recent_executions(&self, task_id: i64, limit: usize) -> Result<Vec<TaskRun>>;
+    async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>>;
 }
 
 /// 调度器服务抽象
 #[async_trait]
 pub trait SchedulerService: Send + Sync {
     /// 启动调度器
-    async fn start(&self) -> Result<()>;
+    async fn start(&self) -> SchedulerResult<()>;
 
     /// 停止调度器
-    async fn stop(&self) -> Result<()>;
+    async fn stop(&self) -> SchedulerResult<()>;
 
     /// 调度单个任务
-    async fn schedule_task(&self, task: &Task) -> Result<()>;
+    async fn schedule_task(&self, task: &Task) -> SchedulerResult<()>;
 
     /// 批量调度任务
-    async fn schedule_tasks(&self, tasks: &[Task]) -> Result<()>;
+    async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()>;
 
     /// 检查调度器状态
     async fn is_running(&self) -> bool;
 
     /// 获取调度器统计信息
-    async fn get_stats(&self) -> Result<SchedulerStats>;
+    async fn get_stats(&self) -> SchedulerResult<SchedulerStats>;
 
     /// 重新加载调度配置
-    async fn reload_config(&self) -> Result<()>;
+    async fn reload_config(&self) -> SchedulerResult<()>;
 }
 
 /// 调度器统计信息
@@ -80,35 +80,35 @@ pub struct SchedulerStats {
 #[async_trait]
 pub trait WorkerManagementService: Send + Sync {
     /// 注册Worker
-    async fn register_worker(&self, worker: &WorkerInfo) -> Result<()>;
+    async fn register_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
 
     /// 注销Worker
-    async fn unregister_worker(&self, worker_id: &str) -> Result<()>;
+    async fn unregister_worker(&self, worker_id: &str) -> SchedulerResult<()>;
 
     /// 更新Worker状态
-    async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> Result<()>;
+    async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()>;
 
     /// 获取活跃的Worker列表
-    async fn get_active_workers(&self) -> Result<Vec<WorkerInfo>>;
+    async fn get_active_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 获取Worker详情
-    async fn get_worker_details(&self, worker_id: &str) -> Result<Option<WorkerInfo>>;
+    async fn get_worker_details(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>>;
 
     /// 检查Worker健康状态
-    async fn check_worker_health(&self, worker_id: &str) -> Result<bool>;
+    async fn check_worker_health(&self, worker_id: &str) -> SchedulerResult<bool>;
 
     /// 获取Worker负载统计
-    async fn get_worker_load_stats(&self) -> Result<HashMap<String, WorkerLoadStats>>;
+    async fn get_worker_load_stats(&self) -> SchedulerResult<HashMap<String, WorkerLoadStats>>;
 
     /// 选择最佳Worker执行任务
-    async fn select_best_worker(&self, task_type: &str) -> Result<Option<String>>;
+    async fn select_best_worker(&self, task_type: &str) -> SchedulerResult<Option<String>>;
 
     /// 处理Worker心跳
     async fn process_heartbeat(
         &self,
         worker_id: &str,
         heartbeat_data: &WorkerHeartbeat,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 }
 
 /// Worker负载统计
@@ -145,10 +145,10 @@ pub struct WorkerHeartbeat {
 #[async_trait]
 pub trait TaskDispatchService: Send + Sync {
     /// 分发任务到Worker
-    async fn dispatch_task(&self, task_run: &TaskRun, worker_id: &str) -> Result<()>;
+    async fn dispatch_task(&self, task_run: &TaskRun, worker_id: &str) -> SchedulerResult<()>;
 
     /// 批量分发任务
-    async fn dispatch_tasks(&self, dispatches: &[(TaskRun, String)]) -> Result<()>;
+    async fn dispatch_tasks(&self, dispatches: &[(TaskRun, String)]) -> SchedulerResult<()>;
 
     /// 处理任务状态更新
     async fn handle_status_update(
@@ -156,13 +156,13 @@ pub trait TaskDispatchService: Send + Sync {
         task_run_id: i64,
         status: TaskRunStatus,
         error_message: Option<String>,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 
     /// 重新分发失败的任务
-    async fn redispatch_failed_tasks(&self) -> Result<usize>;
+    async fn redispatch_failed_tasks(&self) -> SchedulerResult<usize>;
 
     /// 获取分发统计信息
-    async fn get_dispatch_stats(&self) -> Result<DispatchStats>;
+    async fn get_dispatch_stats(&self) -> SchedulerResult<DispatchStats>;
 }
 
 /// 分发统计信息
@@ -189,22 +189,22 @@ pub trait MonitoringService: Send + Sync {
         name: &str,
         value: f64,
         tags: &HashMap<String, String>,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 
     /// 记录事件
-    async fn record_event(&self, event_type: &str, data: &serde_json::Value) -> Result<()>;
+    async fn record_event(&self, event_type: &str, data: &serde_json::Value) -> SchedulerResult<()>;
 
     /// 获取系统健康状态
-    async fn get_system_health(&self) -> Result<SystemHealth>;
+    async fn get_system_health(&self) -> SchedulerResult<SystemHealth>;
 
     /// 获取性能指标
-    async fn get_performance_metrics(&self, time_range: TimeRange) -> Result<PerformanceMetrics>;
+    async fn get_performance_metrics(&self, time_range: TimeRange) -> SchedulerResult<PerformanceMetrics>;
 
     /// 设置告警规则
-    async fn set_alert_rule(&self, rule: &AlertRule) -> Result<()>;
+    async fn set_alert_rule(&self, rule: &AlertRule) -> SchedulerResult<()>;
 
     /// 检查告警
-    async fn check_alerts(&self) -> Result<Vec<Alert>>;
+    async fn check_alerts(&self) -> SchedulerResult<Vec<Alert>>;
 }
 
 /// 系统健康状态
@@ -330,22 +330,22 @@ pub enum AlertLevel {
 #[async_trait]
 pub trait ConfigurationService: Send + Sync {
     /// 获取配置（返回JSON值）
-    async fn get_config_value(&self, key: &str) -> Result<Option<serde_json::Value>>;
+    async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<serde_json::Value>>;
 
     /// 设置配置（接受JSON值）
-    async fn set_config_value(&self, key: &str, value: &serde_json::Value) -> Result<()>;
+    async fn set_config_value(&self, key: &str, value: &serde_json::Value) -> SchedulerResult<()>;
 
     /// 删除配置
-    async fn delete_config(&self, key: &str) -> Result<bool>;
+    async fn delete_config(&self, key: &str) -> SchedulerResult<bool>;
 
     /// 获取所有配置键
-    async fn list_config_keys(&self) -> Result<Vec<String>>;
+    async fn list_config_keys(&self) -> SchedulerResult<Vec<String>>;
 
     /// 重新加载配置
-    async fn reload_config(&self) -> Result<()>;
+    async fn reload_config(&self) -> SchedulerResult<()>;
 
     /// 监听配置变化
-    async fn watch_config(&self, key: &str) -> Result<Box<dyn ConfigWatcher>>;
+    async fn watch_config(&self, key: &str) -> SchedulerResult<Box<dyn ConfigWatcher>>;
 }
 
 /// 配置服务扩展 - 提供类型安全的配置访问
@@ -354,7 +354,7 @@ pub trait ConfigurationServiceExt {
     fn get_config<T>(
         &self,
         key: &str,
-    ) -> impl std::future::Future<Output = Result<Option<T>>> + Send
+    ) -> impl std::future::Future<Output = SchedulerResult<Option<T>>> + Send
     where
         T: serde::de::DeserializeOwned;
 
@@ -363,14 +363,14 @@ pub trait ConfigurationServiceExt {
         &self,
         key: &str,
         value: &T,
-    ) -> impl std::future::Future<Output = Result<()>> + Send
+    ) -> impl std::future::Future<Output = SchedulerResult<()>> + Send
     where
         T: serde::Serialize + std::marker::Sync;
 }
 
 /// 为所有ConfigurationService实现扩展方法
 impl<C: ConfigurationService> ConfigurationServiceExt for C {
-    async fn get_config<T>(&self, key: &str) -> Result<Option<T>>
+    async fn get_config<T>(&self, key: &str) -> SchedulerResult<Option<T>>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -384,7 +384,7 @@ impl<C: ConfigurationService> ConfigurationServiceExt for C {
         }
     }
 
-    async fn set_config<T>(&self, key: &str, value: &T) -> Result<()>
+    async fn set_config<T>(&self, key: &str, value: &T) -> SchedulerResult<()>
     where
         T: serde::Serialize + std::marker::Sync,
     {
@@ -398,10 +398,10 @@ impl<C: ConfigurationService> ConfigurationServiceExt for C {
 #[async_trait]
 pub trait ConfigWatcher: Send + Sync {
     /// 等待配置变化
-    async fn wait_for_change(&mut self) -> Result<ConfigChange>;
+    async fn wait_for_change(&mut self) -> SchedulerResult<ConfigChange>;
 
     /// 停止监听
-    async fn stop(&mut self) -> Result<()>;
+    async fn stop(&mut self) -> SchedulerResult<()>;
 }
 
 /// 配置变化事件
@@ -421,16 +421,16 @@ pub struct ConfigChange {
 #[async_trait]
 pub trait AuditLogService: Send + Sync {
     /// 记录审计日志
-    async fn log_event(&self, event: &AuditEvent) -> Result<()>;
+    async fn log_event(&self, event: &AuditEvent) -> SchedulerResult<()>;
 
     /// 查询审计日志
-    async fn query_events(&self, query: &AuditQuery) -> Result<Vec<AuditEvent>>;
+    async fn query_events(&self, query: &AuditQuery) -> SchedulerResult<Vec<AuditEvent>>;
 
     /// 获取审计统计
-    async fn get_audit_stats(&self, time_range: TimeRange) -> Result<AuditStats>;
+    async fn get_audit_stats(&self, time_range: TimeRange) -> SchedulerResult<AuditStats>;
 
     /// 导出审计日志
-    async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> Result<Vec<u8>>;
+    async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> SchedulerResult<Vec<u8>>;
 }
 
 /// 审计事件
@@ -513,23 +513,23 @@ pub enum ExportFormat {
 #[async_trait]
 pub trait ServiceFactory: Send + Sync {
     /// 创建任务控制服务
-    async fn create_task_control_service(&self) -> Result<Box<dyn TaskControlService>>;
+    async fn create_task_control_service(&self) -> SchedulerResult<Box<dyn TaskControlService>>;
 
     /// 创建调度器服务
-    async fn create_scheduler_service(&self) -> Result<Box<dyn SchedulerService>>;
+    async fn create_scheduler_service(&self) -> SchedulerResult<Box<dyn SchedulerService>>;
 
     /// 创建Worker管理服务
-    async fn create_worker_management_service(&self) -> Result<Box<dyn WorkerManagementService>>;
+    async fn create_worker_management_service(&self) -> SchedulerResult<Box<dyn WorkerManagementService>>;
 
     /// 创建任务分发服务
-    async fn create_task_dispatch_service(&self) -> Result<Box<dyn TaskDispatchService>>;
+    async fn create_task_dispatch_service(&self) -> SchedulerResult<Box<dyn TaskDispatchService>>;
 
     /// 创建监控服务
-    async fn create_monitoring_service(&self) -> Result<Box<dyn MonitoringService>>;
+    async fn create_monitoring_service(&self) -> SchedulerResult<Box<dyn MonitoringService>>;
 
     /// 创建配置管理服务
-    async fn create_configuration_service(&self) -> Result<Box<dyn ConfigurationService>>;
+    async fn create_configuration_service(&self) -> SchedulerResult<Box<dyn ConfigurationService>>;
 
     /// 创建审计日志服务
-    async fn create_audit_log_service(&self) -> Result<Box<dyn AuditLogService>>;
+    async fn create_audit_log_service(&self) -> SchedulerResult<Box<dyn AuditLogService>>;
 }

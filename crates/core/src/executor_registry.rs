@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
-    errors::Result,
+    SchedulerResult,
     traits::{ExecutorRegistry, TaskExecutor},
     ExecutorStatus,
 };
@@ -30,7 +30,7 @@ impl DefaultExecutorRegistry {
     pub async fn register_batch(
         &mut self,
         executors: Vec<(String, Arc<dyn TaskExecutor>)>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let mut registry = self.executors.write().await;
         for (name, executor) in executors {
             registry.insert(name, executor);
@@ -39,7 +39,7 @@ impl DefaultExecutorRegistry {
     }
 
     /// 获取执行器的详细信息
-    pub async fn get_executor_info(&self, name: &str) -> Result<Option<ExecutorInfo>> {
+    pub async fn get_executor_info(&self, name: &str) -> SchedulerResult<Option<ExecutorInfo>> {
         let registry = self.executors.read().await;
         if let Some(executor) = registry.get(name) {
             let status = executor.get_status().await?;
@@ -56,7 +56,7 @@ impl DefaultExecutorRegistry {
     }
 
     /// 获取所有执行器的详细信息
-    pub async fn get_all_executor_info(&self) -> Result<Vec<ExecutorInfo>> {
+    pub async fn get_all_executor_info(&self) -> SchedulerResult<Vec<ExecutorInfo>> {
         let registry = self.executors.read().await;
         let mut infos = Vec::new();
 
@@ -87,7 +87,7 @@ impl DefaultExecutorRegistry {
     }
 
     /// 健康检查所有执行器
-    pub async fn health_check_all(&self) -> Result<HashMap<String, bool>> {
+    pub async fn health_check_all(&self) -> SchedulerResult<HashMap<String, bool>> {
         let registry = self.executors.read().await;
         let mut results = HashMap::new();
 
@@ -108,7 +108,7 @@ impl Default for DefaultExecutorRegistry {
 
 #[async_trait]
 impl ExecutorRegistry for DefaultExecutorRegistry {
-    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> Result<()> {
+    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> SchedulerResult<()> {
         let mut registry = self.executors.write().await;
         registry.insert(name, executor);
         Ok(())
@@ -124,7 +124,7 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         registry.keys().cloned().collect()
     }
 
-    async fn unregister(&mut self, name: &str) -> Result<bool> {
+    async fn unregister(&mut self, name: &str) -> SchedulerResult<bool> {
         let mut registry = self.executors.write().await;
         Ok(registry.remove(name).is_some())
     }
@@ -144,7 +144,7 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         registry.len()
     }
 
-    async fn get_all_status(&self) -> Result<HashMap<String, ExecutorStatus>> {
+    async fn get_all_status(&self) -> SchedulerResult<HashMap<String, ExecutorStatus>> {
         let registry = self.executors.read().await;
         let mut statuses = HashMap::new();
 
@@ -175,7 +175,7 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         Ok(statuses)
     }
 
-    async fn health_check_all(&self) -> Result<HashMap<String, bool>> {
+    async fn health_check_all(&self) -> SchedulerResult<HashMap<String, bool>> {
         let registry = self.executors.read().await;
         let mut results = HashMap::new();
 
@@ -187,7 +187,7 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         Ok(results)
     }
 
-    async fn get_by_task_type(&self, task_type: &str) -> Result<Vec<Arc<dyn TaskExecutor>>> {
+    async fn get_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>> {
         let registry = self.executors.read().await;
         let mut matching_executors = Vec::new();
 

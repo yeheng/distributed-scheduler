@@ -1,5 +1,5 @@
 use scheduler_core::{
-    errors::Result,
+    SchedulerResult,
     errors::SchedulerError,
     traits::{TaskRepository, TaskRunRepository, WorkerRepository},
 };
@@ -35,7 +35,7 @@ pub enum DatabasePool {
 
 impl DatabasePool {
     /// Create pool from URL with automatic type detection
-    pub async fn new(url: &str, max_connections: u32) -> Result<Self> {
+    pub async fn new(url: &str, max_connections: u32) -> SchedulerResult<Self> {
         let db_type = DatabaseType::from_url(url);
 
         match db_type {
@@ -65,7 +65,7 @@ impl DatabasePool {
         }
     }
 
-    pub async fn health_check(&self) -> Result<()> {
+    pub async fn health_check(&self) -> SchedulerResult<()> {
         match self {
             DatabasePool::PostgreSQL(pool) => {
                 sqlx::query("SELECT 1")
@@ -98,7 +98,7 @@ pub struct DatabaseManager {
 
 impl DatabaseManager {
     /// Create new database manager with automatic type detection
-    pub async fn new(url: &str, max_connections: u32) -> Result<Self> {
+    pub async fn new(url: &str, max_connections: u32) -> SchedulerResult<Self> {
         let pool = DatabasePool::new(url, max_connections).await?;
         Ok(Self { pool })
     }
@@ -107,7 +107,7 @@ impl DatabaseManager {
         self.pool.database_type()
     }
 
-    pub async fn health_check(&self) -> Result<()> {
+    pub async fn health_check(&self) -> SchedulerResult<()> {
         self.pool.health_check().await
     }
 
@@ -237,7 +237,7 @@ mod tests {
     // Integration test demonstrating the unified interface
     #[tokio::test]
     async fn test_unified_database_interface() {
-        async fn test_with_database(db_url: &str) -> Result<()> {
+        async fn test_with_database(db_url: &str) -> SchedulerResult<()> {
             let db_manager = DatabaseManager::new(db_url, 10).await?;
 
             // Health check should work regardless of database type

@@ -5,7 +5,8 @@ use async_trait::async_trait;
 use serde::{de::DeserializeOwned, Serialize};
 use serde_json::Value;
 
-use super::errors::{Result, SchedulerError};
+use super::errors::SchedulerError;
+use super::SchedulerResult;
 
 /// Type-safe configuration wrapper
 /// Provides compile-time type safety for configuration values
@@ -29,7 +30,7 @@ where
     }
 
     /// Get configuration value with type safety
-    pub async fn get(&self) -> Result<Option<T>> {
+    pub async fn get(&self) -> SchedulerResult<Option<T>> {
         match self.service.get_config_value(&self.key).await? {
             Some(value) => {
                 let typed_value: T = serde_json::from_value(value).map_err(|e| {
@@ -45,7 +46,7 @@ where
     }
 
     /// Get configuration value with default
-    pub async fn get_or_default(&self, default: T) -> Result<T> {
+    pub async fn get_or_default(&self, default: T) -> SchedulerResult<T> {
         match self.get().await? {
             Some(value) => Ok(value),
             None => Ok(default),
@@ -53,7 +54,7 @@ where
     }
 
     /// Set configuration value with type safety
-    pub async fn set(&self, value: &T) -> Result<()> {
+    pub async fn set(&self, value: &T) -> SchedulerResult<()> {
         let json_value = serde_json::to_value(value).map_err(|e| {
             SchedulerError::Configuration(format!(
                 "Failed to serialize config '{}': {}",
@@ -72,11 +73,11 @@ where
 /// Configuration service trait
 #[async_trait]
 pub trait ConfigurationService: Send + Sync {
-    async fn get_config_value(&self, key: &str) -> Result<Option<Value>>;
-    async fn set_config_value(&self, key: &str, value: &Value) -> Result<()>;
-    async fn delete_config(&self, key: &str) -> Result<bool>;
-    async fn list_config_keys(&self) -> Result<Vec<String>>;
-    async fn reload_config(&self) -> Result<()>;
+    async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<Value>>;
+    async fn set_config_value(&self, key: &str, value: &Value) -> SchedulerResult<()>;
+    async fn delete_config(&self, key: &str) -> SchedulerResult<bool>;
+    async fn list_config_keys(&self) -> SchedulerResult<Vec<String>>;
+    async fn reload_config(&self) -> SchedulerResult<()>;
 }
 
 /// Configuration builder - Fluent interface for configuration management
@@ -99,7 +100,7 @@ impl ConfigBuilder {
     }
 
     /// Get configuration value
-    pub async fn get<T>(&self, key: &str) -> Result<Option<T>>
+    pub async fn get<T>(&self, key: &str) -> SchedulerResult<Option<T>>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -118,7 +119,7 @@ impl ConfigBuilder {
     }
 
     /// Get configuration value with default
-    pub async fn get_or_default<T>(&self, key: &str, default: T) -> Result<T>
+    pub async fn get_or_default<T>(&self, key: &str, default: T) -> SchedulerResult<T>
     where
         T: DeserializeOwned + Send + Sync,
     {
@@ -129,7 +130,7 @@ impl ConfigBuilder {
     }
 
     /// Set configuration value
-    pub async fn set<T>(&self, key: &str, value: &T) -> Result<()>
+    pub async fn set<T>(&self, key: &str, value: &T) -> SchedulerResult<()>
     where
         T: Serialize + Send + Sync,
     {
@@ -140,17 +141,17 @@ impl ConfigBuilder {
     }
 
     /// Delete configuration
-    pub async fn delete(&self, key: &str) -> Result<bool> {
+    pub async fn delete(&self, key: &str) -> SchedulerResult<bool> {
         self.service.delete_config(key).await
     }
 
     /// List all configuration keys
-    pub async fn list_keys(&self) -> Result<Vec<String>> {
+    pub async fn list_keys(&self) -> SchedulerResult<Vec<String>> {
         self.service.list_config_keys().await
     }
 
     /// Reload configuration
-    pub async fn reload(&self) -> Result<()> {
+    pub async fn reload(&self) -> SchedulerResult<()> {
         self.service.reload_config().await
     }
 }
@@ -166,7 +167,7 @@ pub enum Environment {
 
 impl Environment {
     /// Parse environment from string
-    pub fn from_str(env: &str) -> Result<Self> {
+    pub fn from_str(env: &str) -> SchedulerResult<Self> {
         match env.to_lowercase().as_str() {
             "development" | "dev" => Ok(Environment::Development),
             "testing" | "test" => Ok(Environment::Testing),
@@ -179,7 +180,7 @@ impl Environment {
     }
 
     /// Get current environment from environment variable
-    pub fn current() -> Result<Self> {
+    pub fn current() -> SchedulerResult<Self> {
         std::env::var("APP_ENV")
             .map(|s| Self::from_str(&s))
             .unwrap_or(Ok(Environment::Development))
@@ -219,28 +220,28 @@ mod tests {
 
     #[async_trait]
     impl ConfigurationService for MockConfigService {
-        async fn get_config_value(&self, key: &str) -> Result<Option<Value>> {
+        async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<Value>> {
             let config = self.config.read().unwrap();
             Ok(config.get(key).cloned())
         }
 
-        async fn set_config_value(&self, key: &str, value: &Value) -> Result<()> {
+        async fn set_config_value(&self, key: &str, value: &Value) -> SchedulerResult<()> {
             let mut config = self.config.write().unwrap();
             config.insert(key.to_string(), value.clone());
             Ok(())
         }
 
-        async fn delete_config(&self, key: &str) -> Result<bool> {
+        async fn delete_config(&self, key: &str) -> SchedulerResult<bool> {
             let mut config = self.config.write().unwrap();
             Ok(config.remove(key).is_some())
         }
 
-        async fn list_config_keys(&self) -> Result<Vec<String>> {
+        async fn list_config_keys(&self) -> SchedulerResult<Vec<String>> {
             let config = self.config.read().unwrap();
             Ok(config.keys().cloned().collect())
         }
 
-        async fn reload_config(&self) -> Result<()> {
+        async fn reload_config(&self) -> SchedulerResult<()> {
             Ok(())
         }
     }

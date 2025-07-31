@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use scheduler_core::{
     models::{MessageType, TaskControlMessage},
-    Result, SchedulerError, ServiceLocator,
+    SchedulerResult, SchedulerError, ServiceLocator,
 };
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
@@ -51,7 +51,7 @@ impl WorkerLifecycle {
     }
 
     /// Start the worker service
-    pub async fn start(&self) -> Result<()> {
+    pub async fn start(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if *is_running {
             return Err(SchedulerError::Internal(
@@ -111,7 +111,7 @@ impl WorkerLifecycle {
     }
 
     /// Stop the worker service
-    pub async fn stop(&self) -> Result<()> {
+    pub async fn stop(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if !*is_running {
             return Ok(());
@@ -135,7 +135,7 @@ impl WorkerLifecycle {
     }
 
     /// Start task polling loop
-    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
         let mut poll_interval = interval(Duration::from_millis(self.poll_interval_ms));
         let service_locator = Arc::clone(&self.service_locator);
         let task_queue = self.task_queue.clone();
@@ -172,7 +172,7 @@ impl WorkerLifecycle {
         task_queue: &str,
         task_execution_manager: &TaskExecutionManager,
         heartbeat_manager: &Arc<HeartbeatManager>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let message_queue = service_locator.message_queue().await?;
         let messages = message_queue.consume_messages(task_queue).await?;
 
@@ -233,7 +233,7 @@ impl WorkerLifecycle {
     async fn handle_task_control(
         task_execution_manager: &TaskExecutionManager,
         control_message: &TaskControlMessage,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         match control_message.action {
             scheduler_core::models::TaskControlAction::Cancel => {
                 task_execution_manager

@@ -9,7 +9,7 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use scheduler_core::{
-    errors::Result, errors::SchedulerError, models::Message, traits::MessageQueue,
+    SchedulerResult, errors::SchedulerError, models::Message, traits::MessageQueue,
 };
 
 /// Redis Stream消息队列实现
@@ -193,7 +193,7 @@ impl RedisStreamMessageQueue {
     ///     Ok(())
     /// }
     /// ```
-    pub async fn new(config: RedisStreamConfig) -> Result<Self> {
+    pub async fn new(config: RedisStreamConfig) -> SchedulerResult<Self> {
         let redis_url = if let Some(password) = &config.password {
             format!(
                 "redis://:{}@{}:{}/{}",
@@ -229,7 +229,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 获取Redis连接
-    async fn get_connection(&self) -> Result<Connection> {
+    async fn get_connection(&self) -> SchedulerResult<Connection> {
         let start = Instant::now();
         debug!(
             "Creating Redis connection to {}:{}",
@@ -289,7 +289,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 确保Stream存在
-    async fn ensure_stream_exists(&self, stream_key: &str) -> Result<()> {
+    async fn ensure_stream_exists(&self, stream_key: &str) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
 
         // 使用XINFO STREAM检查Stream是否存在，这比EXISTS更准确
@@ -323,7 +323,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 确保消费者组存在
-    async fn ensure_consumer_group_exists(&self, stream_key: &str, group_name: &str) -> Result<()> {
+    async fn ensure_consumer_group_exists(&self, stream_key: &str, group_name: &str) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
 
         // 首先确保Stream存在
@@ -364,7 +364,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 处理待处理的消息（已读取但未确认的消息）
-    async fn consume_pending_messages(&self, queue: &str) -> Result<Vec<Message>> {
+    async fn consume_pending_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         debug!("Consuming pending messages from queue: {}", queue);
 
         let group_name = self.get_consumer_group_name(queue);
@@ -391,7 +391,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 消费新消息（未被任何消费者读取的消息）
-    async fn consume_new_messages(&self, queue: &str) -> Result<Vec<Message>> {
+    async fn consume_new_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         let group_name = self.get_consumer_group_name(queue);
         let mut conn = self.get_connection().await?;
 
@@ -423,7 +423,7 @@ impl RedisStreamMessageQueue {
         result: Vec<Vec<redis::Value>>,
         message_type: &str,
         queue: &str,
-    ) -> Result<Vec<Message>> {
+    ) -> SchedulerResult<Vec<Message>> {
         let start = Instant::now();
         let mut messages = Vec::new();
 
@@ -545,7 +545,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 获取消费者组信息
-    async fn _get_consumer_group_info(&self, queue: &str) -> Result<()> {
+    async fn _get_consumer_group_info(&self, queue: &str) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
         let group_name = self.get_consumer_group_name(queue);
 
@@ -595,7 +595,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 序列化消息
-    fn serialize_message(&self, message: &Message) -> Result<String> {
+    fn serialize_message(&self, message: &Message) -> SchedulerResult<String> {
         serde_json::to_string(message).map_err(|e| {
             SchedulerError::Serialization(format!(
                 "Failed to serialize message {}: {}",
@@ -605,14 +605,14 @@ impl RedisStreamMessageQueue {
     }
 
     /// 反序列化消息
-    fn deserialize_message(&self, data: &str) -> Result<Message> {
+    fn deserialize_message(&self, data: &str) -> SchedulerResult<Message> {
         serde_json::from_str(data).map_err(|e| {
             SchedulerError::Serialization(format!("Failed to deserialize message data: {e}"))
         })
     }
 
     /// 验证队列名称
-    fn validate_queue_name(&self, queue: &str) -> Result<()> {
+    fn validate_queue_name(&self, queue: &str) -> SchedulerResult<()> {
         if queue.is_empty() {
             return Err(SchedulerError::MessageQueue(
                 "Queue name cannot be empty".to_string(),
@@ -636,7 +636,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 检查Redis连接健康状态
-    async fn check_connection_health(&self) -> Result<()> {
+    async fn check_connection_health(&self) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
         let _: String = redis::cmd("PING")
             .query(&mut conn)
@@ -645,7 +645,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 带重试机制的消息发布
-    async fn publish_message_with_retry(&self, queue: &str, message: &Message) -> Result<()> {
+    async fn publish_message_with_retry(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
         let mut last_error = None;
 
         for attempt in 1..=self.config.max_retry_attempts {
@@ -686,7 +686,7 @@ impl RedisStreamMessageQueue {
     }
 
     /// 尝试发布消息（单次尝试）
-    async fn try_publish_message(&self, queue: &str, message: &Message) -> Result<()> {
+    async fn try_publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
         let start = Instant::now();
 
         // 确保Stream存在
@@ -739,7 +739,7 @@ impl RedisStreamMessageQueue {
 
 #[async_trait]
 impl MessageQueue for RedisStreamMessageQueue {
-    async fn publish_message(&self, queue: &str, message: &Message) -> Result<()> {
+    async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
         debug!("Publishing message {} to queue: {}", message.id, queue);
 
         // 验证队列名称
@@ -756,7 +756,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         self.publish_message_with_retry(queue, message).await
     }
 
-    async fn consume_messages(&self, queue: &str) -> Result<Vec<Message>> {
+    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         debug!("Consuming messages from queue: {}", queue);
 
         // 验证队列名称
@@ -816,7 +816,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(all_messages)
     }
 
-    async fn ack_message(&self, message_id: &str) -> Result<()> {
+    async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Acknowledging message: {}", message_id);
 
@@ -880,7 +880,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(())
     }
 
-    async fn nack_message(&self, message_id: &str, requeue: bool) -> Result<()> {
+    async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Nacking message: {}, requeue: {}", message_id, requeue);
 
@@ -1023,7 +1023,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(())
     }
 
-    async fn create_queue(&self, queue: &str, _durable: bool) -> Result<()> {
+    async fn create_queue(&self, queue: &str, _durable: bool) -> SchedulerResult<()> {
         debug!("Creating queue: {}", queue);
 
         // 验证队列名称
@@ -1039,7 +1039,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(())
     }
 
-    async fn delete_queue(&self, queue: &str) -> Result<()> {
+    async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
         debug!("Deleting queue: {}", queue);
 
         // 验证队列名称
@@ -1055,7 +1055,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(())
     }
 
-    async fn get_queue_size(&self, queue: &str) -> Result<u32> {
+    async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
         debug!("Getting queue size for: {}", queue);
 
         // 验证队列名称
@@ -1071,7 +1071,7 @@ impl MessageQueue for RedisStreamMessageQueue {
         Ok(size as u32)
     }
 
-    async fn purge_queue(&self, queue: &str) -> Result<()> {
+    async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
         debug!("Purging queue: {}", queue);
 
         // 验证队列名称
@@ -1189,7 +1189,7 @@ impl RedisStreamMessageQueue {
     /// # Ok(())
     /// # }
     /// ```
-    pub async fn health_check(&self) -> Result<RedisHealthStatus> {
+    pub async fn health_check(&self) -> SchedulerResult<RedisHealthStatus> {
         let start = Instant::now();
 
         match self.check_connection_health().await {

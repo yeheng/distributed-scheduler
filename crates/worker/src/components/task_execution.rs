@@ -5,7 +5,7 @@ use chrono::Utc;
 use scheduler_core::{
     models::{TaskExecutionMessage, TaskRun, TaskRunStatus},
     traits::{ExecutorRegistry, TaskExecutionContextTrait},
-    ResourceLimits, Result, SchedulerError,
+    ResourceLimits, SchedulerResult, SchedulerError,
 };
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
@@ -58,10 +58,10 @@ impl TaskExecutionManager {
         &self,
         message: TaskExecutionMessage,
         status_callback: F,
-    ) -> Result<()>
+    ) -> SchedulerResult<()>
     where
         F: Fn(i64, TaskRunStatus, Option<String>, Option<String>) -> Fut + Send + Sync + 'static,
-        Fut: std::future::Future<Output = Result<()>> + Send + 'static,
+        Fut: std::future::Future<Output = SchedulerResult<()>> + Send + 'static,
     {
         let task_run_id = message.task_run_id;
         let task_type = &message.task_type;
@@ -194,7 +194,7 @@ impl TaskExecutionManager {
     }
 
     /// Cancel a running task
-    pub async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
+    pub async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut running_tasks = self.running_tasks.write().await;
         if let Some(_task) = running_tasks.remove(&task_run_id) {
             info!("Task {} cancelled", task_run_id);

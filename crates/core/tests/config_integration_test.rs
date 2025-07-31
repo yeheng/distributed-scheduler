@@ -1,5 +1,4 @@
-use scheduler_core::config::AppConfig;
-use scheduler_core::config::ConfigLoader;
+use scheduler_core::config::{AppConfig, LegacyConfigLoader};
 use std::env;
 use std::sync::Mutex;
 
@@ -8,7 +7,7 @@ static ENV_MUTEX: Mutex<()> = Mutex::new(());
 
 #[test]
 fn test_config_loader_basic() {
-    let config = ConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
+    let config = LegacyConfigLoader::load().unwrap_or_else(|_| AppConfig::default());
     assert!(config.validate().is_ok());
 }
 
@@ -18,15 +17,15 @@ fn test_config_loader_environment_detection() {
 
     // 测试默认环境
     env::remove_var("SCHEDULER_ENV");
-    assert_eq!(ConfigLoader::current_env(), "development");
-    assert!(ConfigLoader::is_development());
-    assert!(!ConfigLoader::is_production());
+    assert_eq!(LegacyConfigLoader::current_env(), "development");
+    assert!(LegacyConfigLoader::is_development());
+    assert!(!LegacyConfigLoader::is_production());
 
     // 测试生产环境
     env::set_var("SCHEDULER_ENV", "production");
-    assert_eq!(ConfigLoader::current_env(), "production");
-    assert!(!ConfigLoader::is_development());
-    assert!(ConfigLoader::is_production());
+    assert_eq!(LegacyConfigLoader::current_env(), "production");
+    assert!(!LegacyConfigLoader::is_development());
+    assert!(LegacyConfigLoader::is_production());
 
     // 清理
     env::remove_var("SCHEDULER_ENV");
@@ -87,11 +86,11 @@ fn test_current_env() {
 
     // 测试默认环境
     env::remove_var("SCHEDULER_ENV");
-    assert_eq!(ConfigLoader::current_env(), "development");
+    assert_eq!(LegacyConfigLoader::current_env(), "development");
 
     // 测试设置环境
     env::set_var("SCHEDULER_ENV", "production");
-    assert_eq!(ConfigLoader::current_env(), "production");
+    assert_eq!(LegacyConfigLoader::current_env(), "production");
 
     // 清理
     env::remove_var("SCHEDULER_ENV");
@@ -102,12 +101,12 @@ fn test_is_development() {
     let _guard = ENV_MUTEX.lock().unwrap();
 
     env::set_var("SCHEDULER_ENV", "development");
-    assert!(ConfigLoader::is_development());
-    assert!(!ConfigLoader::is_production());
+    assert!(LegacyConfigLoader::is_development());
+    assert!(!LegacyConfigLoader::is_production());
 
     env::set_var("SCHEDULER_ENV", "production");
-    assert!(!ConfigLoader::is_development());
-    assert!(ConfigLoader::is_production());
+    assert!(!LegacyConfigLoader::is_development());
+    assert!(LegacyConfigLoader::is_production());
 
     // 清理
     env::remove_var("SCHEDULER_ENV");
@@ -121,12 +120,15 @@ fn test_database_url_override() {
 
     // 测试默认值
     env::remove_var("DATABASE_URL");
-    assert_eq!(ConfigLoader::get_database_url(&config), config.database.url);
+    assert_eq!(
+        LegacyConfigLoader::get_database_url(&config),
+        config.database.url
+    );
 
     // 测试环境变量覆盖
     let test_url = "postgresql://test:5432/test_db";
     env::set_var("DATABASE_URL", test_url);
-    assert_eq!(ConfigLoader::get_database_url(&config), test_url);
+    assert_eq!(LegacyConfigLoader::get_database_url(&config), test_url);
 
     // 清理
     env::remove_var("DATABASE_URL");
@@ -142,19 +144,19 @@ fn test_message_queue_url_override() {
     env::remove_var("RABBITMQ_URL");
     env::remove_var("AMQP_URL");
     assert_eq!(
-        ConfigLoader::get_message_queue_url(&config),
+        LegacyConfigLoader::get_message_queue_url(&config),
         config.message_queue.url
     );
 
     // 测试RABBITMQ_URL覆盖
     let test_url = "amqp://test:5672";
     env::set_var("RABBITMQ_URL", test_url);
-    assert_eq!(ConfigLoader::get_message_queue_url(&config), test_url);
+    assert_eq!(LegacyConfigLoader::get_message_queue_url(&config), test_url);
 
     // 测试AMQP_URL覆盖（优先级较低）
     env::remove_var("RABBITMQ_URL");
     env::set_var("AMQP_URL", test_url);
-    assert_eq!(ConfigLoader::get_message_queue_url(&config), test_url);
+    assert_eq!(LegacyConfigLoader::get_message_queue_url(&config), test_url);
 
     // 清理
     env::remove_var("RABBITMQ_URL");

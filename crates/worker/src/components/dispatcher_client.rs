@@ -1,5 +1,5 @@
 use reqwest;
-use scheduler_core::{models::WorkerInfo, Result, SchedulerError};
+use scheduler_core::{models::WorkerInfo, SchedulerResult, SchedulerError};
 use serde_json::json;
 use tracing::{debug, error, info, warn};
 
@@ -30,7 +30,7 @@ impl DispatcherClient {
     }
 
     /// Register worker with dispatcher
-    pub async fn register(&self, supported_task_types: Vec<String>) -> Result<()> {
+    pub async fn register(&self, supported_task_types: Vec<String>) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping registration");
             return Ok(());
@@ -77,7 +77,7 @@ impl DispatcherClient {
     }
 
     /// Send heartbeat to dispatcher
-    pub async fn send_heartbeat(&self, current_task_count: i32) -> Result<()> {
+    pub async fn send_heartbeat(&self, current_task_count: i32) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping heartbeat");
             return Ok(());
@@ -124,7 +124,7 @@ impl DispatcherClient {
     }
 
     /// Unregister worker from dispatcher
-    pub async fn unregister(&self) -> Result<()> {
+    pub async fn unregister(&self) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping unregistration");
             return Ok(());

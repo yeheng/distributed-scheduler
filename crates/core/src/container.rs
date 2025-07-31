@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use crate::{
-    errors::{Result, SchedulerError},
+    SchedulerResult, errors::SchedulerError,
     traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
 };
 
@@ -29,7 +29,7 @@ impl ServiceContainer {
     pub async fn register_task_repository(
         &mut self,
         service: Arc<dyn TaskRepository>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         self.task_repository = Some(service);
         Ok(())
     }
@@ -38,7 +38,7 @@ impl ServiceContainer {
     pub async fn register_task_run_repository(
         &mut self,
         service: Arc<dyn TaskRunRepository>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         self.task_run_repository = Some(service);
         Ok(())
     }
@@ -47,40 +47,40 @@ impl ServiceContainer {
     pub async fn register_worker_repository(
         &mut self,
         service: Arc<dyn WorkerRepository>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         self.worker_repository = Some(service);
         Ok(())
     }
 
     /// Register message queue
-    pub async fn register_message_queue(&mut self, service: Arc<dyn MessageQueue>) -> Result<()> {
+    pub async fn register_message_queue(&mut self, service: Arc<dyn MessageQueue>) -> SchedulerResult<()> {
         self.message_queue = Some(service);
         Ok(())
     }
 
     /// Get task repository
-    pub async fn get_task_repository(&self) -> Result<Arc<dyn TaskRepository>> {
+    pub async fn get_task_repository(&self) -> SchedulerResult<Arc<dyn TaskRepository>> {
         self.task_repository
             .clone()
             .ok_or_else(|| SchedulerError::Internal("Task repository not registered".to_string()))
     }
 
     /// Get task run repository
-    pub async fn get_task_run_repository(&self) -> Result<Arc<dyn TaskRunRepository>> {
+    pub async fn get_task_run_repository(&self) -> SchedulerResult<Arc<dyn TaskRunRepository>> {
         self.task_run_repository.clone().ok_or_else(|| {
             SchedulerError::Internal("Task run repository not registered".to_string())
         })
     }
 
     /// Get worker repository
-    pub async fn get_worker_repository(&self) -> Result<Arc<dyn WorkerRepository>> {
+    pub async fn get_worker_repository(&self) -> SchedulerResult<Arc<dyn WorkerRepository>> {
         self.worker_repository
             .clone()
             .ok_or_else(|| SchedulerError::Internal("Worker repository not registered".to_string()))
     }
 
     /// Get message queue
-    pub async fn get_message_queue(&self) -> Result<Arc<dyn MessageQueue>> {
+    pub async fn get_message_queue(&self) -> SchedulerResult<Arc<dyn MessageQueue>> {
         self.message_queue
             .clone()
             .ok_or_else(|| SchedulerError::Internal("Message queue not registered".to_string()))
@@ -129,7 +129,7 @@ impl ApplicationContext {
         task_run_repo: Arc<dyn TaskRunRepository>,
         worker_repo: Arc<dyn WorkerRepository>,
         message_queue: Arc<dyn MessageQueue>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         self.container.register_task_repository(task_repo).await?;
         self.container
             .register_task_run_repository(task_run_repo)
@@ -142,22 +142,22 @@ impl ApplicationContext {
     }
 
     /// Get task repository
-    pub async fn get_task_repository(&self) -> Result<Arc<dyn TaskRepository>> {
+    pub async fn get_task_repository(&self) -> SchedulerResult<Arc<dyn TaskRepository>> {
         self.container.get_task_repository().await
     }
 
     /// Get task run repository
-    pub async fn get_task_run_repository(&self) -> Result<Arc<dyn TaskRunRepository>> {
+    pub async fn get_task_run_repository(&self) -> SchedulerResult<Arc<dyn TaskRunRepository>> {
         self.container.get_task_run_repository().await
     }
 
     /// Get worker repository
-    pub async fn get_worker_repository(&self) -> Result<Arc<dyn WorkerRepository>> {
+    pub async fn get_worker_repository(&self) -> SchedulerResult<Arc<dyn WorkerRepository>> {
         self.container.get_worker_repository().await
     }
 
     /// Get message queue
-    pub async fn get_message_queue(&self) -> Result<Arc<dyn MessageQueue>> {
+    pub async fn get_message_queue(&self) -> SchedulerResult<Arc<dyn MessageQueue>> {
         self.container.get_message_queue().await
     }
 }
@@ -181,22 +181,22 @@ impl ServiceLocator {
     }
 
     /// Get task repository
-    pub async fn task_repository(&self) -> Result<Arc<dyn TaskRepository>> {
+    pub async fn task_repository(&self) -> SchedulerResult<Arc<dyn TaskRepository>> {
         self.context.get_task_repository().await
     }
 
     /// Get task run repository
-    pub async fn task_run_repository(&self) -> Result<Arc<dyn TaskRunRepository>> {
+    pub async fn task_run_repository(&self) -> SchedulerResult<Arc<dyn TaskRunRepository>> {
         self.context.get_task_run_repository().await
     }
 
     /// Get worker repository
-    pub async fn worker_repository(&self) -> Result<Arc<dyn WorkerRepository>> {
+    pub async fn worker_repository(&self) -> SchedulerResult<Arc<dyn WorkerRepository>> {
         self.context.get_worker_repository().await
     }
 
     /// Get message queue
-    pub async fn message_queue(&self) -> Result<Arc<dyn MessageQueue>> {
+    pub async fn message_queue(&self) -> SchedulerResult<Arc<dyn MessageQueue>> {
         self.context.get_message_queue().await
     }
 }

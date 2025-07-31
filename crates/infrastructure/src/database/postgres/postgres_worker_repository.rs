@@ -1,7 +1,7 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
-    errors::Result,
+    SchedulerResult,
     errors::SchedulerError,
     models::{WorkerInfo, WorkerStatus},
     traits::{WorkerLoadStats, WorkerRepository},
@@ -21,7 +21,7 @@ impl PostgresWorkerRepository {
     }
 
     /// 将数据库行转换为WorkerInfo模型
-    fn row_to_worker_info(row: &sqlx::postgres::PgRow) -> Result<WorkerInfo> {
+    fn row_to_worker_info(row: &sqlx::postgres::PgRow) -> SchedulerResult<WorkerInfo> {
         let supported_task_types: Vec<String> = row
             .try_get::<Vec<String>, _>("supported_task_types")
             .unwrap_or_default();
@@ -43,7 +43,7 @@ impl PostgresWorkerRepository {
 #[async_trait]
 impl WorkerRepository for PostgresWorkerRepository {
     /// 注册新的Worker
-    async fn register(&self, worker: &WorkerInfo) -> Result<()> {
+    async fn register(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         sqlx::query(
             r#"
             INSERT INTO workers (id, hostname, ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at)
@@ -76,7 +76,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 注销Worker
-    async fn unregister(&self, worker_id: &str) -> Result<()> {
+    async fn unregister(&self, worker_id: &str) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM workers WHERE id = $1")
             .bind(worker_id)
             .execute(&self.pool)
@@ -94,7 +94,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 根据ID获取Worker信息
-    async fn get_by_id(&self, worker_id: &str) -> Result<Option<WorkerInfo>> {
+    async fn get_by_id(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
         let row = sqlx::query(
             "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at FROM workers WHERE id = $1"
         )
@@ -113,7 +113,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 更新Worker信息
-    async fn update(&self, worker: &WorkerInfo) -> Result<()> {
+    async fn update(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         let result = sqlx::query(
             r#"
             UPDATE workers 
@@ -145,7 +145,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 获取所有Worker列表
-    async fn list(&self) -> Result<Vec<WorkerInfo>> {
+    async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at FROM workers ORDER BY registered_at DESC"
         )
@@ -163,7 +163,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 获取活跃的Worker列表
-    async fn get_alive_workers(&self) -> Result<Vec<WorkerInfo>> {
+    async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at FROM workers WHERE status = $1 ORDER BY last_heartbeat DESC"
         )
@@ -182,7 +182,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 获取支持指定任务类型的Worker列表
-    async fn get_workers_by_task_type(&self, task_type: &str) -> Result<Vec<WorkerInfo>> {
+    async fn get_workers_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at FROM workers WHERE status = $1 AND $2 = ANY(supported_task_types) ORDER BY last_heartbeat DESC"
         )
@@ -207,7 +207,7 @@ impl WorkerRepository for PostgresWorkerRepository {
         worker_id: &str,
         heartbeat_time: DateTime<Utc>,
         current_task_count: i32,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let result =
             sqlx::query("UPDATE workers SET last_heartbeat = $1, status = $2, current_task_count = $3 WHERE id = $4")
                 .bind(heartbeat_time)
@@ -232,7 +232,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 更新Worker状态
-    async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> Result<()> {
+    async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()> {
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = $2")
             .bind(status)
             .bind(worker_id)
@@ -251,7 +251,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 获取超时的Worker列表
-    async fn get_timeout_workers(&self, timeout_seconds: i64) -> Result<Vec<WorkerInfo>> {
+    async fn get_timeout_workers(&self, timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             r#"
             SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at 
@@ -277,7 +277,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 清理离线Worker
-    async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> Result<u64> {
+    async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> SchedulerResult<u64> {
         let result = sqlx::query(
             r#"
             UPDATE workers 
@@ -299,7 +299,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 获取Worker负载统计
-    async fn get_worker_load_stats(&self) -> Result<Vec<WorkerLoadStats>> {
+    async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
         let rows = sqlx::query(
             r#"
             SELECT 
@@ -380,7 +380,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 批量更新Worker状态
-    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> Result<()> {
+    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> SchedulerResult<()> {
         if worker_ids.is_empty() {
             return Ok(());
         }

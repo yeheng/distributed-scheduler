@@ -1,7 +1,7 @@
 use std::sync::Arc;
 
 use scheduler_core::{
-    models::TaskStatusUpdate, ExecutorRegistry, Result, ServiceLocator, WorkerServiceTrait,
+    models::TaskStatusUpdate, ExecutorRegistry, SchedulerResult, ServiceLocator, WorkerServiceTrait,
 };
 
 use crate::components::{
@@ -166,21 +166,21 @@ impl WorkerService {
 
 #[async_trait::async_trait]
 impl WorkerServiceTrait for WorkerService {
-    async fn start(&self) -> Result<()> {
+    async fn start(&self) -> SchedulerResult<()> {
         self.worker_lifecycle.start().await
     }
 
-    async fn stop(&self) -> Result<()> {
+    async fn stop(&self) -> SchedulerResult<()> {
         self.worker_lifecycle.stop().await
     }
 
-    async fn poll_and_execute_tasks(&self) -> Result<()> {
+    async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
         // This functionality is now handled by WorkerLifecycle internally
         // Keep this method for backward compatibility but it's not the primary way
         Ok(())
     }
 
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()> {
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         self.heartbeat_manager.send_status_update(update).await
     }
 
@@ -192,7 +192,7 @@ impl WorkerServiceTrait for WorkerService {
         self.task_execution_manager.can_accept_task(task_type).await
     }
 
-    async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
+    async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
         self.task_execution_manager.cancel_task(task_run_id).await
     }
 
@@ -208,7 +208,7 @@ impl WorkerServiceTrait for WorkerService {
         false
     }
 
-    async fn send_heartbeat(&self) -> Result<()> {
+    async fn send_heartbeat(&self) -> SchedulerResult<()> {
         let current_count = self.get_current_task_count().await;
         self.dispatcher_client.send_heartbeat(current_count).await
     }
@@ -222,24 +222,24 @@ impl WorkerService {
     }
 
     /// Register with dispatcher
-    pub async fn register_with_dispatcher(&self) -> Result<()> {
+    pub async fn register_with_dispatcher(&self) -> SchedulerResult<()> {
         let supported_types = self.task_execution_manager.get_supported_task_types().await;
         self.dispatcher_client.register(supported_types).await
     }
 
     /// Send heartbeat to dispatcher
-    pub async fn send_heartbeat_to_dispatcher(&self) -> Result<()> {
+    pub async fn send_heartbeat_to_dispatcher(&self) -> SchedulerResult<()> {
         let current_count = self.get_current_task_count().await;
         self.dispatcher_client.send_heartbeat(current_count).await
     }
 
     /// Unregister from dispatcher
-    pub async fn unregister_from_dispatcher(&self) -> Result<()> {
+    pub async fn unregister_from_dispatcher(&self) -> SchedulerResult<()> {
         self.dispatcher_client.unregister().await
     }
 
     /// Manual poll and execute tasks (for backward compatibility)
-    pub async fn poll_and_execute_tasks(&self) -> Result<()> {
+    pub async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
         // This functionality is now handled by WorkerLifecycle internally
         Ok(())
     }
@@ -301,7 +301,7 @@ impl WorkerServiceBuilder {
         self
     }
 
-    pub async fn build(self) -> Result<WorkerService> {
+    pub async fn build(self) -> SchedulerResult<WorkerService> {
         let executor_registry = self.executor_registry.ok_or_else(|| {
             scheduler_core::SchedulerError::Internal("Executor registry is required".to_string())
         })?;

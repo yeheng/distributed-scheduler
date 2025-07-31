@@ -3,7 +3,7 @@ use std::sync::Arc;
 use scheduler_core::{
     models::{TaskRun, TaskStatusUpdate},
     traits::ExecutorRegistry,
-    Result, SchedulerError, ServiceLocator,
+    SchedulerResult, SchedulerError, ServiceLocator,
 };
 
 use super::components::{
@@ -95,7 +95,7 @@ impl WorkerServiceBuilder {
     }
 
     /// Build WorkerService with composition pattern
-    pub async fn build(self) -> Result<WorkerService> {
+    pub async fn build(self) -> SchedulerResult<WorkerService> {
         let executor_registry = self
             .executor_registry
             .ok_or_else(|| SchedulerError::Internal("Executor registry is required".to_string()))?;
@@ -214,13 +214,13 @@ impl WorkerService {
     }
 
     /// Register with dispatcher
-    pub async fn register_with_dispatcher(&self) -> Result<()> {
+    pub async fn register_with_dispatcher(&self) -> SchedulerResult<()> {
         let supported_types = self.get_supported_task_types().await;
         self.dispatcher_client.register(supported_types).await
     }
 
     /// Send heartbeat to dispatcher
-    pub async fn send_heartbeat_to_dispatcher(&self) -> Result<()> {
+    pub async fn send_heartbeat_to_dispatcher(&self) -> SchedulerResult<()> {
         let current_task_count = self.get_current_task_count().await;
         self.dispatcher_client
             .send_heartbeat(current_task_count)
@@ -228,7 +228,7 @@ impl WorkerService {
     }
 
     /// Unregister from dispatcher
-    pub async fn unregister_from_dispatcher(&self) -> Result<()> {
+    pub async fn unregister_from_dispatcher(&self) -> SchedulerResult<()> {
         self.dispatcher_client.unregister().await
     }
 
@@ -238,12 +238,12 @@ impl WorkerService {
     }
 
     /// Send status update
-    pub async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()> {
+    pub async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         self.heartbeat_manager.send_status_update(update).await
     }
 
     /// Cancel a running task
-    pub async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
+    pub async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
         self.task_execution_manager.cancel_task(task_run_id).await
     }
 
@@ -257,16 +257,16 @@ impl WorkerService {
 #[async_trait::async_trait]
 pub trait WorkerServiceTrait: Send + Sync {
     /// Start the worker service
-    async fn start(&self) -> Result<()>;
+    async fn start(&self) -> SchedulerResult<()>;
 
     /// Stop the worker service
-    async fn stop(&self) -> Result<()>;
+    async fn stop(&self) -> SchedulerResult<()>;
 
     /// Poll and execute tasks
-    async fn poll_and_execute_tasks(&self) -> Result<()>;
+    async fn poll_and_execute_tasks(&self) -> SchedulerResult<()>;
 
     /// Send status update
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()>;
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()>;
 
     /// Get current task count
     async fn get_current_task_count(&self) -> i32;
@@ -275,7 +275,7 @@ pub trait WorkerServiceTrait: Send + Sync {
     async fn can_accept_task(&self, task_type: &str) -> bool;
 
     /// Cancel a running task
-    async fn cancel_task(&self, task_run_id: i64) -> Result<()>;
+    async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()>;
 
     /// Get running tasks
     async fn get_running_tasks(&self) -> Vec<TaskRun>;
@@ -284,26 +284,26 @@ pub trait WorkerServiceTrait: Send + Sync {
     async fn is_task_running(&self, task_run_id: i64) -> bool;
 
     /// Send heartbeat
-    async fn send_heartbeat(&self) -> Result<()>;
+    async fn send_heartbeat(&self) -> SchedulerResult<()>;
 }
 
 #[async_trait::async_trait]
 impl WorkerServiceTrait for WorkerService {
-    async fn start(&self) -> Result<()> {
+    async fn start(&self) -> SchedulerResult<()> {
         self.worker_lifecycle.start().await
     }
 
-    async fn stop(&self) -> Result<()> {
+    async fn stop(&self) -> SchedulerResult<()> {
         self.worker_lifecycle.stop().await
     }
 
-    async fn poll_and_execute_tasks(&self) -> Result<()> {
+    async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
         // Delegate to lifecycle manager
         // This would need to be exposed as a public method
         Ok(())
     }
 
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()> {
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         self.send_status_update(update).await
     }
 
@@ -315,7 +315,7 @@ impl WorkerServiceTrait for WorkerService {
         self.can_accept_task(task_type).await
     }
 
-    async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
+    async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
         self.cancel_task(task_run_id).await
     }
 
@@ -327,7 +327,7 @@ impl WorkerServiceTrait for WorkerService {
         self.is_task_running(task_run_id).await
     }
 
-    async fn send_heartbeat(&self) -> Result<()> {
+    async fn send_heartbeat(&self) -> SchedulerResult<()> {
         // This would need to be exposed through heartbeat manager
         Ok(())
     }

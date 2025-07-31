@@ -103,7 +103,7 @@ impl WorkerServiceBuilder {
     }
 
     /// 构建WorkerService
-    pub async fn build(self) -> Result<WorkerService> {
+    pub async fn build(self) -> SchedulerResult<WorkerService> {
         let executor_registry = self
             .executor_registry
             .ok_or_else(|| SchedulerError::Internal("Executor registry is required".to_string()))?;
@@ -205,12 +205,12 @@ impl WorkerService {
     }
 
     /// 获取消息队列
-    async fn get_message_queue(&self) -> Result<Arc<dyn MessageQueue>> {
+    async fn get_message_queue(&self) -> SchedulerResult<Arc<dyn MessageQueue>> {
         self.service_locator.message_queue().await
     }
 
     /// 处理任务执行消息 - 使用新的执行上下文
-    async fn handle_task_execution(&self, message: TaskExecutionMessage) -> Result<()> {
+    async fn handle_task_execution(&self, message: TaskExecutionMessage) -> SchedulerResult<()> {
         let task_run_id = message.task_run_id;
         let task_type = message.task_type.clone();
 
@@ -499,7 +499,7 @@ impl WorkerService {
     }
 
     /// 处理任务控制消息
-    async fn handle_task_control(&self, control_message: TaskControlMessage) -> Result<()> {
+    async fn handle_task_control(&self, control_message: TaskControlMessage) -> SchedulerResult<()> {
         let task_run_id = control_message.task_run_id;
         let action = control_message.action;
 
@@ -533,7 +533,7 @@ impl WorkerService {
         status: TaskRunStatus,
         result: Option<TaskResult>,
         error_message: Option<String>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let status_update = StatusUpdateMessage {
             task_run_id,
             status,
@@ -570,7 +570,7 @@ impl WorkerService {
 
     /// 向Dispatcher注册Worker
     #[cfg_attr(test, allow(dead_code))]
-    pub async fn register_with_dispatcher(&self) -> Result<()> {
+    pub async fn register_with_dispatcher(&self) -> SchedulerResult<()> {
         if let Some(ref dispatcher_url) = self.dispatcher_url {
             let worker_info = WorkerInfo {
                 id: self.worker_id.clone(),
@@ -624,7 +624,7 @@ impl WorkerService {
 
     /// 向Dispatcher发送心跳
     #[cfg_attr(test, allow(dead_code))]
-    pub async fn send_heartbeat_to_dispatcher(&self) -> Result<()> {
+    pub async fn send_heartbeat_to_dispatcher(&self) -> SchedulerResult<()> {
         if let Some(ref dispatcher_url) = self.dispatcher_url {
             let current_task_count = self.get_current_task_count().await;
 
@@ -680,7 +680,7 @@ impl WorkerService {
 
     /// 向Dispatcher注销Worker
     #[cfg_attr(test, allow(dead_code))]
-    pub async fn unregister_from_dispatcher(&self) -> Result<()> {
+    pub async fn unregister_from_dispatcher(&self) -> SchedulerResult<()> {
         if let Some(ref dispatcher_url) = self.dispatcher_url {
             let unregister_url = format!("{}/api/workers/{}", dispatcher_url, self.worker_id);
 
@@ -711,7 +711,7 @@ impl WorkerService {
     }
 
     /// 启动心跳任务
-    async fn start_heartbeat_task(&self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+    async fn start_heartbeat_task(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
         let mut heartbeat_interval = interval(Duration::from_secs(self.heartbeat_interval_seconds));
 
         loop {
@@ -736,7 +736,7 @@ impl WorkerService {
     }
 
     /// 启动任务轮询
-    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
+    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
         let mut poll_interval = interval(Duration::from_millis(self.poll_interval_ms));
 
         loop {
@@ -759,7 +759,7 @@ impl WorkerService {
 
 #[async_trait]
 impl WorkerServiceTrait for WorkerService {
-    async fn start(&self) -> Result<()> {
+    async fn start(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if *is_running {
             return Err(SchedulerError::Internal("Worker服务已在运行".to_string()));
@@ -798,7 +798,7 @@ impl WorkerServiceTrait for WorkerService {
         Ok(())
     }
 
-    async fn stop(&self) -> Result<()> {
+    async fn stop(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if !*is_running {
             return Ok(());
@@ -836,7 +836,7 @@ impl WorkerServiceTrait for WorkerService {
         Ok(())
     }
 
-    async fn poll_and_execute_tasks(&self) -> Result<()> {
+    async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
         let current_count = self.get_current_task_count().await;
         if current_count >= self.max_concurrent_tasks as i32 {
             return Ok(());
@@ -886,7 +886,7 @@ impl WorkerServiceTrait for WorkerService {
         Ok(())
     }
 
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> Result<()> {
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         let status_update = StatusUpdateMessage {
             task_run_id: update.task_run_id,
             status: update.status,
@@ -918,7 +918,7 @@ impl WorkerServiceTrait for WorkerService {
         current_count < self.max_concurrent_tasks as i32 && has_executor
     }
 
-    async fn cancel_task(&self, task_run_id: i64) -> Result<()> {
+    async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
         let running_tasks_guard = self.running_tasks.read().await;
 
         if let Some(task_run) = running_tasks_guard.get(&task_run_id) {
@@ -987,7 +987,7 @@ impl WorkerServiceTrait for WorkerService {
         running_tasks.contains_key(&task_run_id)
     }
 
-    async fn send_heartbeat(&self) -> Result<()> {
+    async fn send_heartbeat(&self) -> SchedulerResult<()> {
         let current_task_count = self.get_current_task_count().await;
 
         let heartbeat = WorkerHeartbeatMessage {

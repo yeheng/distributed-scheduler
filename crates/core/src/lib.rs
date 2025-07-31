@@ -32,3 +32,6 @@ pub use service_layer::{
 // Re-export all items from traits
 pub use errors::*;
 pub use traits::*;
+
+/// 统一的Result类型
+pub type SchedulerResult<T> = std::result::Result<T, SchedulerError>;

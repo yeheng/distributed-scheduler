@@ -4,7 +4,7 @@ use tracing::{debug, info};
 
 use scheduler_core::{
     config::model::{MessageQueueConfig, MessageQueueType},
-    errors::Result,
+    SchedulerResult,
     errors::SchedulerError,
     traits::MessageQueue,
 };
@@ -18,7 +18,7 @@ impl MessageQueueFactory {
     /// 根据配置创建消息队列实例
     pub async fn create(
         config: &MessageQueueConfig,
-    ) -> Result<Arc<dyn MessageQueue + Send + Sync>> {
+    ) -> SchedulerResult<Arc<dyn MessageQueue + Send + Sync>> {
         debug!("Creating message queue with type: {:?}", config.r#type);
 
         match config.r#type {
@@ -37,7 +37,7 @@ impl MessageQueueFactory {
     }
 
     /// 从消息队列配置构建Redis配置
-    fn build_redis_config(config: &MessageQueueConfig) -> Result<RedisStreamConfig> {
+    fn build_redis_config(config: &MessageQueueConfig) -> SchedulerResult<RedisStreamConfig> {
         // 如果有专门的Redis配置，使用它
         if let Some(redis_config) = &config.redis {
             return Ok(RedisStreamConfig {
@@ -69,7 +69,7 @@ impl MessageQueueFactory {
     }
 
     /// 从Redis URL解析配置
-    pub fn parse_redis_url(url: &str, config: &MessageQueueConfig) -> Result<RedisStreamConfig> {
+    pub fn parse_redis_url(url: &str, config: &MessageQueueConfig) -> SchedulerResult<RedisStreamConfig> {
         // 简单的URL解析，实际项目中可能需要更复杂的解析逻辑
         let url = url::Url::parse(url)
             .map_err(|e| SchedulerError::Configuration(format!("无效的Redis URL: {e}")))?;
@@ -104,7 +104,7 @@ impl MessageQueueFactory {
     }
 
     /// 验证消息队列配置
-    pub fn validate_config(config: &MessageQueueConfig) -> Result<()> {
+    pub fn validate_config(config: &MessageQueueConfig) -> SchedulerResult<()> {
         match config.r#type {
             MessageQueueType::Rabbitmq => {
                 if config.url.is_empty() {
@@ -143,7 +143,7 @@ impl MessageQueueFactory {
     }
 
     /// 从字符串解析消息队列类型
-    pub fn parse_type_string(type_str: &str) -> Result<MessageQueueType> {
+    pub fn parse_type_string(type_str: &str) -> SchedulerResult<MessageQueueType> {
         match type_str.to_lowercase().as_str() {
             "rabbitmq" => Ok(MessageQueueType::Rabbitmq),
             "redis_stream" => Ok(MessageQueueType::RedisStream),
@@ -162,7 +162,7 @@ pub struct MessageQueueManager {
 
 impl MessageQueueManager {
     /// 创建新的消息队列管理器
-    pub async fn new(config: MessageQueueConfig) -> Result<Self> {
+    pub async fn new(config: MessageQueueConfig) -> SchedulerResult<Self> {
         MessageQueueFactory::validate_config(&config)?;
         let queue = MessageQueueFactory::create(&config).await?;
 
@@ -183,7 +183,7 @@ impl MessageQueueManager {
     }
 
     /// 切换到新的消息队列配置
-    pub async fn switch_to(&mut self, new_config: MessageQueueConfig) -> Result<()> {
+    pub async fn switch_to(&mut self, new_config: MessageQueueConfig) -> SchedulerResult<()> {
         info!(
             "Switching message queue from {:?} to {:?}",
             self.current_config.r#type, new_config.r#type
@@ -225,35 +225,35 @@ impl MessageQueue for MessageQueueManager {
         &self,
         queue: &str,
         message: &scheduler_core::models::Message,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         self.current_queue.publish_message(queue, message).await
     }
 
-    async fn consume_messages(&self, queue: &str) -> Result<Vec<scheduler_core::models::Message>> {
+    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<scheduler_core::models::Message>> {
         self.current_queue.consume_messages(queue).await
     }
 
-    async fn ack_message(&self, message_id: &str) -> Result<()> {
+    async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         self.current_queue.ack_message(message_id).await
     }
 
-    async fn nack_message(&self, message_id: &str, requeue: bool) -> Result<()> {
+    async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()> {
         self.current_queue.nack_message(message_id, requeue).await
     }
 
-    async fn create_queue(&self, queue: &str, durable: bool) -> Result<()> {
+    async fn create_queue(&self, queue: &str, durable: bool) -> SchedulerResult<()> {
         self.current_queue.create_queue(queue, durable).await
     }
 
-    async fn delete_queue(&self, queue: &str) -> Result<()> {
+    async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
         self.current_queue.delete_queue(queue).await
     }
 
-    async fn get_queue_size(&self, queue: &str) -> Result<u32> {
+    async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
         self.current_queue.get_queue_size(queue).await
     }
 
-    async fn purge_queue(&self, queue: &str) -> Result<()> {
+    async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
         self.current_queue.purge_queue(queue).await
     }
 }

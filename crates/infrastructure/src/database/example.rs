@@ -1,5 +1,5 @@
 use crate::database::{DatabaseManager, DatabaseType};
-use scheduler_core::errors::Result;
+use scheduler_core::SchedulerResult;
 use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};
 
 /// Example application service that works with any database backend
@@ -11,7 +11,7 @@ pub struct ApplicationService {
 impl ApplicationService {
     /// Create new application service with database URL
     /// The database type is automatically detected from the URL
-    pub async fn new(database_url: &str, max_connections: u32) -> Result<Self> {
+    pub async fn new(database_url: &str, max_connections: u32) -> SchedulerResult<Self> {
         let db_manager = DatabaseManager::new(database_url, max_connections).await?;
         Ok(Self { db_manager })
     }
@@ -22,7 +22,7 @@ impl ApplicationService {
     }
 
     /// Check database health
-    pub async fn health_check(&self) -> Result<()> {
+    pub async fn health_check(&self) -> SchedulerResult<()> {
         self.db_manager.health_check().await
     }
 

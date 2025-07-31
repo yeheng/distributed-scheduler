@@ -7,7 +7,7 @@ use tracing::{debug, warn};
 use scheduler_core::{
     models::{Task, WorkerInfo},
     traits::TaskDispatchStrategy,
-    Result,
+    SchedulerResult,
 };
 
 /// 轮询策略 - 按顺序轮流分配任务给Worker
@@ -42,7 +42,7 @@ impl TaskDispatchStrategy for RoundRobinStrategy {
         &self,
         task: &Task,
         available_workers: &[WorkerInfo],
-    ) -> Result<Option<String>> {
+    ) -> SchedulerResult<Option<String>> {
         if available_workers.is_empty() {
             debug!("没有可用的Worker节点");
             return Ok(None);
@@ -97,7 +97,7 @@ impl TaskDispatchStrategy for LoadBasedStrategy {
         &self,
         task: &Task,
         available_workers: &[WorkerInfo],
-    ) -> Result<Option<String>> {
+    ) -> SchedulerResult<Option<String>> {
         if available_workers.is_empty() {
             debug!("没有可用的Worker节点");
             return Ok(None);
@@ -157,7 +157,7 @@ impl TaskDispatchStrategy for TaskTypeAffinityStrategy {
         &self,
         task: &Task,
         available_workers: &[WorkerInfo],
-    ) -> Result<Option<String>> {
+    ) -> SchedulerResult<Option<String>> {
         if available_workers.is_empty() {
             debug!("没有可用的Worker节点");
             return Ok(None);
@@ -239,7 +239,7 @@ impl TaskDispatchStrategy for CompositeStrategy {
         &self,
         task: &Task,
         available_workers: &[WorkerInfo],
-    ) -> Result<Option<String>> {
+    ) -> SchedulerResult<Option<String>> {
         // 依次尝试每个策略，直到找到合适的Worker
         for strategy in &self.strategies {
             match strategy.select_worker(task, available_workers).await? {

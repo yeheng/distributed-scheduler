@@ -51,6 +51,3 @@ pub enum SchedulerError {
     #[error("无效的任务参数: {0}")]
     InvalidTaskParams(String),
 }
-
-/// 统一的Result类型
-pub type Result<T> = std::result::Result<T, SchedulerError>;

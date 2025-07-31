@@ -8,7 +8,7 @@ use serde::{Deserialize, Serialize};
 use thiserror::Error;
 use tokio::sync::RwLock;
 
-use crate::errors::{Result, SchedulerError};
+use crate::{SchedulerResult, errors::SchedulerError};
 
 /// Configuration validation error
 #[derive(Debug, Error)]
@@ -265,7 +265,7 @@ impl SimpleEnhancedConfigManager {
     }
 
     /// Load configuration from sources
-    pub async fn load(&self) -> Result<()> {
+    pub async fn load(&self) -> SchedulerResult<()> {
         let mut merged_config = serde_json::Value::Object(serde_json::Map::new());
 
         // Load from all sources (later sources override earlier ones)
@@ -303,7 +303,7 @@ impl SimpleEnhancedConfigManager {
     }
 
     /// Load configuration from specific source
-    async fn load_from_source(&self, source: &ConfigSource) -> Result<serde_json::Value> {
+    async fn load_from_source(&self, source: &ConfigSource) -> SchedulerResult<serde_json::Value> {
         match source {
             ConfigSource::File { path } => {
                 if !path.exists() {
@@ -453,7 +453,7 @@ impl SimpleEnhancedConfigManager {
     }
 
     /// Get configuration value
-    pub async fn get<T>(&self, key: &str) -> Result<T>
+    pub async fn get<T>(&self, key: &str) -> SchedulerResult<T>
     where
         T: serde::de::DeserializeOwned,
     {
@@ -529,19 +529,19 @@ impl SimpleEnhancedConfigManager {
     }
 
     /// Manual reload
-    pub async fn reload(&self) -> Result<()> {
+    pub async fn reload(&self) -> SchedulerResult<()> {
         self.load().await
     }
 
     /// Get current configuration as JSON
-    pub async fn to_json(&self) -> Result<String> {
+    pub async fn to_json(&self) -> SchedulerResult<String> {
         let config = self.config.read().await;
         serde_json::to_string(&*config)
             .map_err(|e| SchedulerError::Configuration(format!("Failed to serialize config: {e}")))
     }
 
     /// Get configuration subset
-    pub async fn get_subset(&self, prefix: &str) -> Result<serde_json::Value> {
+    pub async fn get_subset(&self, prefix: &str) -> SchedulerResult<serde_json::Value> {
         let config = self.config.read().await;
 
         let mut result = serde_json::Value::Object(serde_json::Map::new());
@@ -569,7 +569,7 @@ impl SimpleEnhancedConfigManager {
     }
 
     /// Update configuration value
-    pub async fn set(&self, key: &str, value: serde_json::Value) -> Result<()> {
+    pub async fn set(&self, key: &str, value: serde_json::Value) -> SchedulerResult<()> {
         let mut config = self.config.write().await;
 
         let keys: Vec<&str> = key.split('.').collect();

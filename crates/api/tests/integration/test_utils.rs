@@ -123,25 +123,25 @@ impl TaskControlService for MockTaskControlService {
     async fn trigger_task(
         &self,
         task_id: i64,
-    ) -> scheduler_core::Result<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
         use chrono::Utc;
         use scheduler_core::models::TaskRun;
 
         Ok(TaskRun::new(task_id, Utc::now()))
     }
 
-    async fn pause_task(&self, _task_id: i64) -> scheduler_core::Result<()> {
+    async fn pause_task(&self, _task_id: i64) -> scheduler_core::SchedulerResult<()> {
         Ok(())
     }
 
-    async fn resume_task(&self, _task_id: i64) -> scheduler_core::Result<()> {
+    async fn resume_task(&self, _task_id: i64) -> scheduler_core::SchedulerResult<()> {
         Ok(())
     }
 
     async fn restart_task_run(
         &self,
         task_run_id: i64,
-    ) -> scheduler_core::Result<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
         use chrono::Utc;
         use scheduler_core::models::TaskRun;
 
@@ -150,7 +150,7 @@ impl TaskControlService for MockTaskControlService {
         Ok(task_run)
     }
 
-    async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_core::Result<()> {
+    async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_core::SchedulerResult<()> {
         Ok(())
     }
 }

@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus},
     traits::{MessageQueue, TaskControlService, TaskRepository, TaskRunRepository},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 
 /// 任务控制器实现
@@ -40,7 +40,7 @@ impl TaskController {
         task_run_id: i64,
         action: TaskControlAction,
         requester: &str,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         let control_message = TaskControlMessage {
             task_run_id,
             action,
@@ -68,7 +68,7 @@ impl TaskController {
         &self,
         task_run: &TaskRun,
         action: TaskControlAction,
-    ) -> Result<bool> {
+    ) -> SchedulerResult<bool> {
         use TaskControlAction::*;
         use TaskRunStatus::*;
 
@@ -104,7 +104,7 @@ impl TaskController {
     }
 
     /// 创建任务运行实例的内部实现
-    async fn create_task_run_internal(&self, task_id: i64) -> Result<TaskRun> {
+    async fn create_task_run_internal(&self, task_id: i64) -> SchedulerResult<TaskRun> {
         let task = self
             .task_repo
             .get_by_id(task_id)
@@ -141,7 +141,7 @@ impl TaskController {
 #[async_trait]
 impl TaskControlService for TaskController {
     /// 手动触发任务
-    async fn trigger_task(&self, task_id: i64) -> Result<TaskRun> {
+    async fn trigger_task(&self, task_id: i64) -> SchedulerResult<TaskRun> {
         info!("手动触发任务: {}", task_id);
 
         // 检查任务是否存在且处于活跃状态
@@ -183,7 +183,7 @@ impl TaskControlService for TaskController {
     }
 
     /// 暂停任务
-    async fn pause_task(&self, task_id: i64) -> Result<()> {
+    async fn pause_task(&self, task_id: i64) -> SchedulerResult<()> {
         info!("暂停任务: {}", task_id);
 
         // 检查任务是否存在
@@ -226,7 +226,7 @@ impl TaskControlService for TaskController {
     }
 
     /// 恢复任务
-    async fn resume_task(&self, task_id: i64) -> Result<()> {
+    async fn resume_task(&self, task_id: i64) -> SchedulerResult<()> {
         info!("恢复任务: {}", task_id);
 
         // 检查任务是否存在
@@ -251,7 +251,7 @@ impl TaskControlService for TaskController {
     }
 
     /// 重启任务运行实例
-    async fn restart_task_run(&self, task_run_id: i64) -> Result<TaskRun> {
+    async fn restart_task_run(&self, task_run_id: i64) -> SchedulerResult<TaskRun> {
         info!("重启任务运行实例: {}", task_run_id);
 
         // 检查任务运行实例是否存在
@@ -284,7 +284,7 @@ impl TaskControlService for TaskController {
     }
 
     /// 中止任务运行实例
-    async fn abort_task_run(&self, task_run_id: i64) -> Result<()> {
+    async fn abort_task_run(&self, task_run_id: i64) -> SchedulerResult<()> {
         info!("中止任务运行实例: {}", task_run_id);
 
         // 检查任务运行实例是否存在
@@ -320,7 +320,7 @@ impl TaskControlService for TaskController {
 
 impl TaskController {
     /// 获取任务的当前运行状态统计
-    pub async fn get_task_status_summary(&self, task_id: i64) -> Result<TaskStatusSummary> {
+    pub async fn get_task_status_summary(&self, task_id: i64) -> SchedulerResult<TaskStatusSummary> {
         let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
 
         let mut summary = TaskStatusSummary::default();
@@ -340,7 +340,7 @@ impl TaskController {
     }
 
     /// 批量操作: 取消任务的所有运行实例
-    pub async fn cancel_all_task_runs(&self, task_id: i64) -> Result<usize> {
+    pub async fn cancel_all_task_runs(&self, task_id: i64) -> SchedulerResult<usize> {
         info!("取消任务 {} 的所有运行实例", task_id);
 
         let running_runs = self.task_run_repo.get_by_task_id(task_id).await?;
@@ -369,14 +369,14 @@ impl TaskController {
     }
 
     /// 检查任务是否有运行中的实例
-    pub async fn has_running_instances(&self, task_id: i64) -> Result<bool> {
+    pub async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool> {
         let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
         let has_running = task_runs.iter().any(|run| run.is_running());
         Ok(has_running)
     }
 
     /// 获取任务的最近执行历史
-    pub async fn get_recent_executions(&self, task_id: i64, limit: usize) -> Result<Vec<TaskRun>> {
+    pub async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>> {
         let recent_runs = self
             .task_run_repo
             .get_recent_runs(task_id, limit as i64)

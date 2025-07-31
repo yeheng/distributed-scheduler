@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{WorkerInfo, WorkerStatus},
     traits::WorkerRepository,
-    Result,
+    SchedulerResult,
 };
 
 use crate::retry_service::RetryService;
@@ -41,19 +41,19 @@ impl Default for WorkerFailureDetectorConfig {
 #[async_trait]
 pub trait WorkerFailureDetectorService: Send + Sync {
     /// 启动失效检测
-    async fn start_detection(&self) -> Result<()>;
+    async fn start_detection(&self) -> SchedulerResult<()>;
 
     /// 停止失效检测
-    async fn stop_detection(&self) -> Result<()>;
+    async fn stop_detection(&self) -> SchedulerResult<()>;
 
     /// 检测失效的Worker
-    async fn detect_failed_workers(&self) -> Result<Vec<WorkerInfo>>;
+    async fn detect_failed_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 处理失效的Worker
-    async fn handle_failed_worker(&self, worker: &WorkerInfo) -> Result<()>;
+    async fn handle_failed_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
 
     /// 清理离线的Worker
-    async fn cleanup_offline_workers(&self) -> Result<u64>;
+    async fn cleanup_offline_workers(&self) -> SchedulerResult<u64>;
 }
 
 /// Worker失效检测服务实现
@@ -100,7 +100,7 @@ impl WorkerFailureDetector {
     }
 
     /// 执行检测循环
-    async fn detection_loop(&self) -> Result<()> {
+    async fn detection_loop(&self) -> SchedulerResult<()> {
         info!("启动Worker失效检测循环");
 
         let interval_duration = Duration::from_secs(self.config.detection_interval_seconds);
@@ -155,7 +155,7 @@ impl WorkerFailureDetector {
 #[async_trait]
 impl WorkerFailureDetectorService for WorkerFailureDetector {
     /// 启动失效检测
-    async fn start_detection(&self) -> Result<()> {
+    async fn start_detection(&self) -> SchedulerResult<()> {
         info!("启动Worker失效检测服务");
 
         // 设置运行状态
@@ -169,7 +169,7 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
     }
 
     /// 停止失效检测
-    async fn stop_detection(&self) -> Result<()> {
+    async fn stop_detection(&self) -> SchedulerResult<()> {
         info!("停止Worker失效检测服务");
 
         let mut running = self.running.write().await;
@@ -179,7 +179,7 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
     }
 
     /// 检测失效的Worker
-    async fn detect_failed_workers(&self) -> Result<Vec<WorkerInfo>> {
+    async fn detect_failed_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         debug!("开始检测失效的Worker");
 
         let now = Utc::now();
@@ -205,7 +205,7 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
     }
 
     /// 处理失效的Worker
-    async fn handle_failed_worker(&self, worker: &WorkerInfo) -> Result<()> {
+    async fn handle_failed_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         info!("处理失效Worker: {}", worker.id);
 
         // 1. 更新Worker状态为Down
@@ -244,7 +244,7 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
     }
 
     /// 清理离线的Worker
-    async fn cleanup_offline_workers(&self) -> Result<u64> {
+    async fn cleanup_offline_workers(&self) -> SchedulerResult<u64> {
         debug!("开始清理离线Worker");
 
         let now = Utc::now();

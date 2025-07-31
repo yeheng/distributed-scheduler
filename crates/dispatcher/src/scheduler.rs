@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, Task, TaskExecutionMessage, TaskRun, TaskRunStatus},
     traits::{MessageQueue, TaskRepository, TaskRunRepository, TaskSchedulerService},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -47,7 +47,7 @@ impl TaskScheduler {
     }
 
     /// 检查任务是否应该被调度
-    pub async fn should_schedule_task(&self, task: &Task) -> Result<bool> {
+    pub async fn should_schedule_task(&self, task: &Task) -> SchedulerResult<bool> {
         // 检查任务是否处于活跃状态
         if !task.is_active() {
             debug!("任务 {} 不处于活跃状态，跳过调度", task.name);
@@ -94,7 +94,7 @@ impl TaskScheduler {
     }
 
     /// 检查任务是否有正在运行的实例
-    async fn has_running_instance(&self, task_id: i64) -> Result<bool> {
+    async fn has_running_instance(&self, task_id: i64) -> SchedulerResult<bool> {
         let running_runs = self.task_run_repo.get_by_task_id(task_id).await?;
         let has_running = running_runs.iter().any(|run| run.is_running());
 
@@ -128,7 +128,7 @@ impl TaskScheduler {
 #[async_trait]
 impl TaskSchedulerService for TaskScheduler {
     /// 扫描并调度任务
-    async fn scan_and_schedule(&self) -> Result<Vec<TaskRun>> {
+    async fn scan_and_schedule(&self) -> SchedulerResult<Vec<TaskRun>> {
         let span = tracing::info_span!("scan_and_schedule");
         let _guard = span.enter();
         let start_time = std::time::Instant::now();
@@ -172,7 +172,7 @@ impl TaskSchedulerService for TaskScheduler {
     }
 
     /// 检查任务依赖
-    async fn check_dependencies(&self, task: &Task) -> Result<bool> {
+    async fn check_dependencies(&self, task: &Task) -> SchedulerResult<bool> {
         let span = TaskTracer::dependency_check_span(task.id, &task.name);
         let _guard = span.enter();
         let check_result = self.dependency_checker.check_dependencies(task).await?;
@@ -197,7 +197,7 @@ impl TaskSchedulerService for TaskScheduler {
     }
 
     /// 创建任务运行实例
-    async fn create_task_run(&self, task: &Task) -> Result<TaskRun> {
+    async fn create_task_run(&self, task: &Task) -> SchedulerResult<TaskRun> {
         let now = Utc::now();
         let mut task_run = TaskRun::new(task.id, now);
 
@@ -219,7 +219,7 @@ impl TaskSchedulerService for TaskScheduler {
     }
 
     /// 分发任务到消息队列
-    async fn dispatch_to_queue(&self, task_run: &TaskRun) -> Result<()> {
+    async fn dispatch_to_queue(&self, task_run: &TaskRun) -> SchedulerResult<()> {
         let span = tracing::info_span!("dispatch_to_queue", task_run.id = task_run.id);
         let _guard = span.enter();
         let _start_time = std::time::Instant::now();
@@ -275,7 +275,7 @@ impl TaskSchedulerService for TaskScheduler {
 
 impl TaskScheduler {
     /// 如果需要的话调度任务
-    async fn schedule_task_if_needed(&self, task: &Task) -> Result<Option<TaskRun>> {
+    async fn schedule_task_if_needed(&self, task: &Task) -> SchedulerResult<Option<TaskRun>> {
         // 检查是否应该调度
         if !self.should_schedule_task(task).await? {
             return Ok(None);
@@ -301,7 +301,7 @@ impl TaskScheduler {
     }
 
     /// 检测并处理过期任务
-    pub async fn detect_overdue_tasks(&self, grace_period_minutes: i64) -> Result<Vec<Task>> {
+    pub async fn detect_overdue_tasks(&self, grace_period_minutes: i64) -> SchedulerResult<Vec<Task>> {
         info!("开始检测过期任务，宽限期: {}分钟", grace_period_minutes);
 
         let active_tasks = self.task_repo.get_active_tasks().await?;
@@ -335,7 +335,7 @@ impl TaskScheduler {
     }
 
     /// 获取任务的下次执行时间
-    pub async fn get_next_execution_time(&self, task_id: i64) -> Result<Option<DateTime<Utc>>> {
+    pub async fn get_next_execution_time(&self, task_id: i64) -> SchedulerResult<Option<DateTime<Utc>>> {
         let task = self
             .task_repo
             .get_by_id(task_id)
@@ -349,7 +349,7 @@ impl TaskScheduler {
     }
 
     /// 验证任务的CRON表达式
-    pub async fn validate_task_schedule(&self, task_id: i64) -> Result<bool> {
+    pub async fn validate_task_schedule(&self, task_id: i64) -> SchedulerResult<bool> {
         let task = self
             .task_repo
             .get_by_id(task_id)

@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use scheduler_core::{
-    Result, SchedulerError, TaskExecutionContextTrait, TaskExecutor, TaskResult, TaskRun,
+    SchedulerResult, SchedulerError, TaskExecutionContextTrait, TaskExecutor, TaskResult, TaskRun,
 };
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -37,7 +37,7 @@ impl Default for ShellExecutor {
 
 #[async_trait]
 impl TaskExecutor for ShellExecutor {
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> Result<TaskResult> {
+    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
 
         // 从上下文中获取Shell任务参数
@@ -181,7 +181,7 @@ impl TaskExecutor for ShellExecutor {
         Ok(result)
     }
 
-    async fn execute(&self, task_run: &TaskRun) -> Result<TaskResult> {
+    async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
         // 保持向后兼容，委托给新的execute_task方法
         let task_info = task_run
             .result
@@ -228,7 +228,7 @@ impl TaskExecutor for ShellExecutor {
         vec!["shell".to_string()]
     }
 
-    async fn cancel(&self, task_run_id: i64) -> Result<()> {
+    async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut processes = self.running_processes.write().await;
         if let Some(pid) = processes.remove(&task_run_id) {
             // 使用系统调用终止进程
@@ -307,7 +307,7 @@ impl TaskExecutor for ShellExecutor {
         }
     }
 
-    async fn is_running(&self, task_run_id: i64) -> Result<bool> {
+    async fn is_running(&self, task_run_id: i64) -> SchedulerResult<bool> {
         let processes = self.running_processes.read().await;
         Ok(processes.contains_key(&task_run_id))
     }
@@ -339,7 +339,7 @@ impl Default for HttpExecutor {
 
 #[async_trait]
 impl TaskExecutor for HttpExecutor {
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> Result<TaskResult> {
+    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
 
         // 从上下文中获取HTTP任务参数
@@ -457,7 +457,7 @@ impl TaskExecutor for HttpExecutor {
         }
     }
 
-    async fn execute(&self, task_run: &TaskRun) -> Result<TaskResult> {
+    async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
         // 保持向后兼容，委托给新的execute_task方法
         let task_info = task_run
             .result
@@ -504,7 +504,7 @@ impl TaskExecutor for HttpExecutor {
         vec!["http".to_string()]
     }
 
-    async fn cancel(&self, task_run_id: i64) -> Result<()> {
+    async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut tasks = self.running_tasks.write().await;
         if let Some(handle) = tasks.remove(&task_run_id) {
             handle.abort();
@@ -515,7 +515,7 @@ impl TaskExecutor for HttpExecutor {
         Ok(())
     }
 
-    async fn is_running(&self, task_run_id: i64) -> Result<bool> {
+    async fn is_running(&self, task_run_id: i64) -> SchedulerResult<bool> {
         let tasks = self.running_tasks.read().await;
         if let Some(handle) = tasks.get(&task_run_id) {
             Ok(!handle.is_finished())
@@ -572,7 +572,7 @@ impl MockTaskExecutor {
 
 #[async_trait]
 impl TaskExecutor for MockTaskExecutor {
-    async fn execute_task(&self, _context: &TaskExecutionContextTrait) -> Result<TaskResult> {
+    async fn execute_task(&self, _context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
         // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
@@ -595,7 +595,7 @@ impl TaskExecutor for MockTaskExecutor {
         }
     }
 
-    async fn execute(&self, _task_run: &TaskRun) -> Result<TaskResult> {
+    async fn execute(&self, _task_run: &TaskRun) -> SchedulerResult<TaskResult> {
         // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
@@ -638,11 +638,11 @@ impl TaskExecutor for MockTaskExecutor {
         vec![self.name.clone()]
     }
 
-    async fn cancel(&self, _task_run_id: i64) -> Result<()> {
+    async fn cancel(&self, _task_run_id: i64) -> SchedulerResult<()> {
         Ok(())
     }
 
-    async fn is_running(&self, _task_run_id: i64) -> Result<bool> {
+    async fn is_running(&self, _task_run_id: i64) -> SchedulerResult<bool> {
         Ok(false)
     }
 }

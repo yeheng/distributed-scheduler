@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{TaskRun, TaskRunStatus, WorkerStatus},
     traits::{MessageQueue, TaskRunRepository, WorkerRepository},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 
 /// 恢复服务配置
@@ -45,22 +45,22 @@ impl Default for RecoveryConfig {
 #[async_trait]
 pub trait RecoveryService: Send + Sync {
     /// 系统启动时恢复任务状态
-    async fn recover_system_state(&self) -> Result<RecoveryReport>;
+    async fn recover_system_state(&self) -> SchedulerResult<RecoveryReport>;
 
     /// 恢复中断的任务
-    async fn recover_interrupted_tasks(&self) -> Result<Vec<TaskRun>>;
+    async fn recover_interrupted_tasks(&self) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 恢复失效的Worker状态
-    async fn recover_worker_states(&self) -> Result<Vec<String>>;
+    async fn recover_worker_states(&self) -> SchedulerResult<Vec<String>>;
 
     /// 数据库连接重连
-    async fn reconnect_database(&self) -> Result<()>;
+    async fn reconnect_database(&self) -> SchedulerResult<()>;
 
     /// 消息队列连接重连
-    async fn reconnect_message_queue(&self) -> Result<()>;
+    async fn reconnect_message_queue(&self) -> SchedulerResult<()>;
 
     /// 检查系统健康状态
-    async fn check_system_health(&self) -> Result<SystemHealthStatus>;
+    async fn check_system_health(&self) -> SchedulerResult<SystemHealthStatus>;
 }
 
 /// 恢复报告
@@ -108,7 +108,7 @@ impl SystemRecoveryService {
     }
 
     /// 恢复运行中的任务状态
-    async fn recover_running_tasks(&self) -> Result<Vec<TaskRun>> {
+    async fn recover_running_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复运行中的任务状态");
 
         let running_tasks = self.task_run_repo.get_running_runs().await?;
@@ -219,7 +219,7 @@ impl SystemRecoveryService {
     }
 
     /// 恢复已分发但未开始的任务
-    async fn recover_dispatched_tasks(&self) -> Result<Vec<TaskRun>> {
+    async fn recover_dispatched_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复已分发但未开始的任务");
 
         let dispatched_tasks = self
@@ -260,7 +260,7 @@ impl SystemRecoveryService {
     }
 
     /// 数据库重连逻辑
-    async fn attempt_database_reconnection(&self) -> Result<()> {
+    async fn attempt_database_reconnection(&self) -> SchedulerResult<()> {
         info!("开始尝试数据库重连");
 
         for attempt in 1..=self.config.db_max_retry_attempts {
@@ -295,7 +295,7 @@ impl SystemRecoveryService {
     }
 
     /// 消息队列重连逻辑
-    async fn attempt_message_queue_reconnection(&self) -> Result<()> {
+    async fn attempt_message_queue_reconnection(&self) -> SchedulerResult<()> {
         info!("开始尝试消息队列重连");
 
         for attempt in 1..=self.config.mq_max_retry_attempts {
@@ -333,7 +333,7 @@ impl SystemRecoveryService {
 #[async_trait]
 impl RecoveryService for SystemRecoveryService {
     /// 系统启动时恢复任务状态
-    async fn recover_system_state(&self) -> Result<RecoveryReport> {
+    async fn recover_system_state(&self) -> SchedulerResult<RecoveryReport> {
         info!("开始系统状态恢复");
         let start_time = std::time::Instant::now();
         let mut errors = Vec::new();
@@ -393,7 +393,7 @@ impl RecoveryService for SystemRecoveryService {
     }
 
     /// 恢复中断的任务
-    async fn recover_interrupted_tasks(&self) -> Result<Vec<TaskRun>> {
+    async fn recover_interrupted_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复中断的任务");
 
         let mut interrupted_tasks = Vec::new();
@@ -414,7 +414,7 @@ impl RecoveryService for SystemRecoveryService {
     }
 
     /// 恢复失效的Worker状态
-    async fn recover_worker_states(&self) -> Result<Vec<String>> {
+    async fn recover_worker_states(&self) -> SchedulerResult<Vec<String>> {
         info!("开始恢复Worker状态");
 
         let all_workers = self.worker_repo.list().await?;
@@ -461,17 +461,17 @@ impl RecoveryService for SystemRecoveryService {
     }
 
     /// 数据库连接重连
-    async fn reconnect_database(&self) -> Result<()> {
+    async fn reconnect_database(&self) -> SchedulerResult<()> {
         self.attempt_database_reconnection().await
     }
 
     /// 消息队列连接重连
-    async fn reconnect_message_queue(&self) -> Result<()> {
+    async fn reconnect_message_queue(&self) -> SchedulerResult<()> {
         self.attempt_message_queue_reconnection().await
     }
 
     /// 检查系统健康状态
-    async fn check_system_health(&self) -> Result<SystemHealthStatus> {
+    async fn check_system_health(&self) -> SchedulerResult<SystemHealthStatus> {
         debug!("检查系统健康状态");
 
         let now = Utc::now();

@@ -1,4 +1,4 @@
-use crate::errors::Result;
+use crate::SchedulerResult;
 use crate::models::{Task, TaskFilter, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -7,75 +7,75 @@ use chrono::{DateTime, Utc};
 #[async_trait]
 pub trait TaskRepository: Send + Sync {
     /// 创建新任务
-    async fn create(&self, task: &Task) -> Result<Task>;
+    async fn create(&self, task: &Task) -> SchedulerResult<Task>;
 
     /// 根据ID获取任务
-    async fn get_by_id(&self, id: i64) -> Result<Option<Task>>;
+    async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>>;
 
     /// 根据名称获取任务
-    async fn get_by_name(&self, name: &str) -> Result<Option<Task>>;
+    async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>>;
 
     /// 更新任务
-    async fn update(&self, task: &Task) -> Result<()>;
+    async fn update(&self, task: &Task) -> SchedulerResult<()>;
 
     /// 删除任务
-    async fn delete(&self, id: i64) -> Result<()>;
+    async fn delete(&self, id: i64) -> SchedulerResult<()>;
 
     /// 根据过滤条件查询任务列表
-    async fn list(&self, filter: &TaskFilter) -> Result<Vec<Task>>;
+    async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>>;
 
     /// 获取所有活跃任务
-    async fn get_active_tasks(&self) -> Result<Vec<Task>>;
+    async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>>;
 
     /// 获取需要调度的任务（活跃且到达调度时间）
-    async fn get_schedulable_tasks(&self, current_time: DateTime<Utc>) -> Result<Vec<Task>>;
+    async fn get_schedulable_tasks(&self, current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>>;
 
     /// 检查任务依赖是否满足
-    async fn check_dependencies(&self, task_id: i64) -> Result<bool>;
+    async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool>;
 
     /// 获取任务的依赖列表
-    async fn get_dependencies(&self, task_id: i64) -> Result<Vec<Task>>;
+    async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>>;
 
     /// 批量更新任务状态
     async fn batch_update_status(
         &self,
         task_ids: &[i64],
         status: crate::models::TaskStatus,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 }
 
 /// 任务执行实例仓储接口
 #[async_trait]
 pub trait TaskRunRepository: Send + Sync {
     /// 创建新的任务执行实例
-    async fn create(&self, task_run: &TaskRun) -> Result<TaskRun>;
+    async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun>;
 
     /// 根据ID获取任务执行实例
-    async fn get_by_id(&self, id: i64) -> Result<Option<TaskRun>>;
+    async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>>;
 
     /// 更新任务执行实例
-    async fn update(&self, task_run: &TaskRun) -> Result<()>;
+    async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()>;
 
     /// 删除任务执行实例
-    async fn delete(&self, id: i64) -> Result<()>;
+    async fn delete(&self, id: i64) -> SchedulerResult<()>;
 
     /// 根据任务ID获取执行实例列表
-    async fn get_by_task_id(&self, task_id: i64) -> Result<Vec<TaskRun>>;
+    async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 根据Worker ID获取执行实例列表
-    async fn get_by_worker_id(&self, worker_id: &str) -> Result<Vec<TaskRun>>;
+    async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取指定状态的任务执行实例
-    async fn get_by_status(&self, status: TaskRunStatus) -> Result<Vec<TaskRun>>;
+    async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取待调度的任务执行实例
-    async fn get_pending_runs(&self, limit: Option<i64>) -> Result<Vec<TaskRun>>;
+    async fn get_pending_runs(&self, limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取正在运行的任务执行实例
-    async fn get_running_runs(&self) -> Result<Vec<TaskRun>>;
+    async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取超时的任务执行实例
-    async fn get_timeout_runs(&self, timeout_seconds: i64) -> Result<Vec<TaskRun>>;
+    async fn get_timeout_runs(&self, timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 更新任务执行状态
     async fn update_status(
@@ -83,7 +83,7 @@ pub trait TaskRunRepository: Send + Sync {
         id: i64,
         status: TaskRunStatus,
         worker_id: Option<&str>,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 
     /// 更新任务执行结果
     async fn update_result(
@@ -91,44 +91,44 @@ pub trait TaskRunRepository: Send + Sync {
         id: i64,
         result: Option<&str>,
         error_message: Option<&str>,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 
     /// 获取任务的最近执行记录
-    async fn get_recent_runs(&self, task_id: i64, limit: i64) -> Result<Vec<TaskRun>>;
+    async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取任务执行统计信息
-    async fn get_execution_stats(&self, task_id: i64, days: i32) -> Result<TaskExecutionStats>;
+    async fn get_execution_stats(&self, task_id: i64, days: i32) -> SchedulerResult<TaskExecutionStats>;
 
     /// 清理过期的任务执行记录
-    async fn cleanup_old_runs(&self, days: i32) -> Result<u64>;
+    async fn cleanup_old_runs(&self, days: i32) -> SchedulerResult<u64>;
 
     /// 批量更新任务执行状态
-    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> Result<()>;
+    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> SchedulerResult<()>;
 }
 
 /// Worker仓储接口
 #[async_trait]
 pub trait WorkerRepository: Send + Sync {
     /// 注册新的Worker
-    async fn register(&self, worker: &WorkerInfo) -> Result<()>;
+    async fn register(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
 
     /// 注销Worker
-    async fn unregister(&self, worker_id: &str) -> Result<()>;
+    async fn unregister(&self, worker_id: &str) -> SchedulerResult<()>;
 
     /// 根据ID获取Worker信息
-    async fn get_by_id(&self, worker_id: &str) -> Result<Option<WorkerInfo>>;
+    async fn get_by_id(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>>;
 
     /// 更新Worker信息
-    async fn update(&self, worker: &WorkerInfo) -> Result<()>;
+    async fn update(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
 
     /// 获取所有Worker列表
-    async fn list(&self) -> Result<Vec<WorkerInfo>>;
+    async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 获取活跃的Worker列表
-    async fn get_alive_workers(&self) -> Result<Vec<WorkerInfo>>;
+    async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 获取支持指定任务类型的Worker列表
-    async fn get_workers_by_task_type(&self, task_type: &str) -> Result<Vec<WorkerInfo>>;
+    async fn get_workers_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 更新Worker心跳
     async fn update_heartbeat(
@@ -136,22 +136,22 @@ pub trait WorkerRepository: Send + Sync {
         worker_id: &str,
         heartbeat_time: DateTime<Utc>,
         current_task_count: i32,
-    ) -> Result<()>;
+    ) -> SchedulerResult<()>;
 
     /// 更新Worker状态
-    async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> Result<()>;
+    async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()>;
 
     /// 获取超时的Worker列表
-    async fn get_timeout_workers(&self, timeout_seconds: i64) -> Result<Vec<WorkerInfo>>;
+    async fn get_timeout_workers(&self, timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 清理离线Worker
-    async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> Result<u64>;
+    async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> SchedulerResult<u64>;
 
     /// 获取Worker负载统计
-    async fn get_worker_load_stats(&self) -> Result<Vec<WorkerLoadStats>>;
+    async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>>;
 
     /// 批量更新Worker状态
-    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> Result<()>;
+    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> SchedulerResult<()>;
 }
 
 /// 任务执行统计信息

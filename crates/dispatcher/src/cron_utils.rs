@@ -3,7 +3,7 @@ use cron::Schedule;
 use std::str::FromStr;
 use tracing::{debug, warn};
 
-use scheduler_core::{Result, SchedulerError};
+use scheduler_core::{SchedulerResult, SchedulerError};
 
 /// CRON表达式解析和调度工具
 pub struct CronScheduler {
@@ -12,7 +12,7 @@ pub struct CronScheduler {
 
 impl CronScheduler {
     /// 创建新的CRON调度器
-    pub fn new(cron_expr: &str) -> Result<Self> {
+    pub fn new(cron_expr: &str) -> SchedulerResult<Self> {
         let schedule = Schedule::from_str(cron_expr).map_err(|e| SchedulerError::InvalidCron {
             expr: cron_expr.to_string(),
             message: e.to_string(),
@@ -78,7 +78,7 @@ impl CronScheduler {
     }
 
     /// 验证CRON表达式是否有效
-    pub fn validate_cron_expression(cron_expr: &str) -> Result<()> {
+    pub fn validate_cron_expression(cron_expr: &str) -> SchedulerResult<()> {
         Schedule::from_str(cron_expr).map_err(|e| SchedulerError::InvalidCron {
             expr: cron_expr.to_string(),
             message: e.to_string(),

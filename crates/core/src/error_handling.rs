@@ -5,7 +5,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};
 
-use super::errors::{Result, SchedulerError};
+use crate::SchedulerResult;
+
+use super::errors::SchedulerError;
 
 // Simple logging macros for now - in production you'd use proper logging
 macro_rules! error {
@@ -288,10 +290,10 @@ impl ErrorHandlingMiddleware {
     }
 
     /// Execute operation with automatic error handling
-    pub async fn execute<F, Fut, T>(&self, operation: &str, f: F) -> Result<T>
+    pub async fn execute<F, Fut, T>(&self, operation: &str, f: F) -> SchedulerResult<T>
     where
         F: FnOnce() -> Fut + Send + 'static,
-        Fut: std::future::Future<Output = Result<T>> + Send,
+        Fut: std::future::Future<Output = SchedulerResult<T>> + Send,
     {
         let context = ErrorContext {
             component: self.component.clone(),

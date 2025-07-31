@@ -30,7 +30,7 @@ mod dependency_checker_tests {
 
     #[async_trait]
     impl TaskRepository for MockTaskRepository {
-        async fn create(&self, task: &Task) -> Result<Task> {
+        async fn create(&self, task: &Task) -> SchedulerResult<Task> {
             let mut tasks = self.tasks.lock().unwrap();
             let mut new_task = task.clone();
             new_task.id = (tasks.len() + 1) as i64;
@@ -38,34 +38,34 @@ mod dependency_checker_tests {
             Ok(new_task)
         }
 
-        async fn get_by_id(&self, id: i64) -> Result<Option<Task>> {
+        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.get(&id).cloned())
         }
 
-        async fn get_by_name(&self, name: &str) -> Result<Option<Task>> {
+        async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().find(|t| t.name == name).cloned())
         }
 
-        async fn update(&self, task: &Task) -> Result<()> {
+        async fn update(&self, task: &Task) -> SchedulerResult<()> {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.insert(task.id, task.clone());
             Ok(())
         }
 
-        async fn delete(&self, id: i64) -> Result<()> {
+        async fn delete(&self, id: i64) -> SchedulerResult<()> {
             let mut tasks = self.tasks.lock().unwrap();
             tasks.remove(&id);
             Ok(())
         }
 
-        async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> Result<Vec<Task>> {
+        async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().cloned().collect())
         }
 
-        async fn get_active_tasks(&self) -> Result<Vec<Task>> {
+        async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks
                 .values()
@@ -77,19 +77,19 @@ mod dependency_checker_tests {
         async fn get_schedulable_tasks(
             &self,
             _current_time: chrono::DateTime<Utc>,
-        ) -> Result<Vec<Task>> {
+        ) -> SchedulerResult<Vec<Task>> {
             self.get_active_tasks().await
         }
 
-        async fn check_dependencies(&self, _task_id: i64) -> Result<bool> {
+        async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
             Ok(true)
         }
 
-        async fn get_dependencies(&self, _task_id: i64) -> Result<Vec<Task>> {
+        async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
             Ok(vec![])
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> Result<()> {
+        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
             Ok(())
         }
     }
@@ -117,7 +117,7 @@ mod dependency_checker_tests {
 
     #[async_trait]
     impl TaskRunRepository for MockTaskRunRepository {
-        async fn create(&self, task_run: &TaskRun) -> Result<TaskRun> {
+        async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
             let mut runs = self.task_runs.lock().unwrap();
             let mut next_id = self.next_id.lock().unwrap();
             let mut new_run = task_run.clone();
@@ -129,7 +129,7 @@ mod dependency_checker_tests {
             Ok(new_run)
         }
 
-        async fn get_by_id(&self, id: i64) -> Result<Option<TaskRun>> {
+        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             for task_runs in runs.values() {
                 if let Some(run) = task_runs.iter().find(|r| r.id == id) {
@@ -139,7 +139,7 @@ mod dependency_checker_tests {
             Ok(None)
         }
 
-        async fn update(&self, task_run: &TaskRun) -> Result<()> {
+        async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
             let mut runs = self.task_runs.lock().unwrap();
             if let Some(task_runs) = runs.get_mut(&task_run.task_id) {
                 if let Some(existing_run) = task_runs.iter_mut().find(|r| r.id == task_run.id) {
@@ -149,7 +149,7 @@ mod dependency_checker_tests {
             Ok(())
         }
 
-        async fn delete(&self, id: i64) -> Result<()> {
+        async fn delete(&self, id: i64) -> SchedulerResult<()> {
             let mut runs = self.task_runs.lock().unwrap();
             for task_runs in runs.values_mut() {
                 task_runs.retain(|r| r.id != id);
@@ -157,12 +157,12 @@ mod dependency_checker_tests {
             Ok(())
         }
 
-        async fn get_by_task_id(&self, task_id: i64) -> Result<Vec<TaskRun>> {
+        async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             Ok(runs.get(&task_id).cloned().unwrap_or_default())
         }
 
-        async fn get_by_worker_id(&self, worker_id: &str) -> Result<Vec<TaskRun>> {
+        async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             let mut result = Vec::new();
             for task_runs in runs.values() {
@@ -175,7 +175,7 @@ mod dependency_checker_tests {
             Ok(result)
         }
 
-        async fn get_by_status(&self, status: TaskRunStatus) -> Result<Vec<TaskRun>> {
+        async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             let mut result = Vec::new();
             for task_runs in runs.values() {
@@ -188,11 +188,11 @@ mod dependency_checker_tests {
             Ok(result)
         }
 
-        async fn get_pending_runs(&self, _limit: Option<i64>) -> Result<Vec<TaskRun>> {
+        async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
             self.get_by_status(TaskRunStatus::Pending).await
         }
 
-        async fn get_running_runs(&self) -> Result<Vec<TaskRun>> {
+        async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             let mut result = Vec::new();
             for task_runs in runs.values() {
@@ -205,7 +205,7 @@ mod dependency_checker_tests {
             Ok(result)
         }
 
-        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> Result<Vec<TaskRun>> {
+        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
             Ok(vec![])
         }
 
@@ -214,7 +214,7 @@ mod dependency_checker_tests {
             id: i64,
             status: TaskRunStatus,
             worker_id: Option<&str>,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             let mut runs = self.task_runs.lock().unwrap();
             for task_runs in runs.values_mut() {
                 if let Some(run) = task_runs.iter_mut().find(|r| r.id == id) {
@@ -232,7 +232,7 @@ mod dependency_checker_tests {
             id: i64,
             result: Option<&str>,
             error_message: Option<&str>,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             let mut runs = self.task_runs.lock().unwrap();
             for task_runs in runs.values_mut() {
                 if let Some(run) = task_runs.iter_mut().find(|r| r.id == id) {
@@ -243,7 +243,7 @@ mod dependency_checker_tests {
             Ok(())
         }
 
-        async fn get_recent_runs(&self, task_id: i64, limit: i64) -> Result<Vec<TaskRun>> {
+        async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
             let runs = self.task_runs.lock().unwrap();
             if let Some(task_runs) = runs.get(&task_id) {
                 let mut sorted_runs = task_runs.clone();
@@ -259,11 +259,11 @@ mod dependency_checker_tests {
             &self,
             _task_id: i64,
             _days: i32,
-        ) -> Result<scheduler_core::traits::repository::TaskExecutionStats> {
+        ) -> SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats> {
             todo!()
         }
 
-        async fn cleanup_old_runs(&self, _days: i32) -> Result<u64> {
+        async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
             Ok(0)
         }
 
@@ -271,7 +271,7 @@ mod dependency_checker_tests {
             &self,
             _run_ids: &[i64],
             _status: TaskRunStatus,
-        ) -> Result<()> {
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }

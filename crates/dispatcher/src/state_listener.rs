@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, MessageType, StatusUpdateMessage, TaskRunStatus},
     traits::{MessageQueue, StateListenerService, TaskRunRepository, WorkerRepository},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 
 use crate::retry_service::RetryService;
@@ -64,7 +64,7 @@ impl StateListener {
     }
 
     /// 停止监听器
-    pub async fn stop(&self) -> Result<()> {
+    pub async fn stop(&self) -> SchedulerResult<()> {
         let mut running = self.running.write().await;
         *running = false;
         info!("状态监听器停止信号已发送");
@@ -77,7 +77,7 @@ impl StateListener {
     }
 
     /// 处理心跳消息
-    async fn process_heartbeat_message(&self, message: &Message) -> Result<()> {
+    async fn process_heartbeat_message(&self, message: &Message) -> SchedulerResult<()> {
         if let MessageType::WorkerHeartbeat(heartbeat) = &message.message_type {
             debug!("处理来自 Worker {} 的心跳消息", heartbeat.worker_id);
 
@@ -113,7 +113,7 @@ impl StateListener {
     }
 
     /// 处理消息队列中的消息
-    async fn process_message(&self, message: &Message) -> Result<()> {
+    async fn process_message(&self, message: &Message) -> SchedulerResult<()> {
         match &message.message_type {
             MessageType::StatusUpdate(status_msg) => {
                 self.process_status_update_message(status_msg).await?;
@@ -130,7 +130,7 @@ impl StateListener {
     }
 
     /// 处理状态更新消息的内部实现
-    async fn process_status_update_message(&self, status_msg: &StatusUpdateMessage) -> Result<()> {
+    async fn process_status_update_message(&self, status_msg: &StatusUpdateMessage) -> SchedulerResult<()> {
         debug!(
             "处理任务运行 {} 的状态更新: {:?}",
             status_msg.task_run_id, status_msg.status
@@ -312,7 +312,7 @@ impl StateListener {
     }
 
     /// 监听指定队列的消息
-    async fn listen_queue(&self, queue_name: &str) -> Result<()> {
+    async fn listen_queue(&self, queue_name: &str) -> SchedulerResult<()> {
         info!("开始监听队列: {}", queue_name);
 
         loop {
@@ -355,7 +355,7 @@ impl StateListener {
 #[async_trait]
 impl StateListenerService for StateListener {
     /// 监听状态更新
-    async fn listen_for_updates(&self) -> Result<()> {
+    async fn listen_for_updates(&self) -> SchedulerResult<()> {
         info!("启动状态监听服务");
 
         // 设置运行状态
@@ -435,7 +435,7 @@ impl StateListenerService for StateListener {
         status: TaskRunStatus,
         result: Option<String>,
         error_message: Option<String>,
-    ) -> Result<()> {
+    ) -> SchedulerResult<()> {
         debug!("处理任务运行 {} 的状态更新: {:?}", task_run_id, status);
 
         // 检查任务运行是否存在

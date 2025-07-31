@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, TaskExecutionMessage, TaskRun, TaskRunStatus},
     traits::{MessageQueue, TaskRepository, TaskRunRepository},
-    Result, SchedulerError,
+    SchedulerResult, SchedulerError,
 };
 
 /// 重试策略配置
@@ -39,16 +39,16 @@ impl Default for RetryConfig {
 #[async_trait]
 pub trait RetryService: Send + Sync {
     /// 处理失败的任务，决定是否重试
-    async fn handle_failed_task(&self, task_run_id: i64) -> Result<bool>;
+    async fn handle_failed_task(&self, task_run_id: i64) -> SchedulerResult<bool>;
 
     /// 处理超时的任务，决定是否重试
-    async fn handle_timeout_task(&self, task_run_id: i64) -> Result<bool>;
+    async fn handle_timeout_task(&self, task_run_id: i64) -> SchedulerResult<bool>;
 
     /// 处理Worker失效时的任务重新分配
-    async fn handle_worker_failure(&self, worker_id: &str) -> Result<Vec<TaskRun>>;
+    async fn handle_worker_failure(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 扫描需要重试的任务
-    async fn scan_retry_tasks(&self) -> Result<Vec<TaskRun>>;
+    async fn scan_retry_tasks(&self) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 计算下次重试时间
     fn calculate_next_retry_time(&self, retry_count: i32) -> DateTime<Utc>;
@@ -82,7 +82,7 @@ impl TaskRetryService {
     }
 
     /// 检查任务是否可以重试
-    async fn can_retry(&self, task_run: &TaskRun) -> Result<bool> {
+    async fn can_retry(&self, task_run: &TaskRun) -> SchedulerResult<bool> {
         // 获取任务定义
         let task = self
             .task_repo
@@ -114,7 +114,7 @@ impl TaskRetryService {
     }
 
     /// 创建重试任务运行实例
-    async fn create_retry_task_run(&self, original_run: &TaskRun) -> Result<TaskRun> {
+    async fn create_retry_task_run(&self, original_run: &TaskRun) -> SchedulerResult<TaskRun> {
         let next_retry_time = self.calculate_next_retry_time(original_run.retry_count);
 
         let mut retry_run = TaskRun::new(original_run.task_id, next_retry_time);
@@ -136,7 +136,7 @@ impl TaskRetryService {
     }
 
     /// 分发重试任务到消息队列
-    async fn dispatch_retry_task(&self, task_run: &TaskRun) -> Result<()> {
+    async fn dispatch_retry_task(&self, task_run: &TaskRun) -> SchedulerResult<()> {
         // 获取任务信息
         let task = self
             .task_repo
@@ -176,7 +176,7 @@ impl TaskRetryService {
     }
 
     /// 处理Worker失效的任务
-    async fn reassign_worker_tasks(&self, worker_id: &str) -> Result<Vec<TaskRun>> {
+    async fn reassign_worker_tasks(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始处理失效Worker {} 的任务重新分配", worker_id);
 
         // 获取该Worker上正在运行的任务
@@ -247,7 +247,7 @@ impl TaskRetryService {
 #[async_trait]
 impl RetryService for TaskRetryService {
     /// 处理失败的任务，决定是否重试
-    async fn handle_failed_task(&self, task_run_id: i64) -> Result<bool> {
+    async fn handle_failed_task(&self, task_run_id: i64) -> SchedulerResult<bool> {
         debug!("处理失败任务的重试逻辑: {}", task_run_id);
 
         // 获取任务运行实例
@@ -282,7 +282,7 @@ impl RetryService for TaskRetryService {
     }
 
     /// 处理超时的任务，决定是否重试
-    async fn handle_timeout_task(&self, task_run_id: i64) -> Result<bool> {
+    async fn handle_timeout_task(&self, task_run_id: i64) -> SchedulerResult<bool> {
         debug!("处理超时任务的重试逻辑: {}", task_run_id);
 
         // 获取任务运行实例
@@ -317,12 +317,12 @@ impl RetryService for TaskRetryService {
     }
 
     /// 处理Worker失效时的任务重新分配
-    async fn handle_worker_failure(&self, worker_id: &str) -> Result<Vec<TaskRun>> {
+    async fn handle_worker_failure(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
         self.reassign_worker_tasks(worker_id).await
     }
 
     /// 扫描需要重试的任务
-    async fn scan_retry_tasks(&self) -> Result<Vec<TaskRun>> {
+    async fn scan_retry_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         debug!("扫描需要重试的任务");
 
         let now = Utc::now();
