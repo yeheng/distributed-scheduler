@@ -245,7 +245,7 @@ async fn test_worker_repository_integration() {
 
     let heartbeat_updated_worker = repo.get_by_id(&worker.id).await.unwrap().unwrap();
     // current_task_count is calculated from running tasks, not stored directly
-    assert_eq!(heartbeat_updated_worker.current_task_count, 0);
+    assert_eq!(heartbeat_updated_worker.current_task_count, 3);
     // 注意：由于时间精度问题，这里只检查心跳时间是否更新了
     assert!(heartbeat_updated_worker.last_heartbeat >= worker.last_heartbeat);
 

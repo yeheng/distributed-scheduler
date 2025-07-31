@@ -2,7 +2,6 @@ use std::collections::HashMap;
 use std::fs;
 use std::path::PathBuf;
 use std::sync::Arc;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::{SystemTime, UNIX_EPOCH};
 
 use serde::{Deserialize, Serialize};
@@ -75,10 +74,14 @@ impl BasicConfigValidator {
     }
 
     /// Get nested value from configuration using dot notation
-    fn get_nested_value<'a>(&self, config: &'a serde_json::Value, key: &str) -> Option<&'a serde_json::Value> {
+    fn get_nested_value<'a>(
+        &self,
+        config: &'a serde_json::Value,
+        key: &str,
+    ) -> Option<&'a serde_json::Value> {
         let keys: Vec<&str> = key.split('.').collect();
         let mut current = config;
-        
+
         for k in &keys {
             match current {
                 serde_json::Value::Object(map) => {
@@ -91,7 +94,7 @@ impl BasicConfigValidator {
                 _ => return None,
             }
         }
-        
+
         Some(current)
     }
 
@@ -400,11 +403,13 @@ impl SimpleEnhancedConfigManager {
                             // Simple case: server.port -> {server: {port: value}}
                             let parent_key = parts[0];
                             let child_key = parts[1];
-                            
+
                             // Get or create parent object
-                            let parent_obj = base_map.entry(parent_key.to_string())
-                                .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
-                            
+                            let parent_obj =
+                                base_map.entry(parent_key.to_string()).or_insert_with(|| {
+                                    serde_json::Value::Object(serde_json::Map::new())
+                                });
+
                             if let serde_json::Value::Object(parent_map) = parent_obj {
                                 parent_map.insert(child_key.to_string(), value);
                             }
@@ -414,13 +419,14 @@ impl SimpleEnhancedConfigManager {
                         }
                     } else {
                         // Handle nested merge for non-flat keys
-                        if let (Some(base_value), serde_json::Value::Object(override_obj)) = 
-                            (base_map.get(&key), &value) {
+                        if let (Some(base_value), serde_json::Value::Object(override_obj)) =
+                            (base_map.get(&key), &value)
+                        {
                             if let serde_json::Value::Object(base_obj) = base_value {
                                 // Recursively merge nested objects
                                 let merged = self.merge_configs(
                                     serde_json::Value::Object(base_obj.clone()),
-                                    serde_json::Value::Object(override_obj.clone())
+                                    serde_json::Value::Object(override_obj.clone()),
                                 );
                                 base_map.insert(key, merged);
                                 continue;
@@ -452,12 +458,12 @@ impl SimpleEnhancedConfigManager {
         T: serde::de::DeserializeOwned,
     {
         let config = self.config.read().await;
-        
+
         // First try nested traversal
         let keys: Vec<&str> = key.split('.').collect();
         let mut current = &*config;
         let mut found_nested = true;
-        
+
         for k in &keys {
             match current {
                 serde_json::Value::Object(map) => {
@@ -474,23 +480,29 @@ impl SimpleEnhancedConfigManager {
                 }
             }
         }
-        
+
         if found_nested {
             return T::deserialize(current).map_err(|e| {
-                SchedulerError::Configuration(format!("Failed to deserialize value for key {key}: {e}"))
+                SchedulerError::Configuration(format!(
+                    "Failed to deserialize value for key {key}: {e}"
+                ))
             });
         }
-        
+
         // If nested traversal failed, try flat key lookup
         if let serde_json::Value::Object(map) = &*config {
             if let Some(value) = map.get(key) {
                 return T::deserialize(value).map_err(|e| {
-                    SchedulerError::Configuration(format!("Failed to deserialize value for key {key}: {e}"))
+                    SchedulerError::Configuration(format!(
+                        "Failed to deserialize value for key {key}: {e}"
+                    ))
                 });
             }
         }
-        
-        Err(SchedulerError::Configuration(format!("Key not found: {key}")))
+
+        Err(SchedulerError::Configuration(format!(
+            "Key not found: {key}"
+        )))
     }
 
     /// Get configuration value with default
@@ -539,7 +551,7 @@ impl SimpleEnhancedConfigManager {
             if let Some(nested_value) = map.get(prefix) {
                 return Ok(nested_value.clone());
             }
-            
+
             // If no direct nested object, collect all keys that start with the prefix
             let mut result_map = serde_json::Map::new();
             for (key, value) in map {
@@ -723,7 +735,10 @@ pub mod validators {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::io::Write;
+    use std::{
+        io::Write,
+        sync::atomic::{AtomicBool, Ordering},
+    };
     use tempfile::NamedTempFile;
 
     #[tokio::test]
@@ -873,6 +888,7 @@ mod tests {
         assert_eq!(port, 9000); // From environment
 
         // Cleanup
+        std::env::remove_var("TEST_SERVER_HOST");
         std::env::remove_var("TEST_SERVER_PORT");
     }
 
