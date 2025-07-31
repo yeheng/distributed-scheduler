@@ -26,9 +26,9 @@ tracing-opentelemetry = { workspace = true }
 tracing-subscriber = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
-redis = { version = "0.23", features = ["tokio-comp", "connection-manager"] }
+redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }
 url = "2.4"
 
 [dev-dependencies]
-testcontainers = {workspace = true}
-testcontainers-modules = { workspace = true, features = ["rabbitmq"] }
+testcontainers = { workspace = true }
+testcontainers-modules = { workspace = true, features = ["rabbitmq", "redis"] }

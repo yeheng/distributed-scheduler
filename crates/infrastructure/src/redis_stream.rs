@@ -431,34 +431,34 @@ impl RedisStreamMessageQueue {
         for stream_data in result {
             if stream_data.len() >= 2 {
                 // stream_data[0] 是stream名称，stream_data[1] 是消息列表
-                if let redis::Value::Bulk(entries) = &stream_data[1] {
+                if let redis::Value::Array(entries) = &stream_data[1] {
                     // 解析Stream条目
                     for entry in entries {
-                        if let redis::Value::Bulk(entry_parts) = entry {
+                        if let redis::Value::Array(entry_parts) = entry {
                             if entry_parts.len() >= 2 {
                                 // entry_parts[0] 是消息ID，entry_parts[1] 是字段列表
                                 let stream_message_id = match &entry_parts[0] {
-                                    redis::Value::Data(id_bytes) => {
+                                    redis::Value::BulkString(id_bytes) => {
                                         String::from_utf8_lossy(id_bytes).to_string()
                                     }
                                     _ => continue,
                                 };
 
-                                if let redis::Value::Bulk(fields) = &entry_parts[1] {
+                                if let redis::Value::Array(fields) = &entry_parts[1] {
                                     // 解析字段键值对
                                     let mut field_map = std::collections::HashMap::new();
 
                                     for i in (0..fields.len()).step_by(2) {
                                         if i + 1 < fields.len() {
                                             let key = match &fields[i] {
-                                                redis::Value::Data(key_bytes) => {
+                                                redis::Value::BulkString(key_bytes) => {
                                                     String::from_utf8_lossy(key_bytes).to_string()
                                                 }
                                                 _ => continue,
                                             };
 
                                             let value = match &fields[i + 1] {
-                                                redis::Value::Data(value_bytes) => {
+                                                redis::Value::BulkString(value_bytes) => {
                                                     String::from_utf8_lossy(value_bytes).to_string()
                                                 }
                                                 _ => continue,
@@ -930,21 +930,21 @@ impl MessageQueue for RedisStreamMessageQueue {
                 })?;
 
             // 解析消息内容并重新发布
-            if let Some(redis::Value::Bulk(entry_parts)) = message_data.first() {
+            if let Some(redis::Value::Array(entry_parts)) = message_data.first() {
                 if entry_parts.len() >= 2 {
-                    if let redis::Value::Bulk(fields) = &entry_parts[1] {
+                    if let redis::Value::Array(fields) = &entry_parts[1] {
                         // 解析字段
                         let mut field_map = std::collections::HashMap::new();
                         for i in (0..fields.len()).step_by(2) {
                             if i + 1 < fields.len() {
                                 let key = match &fields[i] {
-                                    redis::Value::Data(key_bytes) => {
+                                    redis::Value::BulkString(key_bytes) => {
                                         String::from_utf8_lossy(key_bytes).to_string()
                                     }
                                     _ => continue,
                                 };
                                 let value = match &fields[i + 1] {
-                                    redis::Value::Data(value_bytes) => {
+                                    redis::Value::BulkString(value_bytes) => {
                                         String::from_utf8_lossy(value_bytes).to_string()
                                     }
                                     _ => continue,

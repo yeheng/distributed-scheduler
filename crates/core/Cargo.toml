@@ -20,6 +20,9 @@ rand = "0.9"
 
 [dev-dependencies]
 tempfile = {workspace = true}
+scheduler-infrastructure = { path = "../infrastructure" }
+testcontainers = {workspace = true}
+testcontainers-modules = { workspace = true, features = ["postgres"] }
 
 [[example]]
 name = "config_usage"
