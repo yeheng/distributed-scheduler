@@ -30,6 +30,9 @@ pub enum ConfigValidationError {
     SchemaError { message: String },
 }
 
+/// Type alias for custom validator function to reduce type complexity
+pub type CustomValidator = Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>;
+
 /// Configuration validation trait
 pub trait ConfigValidator: Send + Sync {
     /// Validate configuration

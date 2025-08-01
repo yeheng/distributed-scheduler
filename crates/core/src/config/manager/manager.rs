@@ -357,15 +357,18 @@ impl UnifiedConfigManager {
         Ok(())
     }
 
-    // Accessor methods for builder
+    // Accessor methods for builder (test-only)
+    #[cfg(test)]
     pub(crate) fn sources(&self) -> &[ConfigSource] {
         &self.sources
     }
 
+    #[cfg(test)]
     pub(crate) fn validators(&self) -> &[Box<dyn ConfigValidator>] {
         &self.validators
     }
 
+    #[cfg(test)]
     pub(crate) fn reload_strategy(&self) -> &ReloadStrategy {
         &self.reload_strategy
     }

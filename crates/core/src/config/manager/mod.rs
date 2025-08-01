@@ -43,6 +43,10 @@
 //! ```
 
 pub mod builder;
+pub mod config_callback_manager;
+pub mod config_hot_reload_manager;
+pub mod config_loader;
+pub mod config_metadata_manager;
 pub mod manager;
 pub mod metadata;
 pub mod reloading;
