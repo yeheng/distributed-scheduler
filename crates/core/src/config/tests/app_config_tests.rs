@@ -78,7 +78,7 @@ log_level = "debug"
 fn test_config_to_toml() {
     let config = AppConfig::default();
     let toml_str = config.to_toml().unwrap();
-    
+
     // Should be valid TOML that can be parsed back
     let parsed_config = AppConfig::from_toml(&toml_str).unwrap();
     assert_eq!(config.database.url, parsed_config.database.url);

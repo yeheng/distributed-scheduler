@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
-    SchedulerResult,
     errors::SchedulerError,
     models::{Task, TaskFilter, TaskStatus},
     traits::TaskRepository,
+    SchedulerResult,
 };
 use sqlx::{PgPool, Row};
 use tracing::debug;
@@ -251,7 +251,10 @@ impl TaskRepository for PostgresTaskRepository {
     }
 
     /// 获取需要调度的任务（活跃且到达调度时间）
-    async fn get_schedulable_tasks(&self, _current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>> {
+    async fn get_schedulable_tasks(
+        &self,
+        _current_time: DateTime<Utc>,
+    ) -> SchedulerResult<Vec<Task>> {
         // 这里简化实现，实际应该解析cron表达式判断是否到达调度时间
         self.get_active_tasks().await
     }
@@ -313,7 +316,11 @@ impl TaskRepository for PostgresTaskRepository {
     }
 
     /// 批量更新任务状态
-    async fn batch_update_status(&self, task_ids: &[i64], status: TaskStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        task_ids: &[i64],
+        status: TaskStatus,
+    ) -> SchedulerResult<()> {
         if task_ids.is_empty() {
             return Ok(());
         }

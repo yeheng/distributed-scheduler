@@ -46,9 +46,7 @@ pub struct BasicConfigValidator {
     field_types: HashMap<String, String>,
     custom_validators: HashMap<
         String,
-        Box<
-            dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync,
-        >,
+        Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>,
     >,
 }
 
@@ -105,7 +103,7 @@ impl ConfigValidator for BasicConfigValidator {
     fn validate(&self, config: &Value) -> std::result::Result<(), ConfigValidationError> {
         // Check required fields
         for field in &self.required_fields {
-            if !self.get_nested_value(config, field).is_some() {
+            if self.get_nested_value(config, field).is_none() {
                 return Err(ConfigValidationError::RequiredFieldMissing {
                     field: field.clone(),
                 });
@@ -168,7 +166,7 @@ impl ConfigValidator for SchemaValidator {
             if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
                 for field in required {
                     if let Some(field_str) = field.as_str() {
-                        if !config.get(field_str).is_some() {
+                        if config.get(field_str).is_none() {
                             return Err(ConfigValidationError::RequiredFieldMissing {
                                 field: field_str.to_string(),
                             });

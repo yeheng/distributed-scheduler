@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus},
     traits::{MessageQueue, TaskControlService, TaskRepository, TaskRunRepository},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 
 /// 任务控制器实现
@@ -320,7 +320,10 @@ impl TaskControlService for TaskController {
 
 impl TaskController {
     /// 获取任务的当前运行状态统计
-    pub async fn get_task_status_summary(&self, task_id: i64) -> SchedulerResult<TaskStatusSummary> {
+    pub async fn get_task_status_summary(
+        &self,
+        task_id: i64,
+    ) -> SchedulerResult<TaskStatusSummary> {
         let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
 
         let mut summary = TaskStatusSummary::default();
@@ -376,7 +379,11 @@ impl TaskController {
     }
 
     /// 获取任务的最近执行历史
-    pub async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>> {
+    pub async fn get_recent_executions(
+        &self,
+        task_id: i64,
+        limit: usize,
+    ) -> SchedulerResult<Vec<TaskRun>> {
         let recent_runs = self
             .task_run_repo
             .get_recent_runs(task_id, limit as i64)

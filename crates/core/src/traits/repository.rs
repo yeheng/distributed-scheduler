@@ -1,5 +1,5 @@
-use crate::SchedulerResult;
 use crate::models::{Task, TaskFilter, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+use crate::SchedulerResult;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 
@@ -28,7 +28,10 @@ pub trait TaskRepository: Send + Sync {
     async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>>;
 
     /// 获取需要调度的任务（活跃且到达调度时间）
-    async fn get_schedulable_tasks(&self, current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>>;
+    async fn get_schedulable_tasks(
+        &self,
+        current_time: DateTime<Utc>,
+    ) -> SchedulerResult<Vec<Task>>;
 
     /// 检查任务依赖是否满足
     async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool>;
@@ -97,13 +100,21 @@ pub trait TaskRunRepository: Send + Sync {
     async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>>;
 
     /// 获取任务执行统计信息
-    async fn get_execution_stats(&self, task_id: i64, days: i32) -> SchedulerResult<TaskExecutionStats>;
+    async fn get_execution_stats(
+        &self,
+        task_id: i64,
+        days: i32,
+    ) -> SchedulerResult<TaskExecutionStats>;
 
     /// 清理过期的任务执行记录
     async fn cleanup_old_runs(&self, days: i32) -> SchedulerResult<u64>;
 
     /// 批量更新任务执行状态
-    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> SchedulerResult<()>;
+    async fn batch_update_status(
+        &self,
+        run_ids: &[i64],
+        status: TaskRunStatus,
+    ) -> SchedulerResult<()>;
 }
 
 /// Worker仓储接口
@@ -151,7 +162,11 @@ pub trait WorkerRepository: Send + Sync {
     async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>>;
 
     /// 批量更新Worker状态
-    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> SchedulerResult<()>;
+    async fn batch_update_status(
+        &self,
+        worker_ids: &[String],
+        status: WorkerStatus,
+    ) -> SchedulerResult<()>;
 }
 
 /// 任务执行统计信息

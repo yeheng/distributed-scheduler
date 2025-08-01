@@ -5,7 +5,7 @@ use chrono::Utc;
 use scheduler_core::{
     models::{TaskExecutionMessage, TaskRun, TaskRunStatus},
     traits::{ExecutorRegistry, TaskExecutionContextTrait},
-    ResourceLimits, SchedulerResult, SchedulerError,
+    ResourceLimits, SchedulerError, SchedulerResult,
 };
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};

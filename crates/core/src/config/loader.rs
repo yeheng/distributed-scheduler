@@ -51,29 +51,38 @@ impl FileConfigLoader {
         }
     }
 
-    pub fn with_validator(mut self, validator: Box<dyn super::validation::ConfigValidator>) -> Self {
+    pub fn with_validator(
+        mut self,
+        validator: Box<dyn super::validation::ConfigValidator>,
+    ) -> Self {
         self.validators.push(validator);
         self
     }
 
     fn load_toml_file(&self, path: &Path) -> SchedulerResult<HashMap<String, ConfigValue>> {
         let content = fs::read_to_string(path)
-            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {}", e)))?;
-        
-        let config: HashMap<String, serde_json::Value> = toml::from_str(&content)
-            .map_err(|e| SchedulerError::Configuration(format!("TOML parse error: {}", e)))?;
+            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {e}")))?;
 
-        self.convert_to_config_values(config, ConfigSource::File(path.to_string_lossy().to_string()))
+        let config: HashMap<String, serde_json::Value> = toml::from_str(&content)
+            .map_err(|e| SchedulerError::Configuration(format!("TOML parse error: {e}")))?;
+
+        self.convert_to_config_values(
+            config,
+            ConfigSource::File(path.to_string_lossy().to_string()),
+        )
     }
 
     fn load_json_file(&self, path: &Path) -> SchedulerResult<HashMap<String, ConfigValue>> {
         let content = fs::read_to_string(path)
-            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {}", e)))?;
-        
-        let config: HashMap<String, serde_json::Value> = serde_json::from_str(&content)
-            .map_err(|e| SchedulerError::Configuration(format!("JSON parse error: {}", e)))?;
+            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {e}")))?;
 
-        self.convert_to_config_values(config, ConfigSource::File(path.to_string_lossy().to_string()))
+        let config: HashMap<String, serde_json::Value> = serde_json::from_str(&content)
+            .map_err(|e| SchedulerError::Configuration(format!("JSON parse error: {e}")))?;
+
+        self.convert_to_config_values(
+            config,
+            ConfigSource::File(path.to_string_lossy().to_string()),
+        )
     }
 
     fn convert_to_config_values(
@@ -85,20 +94,27 @@ impl FileConfigLoader {
         let timestamp = std::time::SystemTime::now();
 
         for (key, value) in config {
-            result.insert(key, ConfigValue {
-                value,
-                source: source.clone(),
-                last_updated: timestamp,
-            });
+            result.insert(
+                key,
+                ConfigValue {
+                    value,
+                    source: source.clone(),
+                    last_updated: timestamp,
+                },
+            );
         }
 
         // Validate configuration
         for validator in &self.validators {
-            let config_json = serde_json::to_value(result.clone())
-                .map_err(|e| SchedulerError::Configuration(format!("Failed to serialize config for validation: {}", e)))?;
-            
-            validator.validate(&config_json)
-                .map_err(|e| SchedulerError::Configuration(format!("Validation failed: {}", e)))?;
+            let config_json = serde_json::to_value(result.clone()).map_err(|e| {
+                SchedulerError::Configuration(format!(
+                    "Failed to serialize config for validation: {e}"
+                ))
+            })?;
+
+            validator
+                .validate(&config_json)
+                .map_err(|e| SchedulerError::Configuration(format!("Validation failed: {e}")))?;
         }
 
         Ok(result)
@@ -111,15 +127,19 @@ impl ConfigLoader for FileConfigLoader {
             ConfigSource::File(path) => {
                 let path = Path::new(path);
                 let extension = path.extension().and_then(|ext| ext.to_str()).unwrap_or("");
-                
+
                 match extension {
                     "toml" => self.load_toml_file(path),
                     "json" => self.load_json_file(path),
-                    _ => Err(SchedulerError::Configuration(format!("Unsupported file format: {}", extension))),
+                    _ => Err(SchedulerError::Configuration(format!(
+                        "Unsupported file format: {extension}"
+                    ))),
                 }
             }
             ConfigSource::Environment => self.load_from_env("APP_"),
-            _ => Err(SchedulerError::Configuration("Unsupported config source".to_string())),
+            _ => Err(SchedulerError::Configuration(
+                "Unsupported config source".to_string(),
+            )),
         }
     }
 
@@ -136,12 +156,15 @@ impl ConfigLoader for FileConfigLoader {
             if key.starts_with(prefix) {
                 let config_key = key[prefix.len()..].to_lowercase().replace('_', ".");
                 let json_value = serde_json::Value::String(value);
-                
-                result.insert(config_key, ConfigValue {
-                    value: json_value,
-                    source: ConfigSource::Environment,
-                    last_updated: timestamp,
-                });
+
+                result.insert(
+                    config_key,
+                    ConfigValue {
+                        value: json_value,
+                        source: ConfigSource::Environment,
+                        last_updated: timestamp,
+                    },
+                );
             }
         }
 
@@ -194,7 +217,7 @@ impl MultiSourceLoader {
 
         for loader in &self.loaders {
             let config = loader.load(&ConfigSource::Default)?;
-            
+
             match self.merge_strategy {
                 MergeStrategy::FirstWins => {
                     for (key, value) in config {
@@ -225,7 +248,11 @@ impl MultiSourceLoader {
         Ok(result)
     }
 
-    fn deep_merge(&self, base: &serde_json::Value, override_val: &serde_json::Value) -> Option<serde_json::Value> {
+    fn deep_merge(
+        &self,
+        base: &serde_json::Value,
+        override_val: &serde_json::Value,
+    ) -> Option<serde_json::Value> {
         match (base, override_val) {
             (serde_json::Value::Object(base_map), serde_json::Value::Object(override_map)) => {
                 let mut merged = base_map.clone();

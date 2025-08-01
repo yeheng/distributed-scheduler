@@ -4,10 +4,10 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 
 use super::{
-    database::DatabaseConfig,
-    message_queue::MessageQueueConfig,
-    dispatcher_worker::{DispatcherConfig, WorkerConfig},
     api_observability::{ApiConfig, ObservabilityConfig},
+    database::DatabaseConfig,
+    dispatcher_worker::{DispatcherConfig, WorkerConfig},
+    message_queue::MessageQueueConfig,
 };
 
 /// System configuration

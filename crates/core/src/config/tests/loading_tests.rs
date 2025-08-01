@@ -1,7 +1,7 @@
-use std::env;
-use tempfile::NamedTempFile;
-use std::io::Write;
 use crate::config::models::AppConfig;
+use std::env;
+use std::io::Write;
+use tempfile::NamedTempFile;
 
 #[test]
 fn test_config_environment_override() {
@@ -73,7 +73,7 @@ metrics_enabled = true
 metrics_endpoint = "/metrics"
 log_level = "info"
 "#;
-    
+
     temp_file.write_all(config_content.as_bytes()).unwrap();
     let config_path = temp_file.path().to_string_lossy().to_string();
 

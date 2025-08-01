@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
-    SchedulerResult,
     errors::SchedulerError,
     models::{WorkerInfo, WorkerStatus},
     traits::{WorkerLoadStats, WorkerRepository},
+    SchedulerResult,
 };
 use sqlx::{PgPool, Row};
 use tracing::debug;
@@ -380,7 +380,11 @@ impl WorkerRepository for PostgresWorkerRepository {
     }
 
     /// 批量更新Worker状态
-    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        worker_ids: &[String],
+        status: WorkerStatus,
+    ) -> SchedulerResult<()> {
         if worker_ids.is_empty() {
             return Ok(());
         }

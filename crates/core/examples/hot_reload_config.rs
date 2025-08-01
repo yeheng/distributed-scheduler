@@ -3,14 +3,14 @@
 //! 此示例展示了如何使用配置系统的热重载功能来实现运行时配置更新。
 //! 它演示了文件监控、定期重载、配置变更回调等功能。
 
+use scheduler_core::config::hot_reload::{ConfigChangeEvent, HotReloadManager};
 use scheduler_core::config::manager::{ConfigBuilder, ConfigSource, ReloadStrategy};
-use scheduler_core::config::hot_reload::{HotReloadManager, ConfigChangeEvent};
+use serde_json::Value;
+use std::io::Write;
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::NamedTempFile;
-use std::io::Write;
 use tokio::sync::RwLock;
-use serde_json::Value;
 
 /// 应用状态管理器
 #[derive(Clone)]
@@ -32,10 +32,10 @@ impl AppState {
     async fn update_config(&self, new_config: Value) {
         let mut config = self.config.write().await;
         *config = new_config;
-        
+
         let mut count = self.reload_count.write().await;
         *count += 1;
-        
+
         let mut last_reload = self.last_reload.write().await;
         *last_reload = std::time::SystemTime::now();
     }
@@ -51,12 +51,11 @@ impl AppState {
 
 /// 配置变更处理器
 #[derive(Clone)]
-struct ConfigHandler {
-}
+struct ConfigHandler {}
 
 impl ConfigHandler {
     fn new(_app_state: AppState) -> Self {
-        Self {  }
+        Self {}
     }
 
     /// 处理配置变更
@@ -65,17 +64,17 @@ impl ConfigHandler {
         println!("   变更时间: {:?}", event.timestamp);
         println!("   变更键: {}", event.key);
         println!("   变更源: {:?}", event.source);
-        
+
         if let Some(new_value) = &event.new_value {
             // 注意：这里简化了状态更新，实际应用中需要更复杂的逻辑
             println!("   新值: {}", new_value.value);
             println!("   配置已更新");
         }
-        
+
         if let Some(old_value) = &event.old_value {
             println!("   旧值: {}", old_value.value);
         }
-        
+
         println!("   {}", "-".repeat(50));
     }
 }
@@ -90,7 +89,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 2. 创建临时配置文件
     println!("1. 创建配置文件:");
-    
+
     let mut temp_file = NamedTempFile::new()?;
     let initial_config = r#"
 {
@@ -116,19 +115,21 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 "#;
-    
+
     temp_file.write_all(initial_config.as_bytes())?;
     let file_path = temp_file.path().to_path_buf();
     println!("   ✓ 配置文件已创建: {}", file_path.display());
 
     // 3. 创建热重载管理器
     println!("\n2. 创建热重载管理器:");
-    
+
     // 创建文件监控器
     use scheduler_core::config::hot_reload::FileConfigWatcher;
-    let file_watcher = Box::new(FileConfigWatcher::new(file_path.clone().to_string_lossy().to_string())
-        .with_polling_interval(Duration::from_millis(1000)));
-    
+    let file_watcher = Box::new(
+        FileConfigWatcher::new(file_path.clone().to_string_lossy().to_string())
+            .with_polling_interval(Duration::from_millis(1000)),
+    );
+
     let hot_reload_manager = HotReloadManager::new()
         .add_watcher(file_watcher)
         .add_callback({
@@ -137,7 +138,7 @@ async fn main() -> anyhow::Result<()> {
                 handler.handle_config_change(event);
             }
         });
-    
+
     // Start the hot reload manager
     hot_reload_manager.start().await?;
 
@@ -147,7 +148,7 @@ async fn main() -> anyhow::Result<()> {
 
     // 4. 创建配置管理器（使用定期重载策略）
     println!("\n3. 创建配置管理器:");
-    
+
     let manager = ConfigBuilder::new()
         .add_source(ConfigSource::File {
             path: file_path.clone(),
@@ -161,8 +162,8 @@ async fn main() -> anyhow::Result<()> {
                 }
             }),
         })
-        .with_reload_strategy(ReloadStrategy::Periodic { 
-            interval_seconds: 5 
+        .with_reload_strategy(ReloadStrategy::Periodic {
+            interval_seconds: 5,
         })
         .add_callback({
             let app_state = app_state.clone();
@@ -184,19 +185,19 @@ async fn main() -> anyhow::Result<()> {
 
     // 5. 显示初始配置
     println!("\n4. 初始配置状态:");
-    
+
     let server_host: String = manager.get("server.host").await?;
     let server_port: u16 = manager.get("server.port").await?;
     let app_name: String = manager.get("app.name").await?;
     let debug_mode: bool = manager.get("server.debug").await?;
-    
+
     println!("   服务器: {}:{}", server_host, server_port);
     println!("   应用名称: {}", app_name);
     println!("   调试模式: {}", debug_mode);
 
     // 6. 模拟配置文件变更
     println!("\n5. 模拟配置文件变更:");
-    
+
     // 等待用户确认
     println!("   请等待，将在3秒后开始修改配置文件...");
     tokio::time::sleep(Duration::from_secs(3)).await;
@@ -227,14 +228,14 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 "#;
-    
+
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(&file_path)?;
     file.write_all(modified_config_1.as_bytes())?;
     drop(file);
-    
+
     println!("   ✓ 配置文件已修改 (端口: 9000, 工作线程: 8)");
     println!("   等待热重载触发...");
 
@@ -245,16 +246,16 @@ async fn main() -> anyhow::Result<()> {
     let updated_host: String = manager.get("server.host").await?;
     let updated_port: u16 = manager.get("server.port").await?;
     let updated_workers: usize = manager.get("server.workers").await?;
-    
+
     println!("   更新后的配置:");
     println!("     服务器: {}:{}", updated_host, updated_port);
     println!("     工作线程: {}", updated_workers);
 
     // 第二次修改
     println!("\n   🔧 第二次修改配置文件:");
-    
+
     tokio::time::sleep(Duration::from_secs(2)).await;
-    
+
     let modified_config_2 = r#"
 {
     "server": {
@@ -283,14 +284,14 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 "#;
-    
+
     let mut file = std::fs::OpenOptions::new()
         .write(true)
         .truncate(true)
         .open(&file_path)?;
     file.write_all(modified_config_2.as_bytes())?;
     drop(file);
-    
+
     println!("   ✓ 配置文件已修改 (生产环境配置)");
     println!("   等待热重载触发...");
 
@@ -302,14 +303,14 @@ async fn main() -> anyhow::Result<()> {
     let final_port: u16 = manager.get("server.port").await?;
     let final_app_name: String = manager.get("app.name").await?;
     let final_version: String = manager.get("app.version").await?;
-    
+
     println!("   最终配置:");
     println!("     服务器: {}:{}", final_host, final_port);
     println!("     应用: {} v{}", final_app_name, final_version);
 
     // 7. 测试手动重载
     println!("\n6. 测试手动重载:");
-    
+
     // 创建另一个配置文件用于手动重载测试
     let mut temp_file2 = NamedTempFile::new()?;
     let manual_config = r#"
@@ -326,10 +327,10 @@ async fn main() -> anyhow::Result<()> {
     }
 }
 "#;
-    
+
     temp_file2.write_all(manual_config.as_bytes())?;
     let manual_file_path = temp_file2.path().to_path_buf();
-    
+
     // 创建手动重载的配置管理器
     let manual_manager = ConfigBuilder::new()
         .add_source(ConfigSource::File {
@@ -339,12 +340,12 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     manual_manager.load().await?;
-    
+
     let manual_host: String = manual_manager.get("server.host").await?;
     let manual_port: u16 = manual_manager.get("server.port").await?;
-    
+
     println!("   手动重载前: {}:{}", manual_host, manual_port);
-    
+
     // 修改文件
     let mut file = std::fs::OpenOptions::new()
         .write(true)
@@ -366,30 +367,36 @@ async fn main() -> anyhow::Result<()> {
 "#;
     file.write_all(updated_manual_config.as_bytes())?;
     drop(file);
-    
-    println!("   手动配置文件已修改"); 
-    
+
+    println!("   手动配置文件已修改");
+
     // 手动触发重载
     manual_manager.reload().await?;
-    
+
     let updated_manual_host: String = manual_manager.get("server.host").await?;
     let updated_manual_port: u16 = manual_manager.get("server.port").await?;
-    
-    println!("   手动重载后: {}:{}", updated_manual_host, updated_manual_port);
+
+    println!(
+        "   手动重载后: {}:{}",
+        updated_manual_host, updated_manual_port
+    );
 
     // 8. 显示统计信息
     println!("\n7. 热重载统计信息:");
-    
+
     let reload_count = app_state.get_reload_count().await;
     let last_reload_time = app_state.get_last_reload_time().await;
-    
+
     println!("   总重载次数: {}", reload_count);
     println!("   最后重载时间: {:?}", last_reload_time);
-    println!("   热重载管理器运行状态: {}", hot_reload_manager.is_running().await);
+    println!(
+        "   热重载管理器运行状态: {}",
+        hot_reload_manager.is_running().await
+    );
 
     // 9. 测试配置变更回调
     println!("\n8. 测试配置变更回调:");
-    
+
     let callback_manager = ConfigBuilder::new()
         .add_source(ConfigSource::Memory {
             data: serde_json::json!({
@@ -409,16 +416,20 @@ async fn main() -> anyhow::Result<()> {
         .build();
 
     callback_manager.load().await?;
-    
+
     // 修改配置触发回调
-    callback_manager.set("test_value", serde_json::json!("updated")).await?;
-    callback_manager.set("counter", serde_json::json!(42)).await?;
-    
+    callback_manager
+        .set("test_value", serde_json::json!("updated"))
+        .await?;
+    callback_manager
+        .set("counter", serde_json::json!(42))
+        .await?;
+
     println!("   ✓ 配置变更回调已触发");
 
     // 10. 清理和总结
     println!("\n9. 热重载功能总结:");
-    
+
     println!("   ✅ 文件监控热重载");
     println!("   ✅ 定期重载策略");
     println!("   ✅ 手动重载支持");

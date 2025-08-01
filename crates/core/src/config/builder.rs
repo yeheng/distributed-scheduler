@@ -7,11 +7,11 @@ use serde::{de::DeserializeOwned, Serialize};
 use crate::{SchedulerError, SchedulerResult};
 
 use super::{
-    core::{ConfigurationService, TypedConfig, ConfigValue, ConfigCache, ConfigSource},
-    validation::{ConfigValidator, ValidatorRegistry},
-    loader::{MultiSourceLoader, FileConfigLoader, MergeStrategy},
+    core::{ConfigCache, ConfigSource, ConfigValue, ConfigurationService, TypedConfig},
     environment::ProfileRegistry,
     hot_reload::HotReloadManager,
+    loader::{FileConfigLoader, MergeStrategy, MultiSourceLoader},
+    validation::{ConfigValidator, ValidatorRegistry},
 };
 
 /// Configuration manager - Unified configuration management
@@ -71,7 +71,9 @@ impl ConfigManager {
         // Try cache first
         if let Some(cached_value) = self.cache.get(key).await {
             let typed_value: T = serde_json::from_value(cached_value.value).map_err(|e| {
-                SchedulerError::Configuration(format!("Failed to deserialize cached config '{}': {}", key, e))
+                SchedulerError::Configuration(format!(
+                    "Failed to deserialize cached config '{key}': {e}"
+                ))
             })?;
             return Ok(Some(typed_value));
         }
@@ -80,9 +82,9 @@ impl ConfigManager {
         if let Some(config_value) = self.service.get_config_value(key).await? {
             // Cache the result
             self.cache.set(key.to_string(), config_value.clone()).await;
-            
+
             let typed_value: T = serde_json::from_value(config_value.value).map_err(|e| {
-                SchedulerError::Configuration(format!("Failed to deserialize config '{}': {}", key, e))
+                SchedulerError::Configuration(format!("Failed to deserialize config '{key}': {e}"))
             })?;
             Ok(Some(typed_value))
         } else {
@@ -107,9 +109,9 @@ impl ConfigManager {
         T: Serialize + Send + Sync,
     {
         let json_value = serde_json::to_value(value).map_err(|e| {
-            SchedulerError::Configuration(format!("Failed to serialize config '{}': {}", key, e))
+            SchedulerError::Configuration(format!("Failed to serialize config '{key}': {e}"))
         })?;
-        
+
         let config_value = ConfigValue {
             value: json_value,
             source: ConfigSource::Runtime,
@@ -118,10 +120,10 @@ impl ConfigManager {
 
         // Set in service
         self.service.set_config_value(key, &config_value).await?;
-        
+
         // Update cache
         self.cache.set(key.to_string(), config_value).await;
-        
+
         Ok(())
     }
 
@@ -150,7 +152,10 @@ impl ConfigManager {
     }
 
     /// Get configuration source
-    pub async fn get_source(&self, key: &str) -> Result<Option<super::core::ConfigSource>, SchedulerError> {
+    pub async fn get_source(
+        &self,
+        key: &str,
+    ) -> Result<Option<super::core::ConfigSource>, SchedulerError> {
         self.service.get_config_source(key).await
     }
 
@@ -245,7 +250,7 @@ impl ConfigBuilder {
     pub async fn build(self) -> Result<ConfigManager, SchedulerError> {
         // Load configuration from all sources
         let mut config_values = self.loader.load_all()?;
-        
+
         // Apply profile configuration
         if let Some(profile_config) = self.profiles.get_active_config() {
             for (key, value) in profile_config {
@@ -262,8 +267,7 @@ impl ConfigBuilder {
         let service = Arc::new(InMemoryConfigService::new(config_values));
 
         // Create config manager
-        let mut manager = ConfigManager::new(service)
-            .with_cache_ttl(self.cache_ttl);
+        let mut manager = ConfigManager::new(service).with_cache_ttl(self.cache_ttl);
 
         // Add validators
         for validator in self.validators {
@@ -302,7 +306,6 @@ impl InMemoryConfigService {
 
 #[async_trait]
 impl ConfigurationService for InMemoryConfigService {
-
     async fn get_config_value(&self, key: &str) -> SchedulerResult<Option<ConfigValue>> {
         let config = self.config.read().await;
         Ok(config.get(key).cloned())
@@ -348,7 +351,10 @@ impl EnvConfigLoader {
 }
 
 impl super::loader::ConfigLoader for EnvConfigLoader {
-    fn load(&self, _source: &super::core::ConfigSource) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
+    fn load(
+        &self,
+        _source: &super::core::ConfigSource,
+    ) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
         let mut result = HashMap::new();
         let timestamp = std::time::SystemTime::now();
 
@@ -356,20 +362,28 @@ impl super::loader::ConfigLoader for EnvConfigLoader {
             if key.starts_with(&self.prefix) {
                 let config_key = key[self.prefix.len()..].to_lowercase().replace('_', ".");
                 let json_value = serde_json::Value::String(value);
-                
-                result.insert(config_key, ConfigValue {
-                    value: json_value,
-                    source: ConfigSource::Environment,
-                    last_updated: timestamp,
-                });
+
+                result.insert(
+                    config_key,
+                    ConfigValue {
+                        value: json_value,
+                        source: ConfigSource::Environment,
+                        last_updated: timestamp,
+                    },
+                );
             }
         }
 
         Ok(result)
     }
 
-    fn load_from_file(&self, _path: &std::path::Path) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
-        Err(SchedulerError::Configuration("EnvConfigLoader doesn't support file loading".to_string()))
+    fn load_from_file(
+        &self,
+        _path: &std::path::Path,
+    ) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
+        Err(SchedulerError::Configuration(
+            "EnvConfigLoader doesn't support file loading".to_string(),
+        ))
     }
 
     fn load_from_env(&self, _prefix: &str) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
@@ -396,11 +410,14 @@ mod tests {
     #[tokio::test]
     async fn test_in_memory_config_service() {
         let mut config = HashMap::new();
-        config.insert("test_key".to_string(), ConfigValue {
-            value: serde_json::Value::String("test_value".to_string()),
-            source: ConfigSource::Default,
-            last_updated: std::time::SystemTime::now(),
-        });
+        config.insert(
+            "test_key".to_string(),
+            ConfigValue {
+                value: serde_json::Value::String("test_value".to_string()),
+                source: ConfigSource::Default,
+                last_updated: std::time::SystemTime::now(),
+            },
+        );
 
         let service = Arc::new(InMemoryConfigService::new(config));
         let manager = ConfigManager::new(service);
@@ -409,4 +426,3 @@ mod tests {
         assert_eq!(value, Some("test_value".to_string()));
     }
 }
-

@@ -499,7 +499,10 @@ impl WorkerService {
     }
 
     /// 处理任务控制消息
-    async fn handle_task_control(&self, control_message: TaskControlMessage) -> SchedulerResult<()> {
+    async fn handle_task_control(
+        &self,
+        control_message: TaskControlMessage,
+    ) -> SchedulerResult<()> {
         let task_run_id = control_message.task_run_id;
         let action = control_message.action;
 
@@ -711,7 +714,10 @@ impl WorkerService {
     }
 
     /// 启动心跳任务
-    async fn start_heartbeat_task(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
+    async fn start_heartbeat_task(
+        &self,
+        mut shutdown_rx: broadcast::Receiver<()>,
+    ) -> SchedulerResult<()> {
         let mut heartbeat_interval = interval(Duration::from_secs(self.heartbeat_interval_seconds));
 
         loop {
@@ -736,7 +742,10 @@ impl WorkerService {
     }
 
     /// 启动任务轮询
-    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
+    async fn start_task_polling(
+        &self,
+        mut shutdown_rx: broadcast::Receiver<()>,
+    ) -> SchedulerResult<()> {
         let mut poll_interval = interval(Duration::from_millis(self.poll_interval_ms));
 
         loop {

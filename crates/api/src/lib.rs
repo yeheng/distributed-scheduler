@@ -71,7 +71,10 @@ mod tests {
             unimplemented!()
         }
 
-        async fn update(&self, _task: &scheduler_core::models::Task) -> scheduler_core::SchedulerResult<()> {
+        async fn update(
+            &self,
+            _task: &scheduler_core::models::Task,
+        ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
 
@@ -262,7 +265,9 @@ mod tests {
             unimplemented!()
         }
 
-        async fn list(&self) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+        async fn list(
+            &self,
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
             Ok(vec![])
         }
 

@@ -8,7 +8,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{TaskRun, TaskRunStatus, WorkerStatus},
     traits::{MessageQueue, TaskRunRepository, WorkerRepository},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 
 /// 恢复服务配置

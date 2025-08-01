@@ -37,30 +37,54 @@ impl Environment {
     /// Get environment-specific defaults
     pub fn get_defaults(&self) -> HashMap<String, serde_json::Value> {
         let mut defaults = HashMap::new();
-        
+
         match self {
             Environment::Development => {
-                defaults.insert("log_level".to_string(), serde_json::Value::String("debug".to_string()));
+                defaults.insert(
+                    "log_level".to_string(),
+                    serde_json::Value::String("debug".to_string()),
+                );
                 defaults.insert("debug_mode".to_string(), serde_json::Value::Bool(true));
-                defaults.insert("database_pool_size".to_string(), serde_json::Value::Number(serde_json::Number::from(5)));
+                defaults.insert(
+                    "database_pool_size".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(5)),
+                );
             }
             Environment::Testing => {
-                defaults.insert("log_level".to_string(), serde_json::Value::String("info".to_string()));
+                defaults.insert(
+                    "log_level".to_string(),
+                    serde_json::Value::String("info".to_string()),
+                );
                 defaults.insert("debug_mode".to_string(), serde_json::Value::Bool(false));
-                defaults.insert("database_pool_size".to_string(), serde_json::Value::Number(serde_json::Number::from(10)));
+                defaults.insert(
+                    "database_pool_size".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(10)),
+                );
             }
             Environment::Staging => {
-                defaults.insert("log_level".to_string(), serde_json::Value::String("warn".to_string()));
+                defaults.insert(
+                    "log_level".to_string(),
+                    serde_json::Value::String("warn".to_string()),
+                );
                 defaults.insert("debug_mode".to_string(), serde_json::Value::Bool(false));
-                defaults.insert("database_pool_size".to_string(), serde_json::Value::Number(serde_json::Number::from(20)));
+                defaults.insert(
+                    "database_pool_size".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(20)),
+                );
             }
             Environment::Production => {
-                defaults.insert("log_level".to_string(), serde_json::Value::String("error".to_string()));
+                defaults.insert(
+                    "log_level".to_string(),
+                    serde_json::Value::String("error".to_string()),
+                );
                 defaults.insert("debug_mode".to_string(), serde_json::Value::Bool(false));
-                defaults.insert("database_pool_size".to_string(), serde_json::Value::Number(serde_json::Number::from(50)));
+                defaults.insert(
+                    "database_pool_size".to_string(),
+                    serde_json::Value::Number(serde_json::Number::from(50)),
+                );
             }
         }
-        
+
         defaults
     }
 
@@ -130,16 +154,22 @@ impl ConfigProfile {
     /// Get merged configuration (environment defaults + profile overrides)
     pub fn get_merged_config(&self) -> HashMap<String, serde_json::Value> {
         let mut config = self.environment.get_defaults();
-        
+
         // Apply profile overrides
         for (key, value) in &self.overrides {
             config.insert(key.clone(), value.clone());
         }
-        
+
         // Add environment info
-        config.insert("environment".to_string(), serde_json::Value::String(self.environment.to_string()));
-        config.insert("profile".to_string(), serde_json::Value::String(self.name.clone()));
-        
+        config.insert(
+            "environment".to_string(),
+            serde_json::Value::String(self.environment.to_string()),
+        );
+        config.insert(
+            "profile".to_string(),
+            serde_json::Value::String(self.name.clone()),
+        );
+
         config
     }
 
@@ -174,11 +204,10 @@ impl ProfileRegistry {
     pub fn set_active_profile(&mut self, profile_name: &str) -> Result<(), SchedulerError> {
         if !self.profiles.contains_key(profile_name) {
             return Err(SchedulerError::Configuration(format!(
-                "Profile '{}' not found",
-                profile_name
+                "Profile '{profile_name}' not found"
             )));
         }
-        
+
         self.active_profile = Some(profile_name.to_string());
         Ok(())
     }
@@ -210,26 +239,26 @@ impl ProfileRegistry {
 impl Default for ProfileRegistry {
     fn default() -> Self {
         let mut registry = Self::new();
-        
+
         // Add default profiles
         registry = registry.add_profile(
             ConfigProfile::new("development".to_string(), Environment::Development)
                 .with_feature("hot_reload".to_string(), true)
-                .with_feature("debug_endpoints".to_string(), true)
+                .with_feature("debug_endpoints".to_string(), true),
         );
-        
+
         registry = registry.add_profile(
             ConfigProfile::new("testing".to_string(), Environment::Testing)
                 .with_feature("test_mode".to_string(), true)
-                .with_feature("mock_services".to_string(), true)
+                .with_feature("mock_services".to_string(), true),
         );
-        
+
         registry = registry.add_profile(
             ConfigProfile::new("production".to_string(), Environment::Production)
                 .with_feature("monitoring".to_string(), true)
-                .with_feature("circuit_breaker".to_string(), true)
+                .with_feature("circuit_breaker".to_string(), true),
         );
-        
+
         // Set default active profile based on current environment
         if let Ok(env) = Environment::current() {
             let profile_name = match env {
@@ -238,10 +267,10 @@ impl Default for ProfileRegistry {
                 Environment::Staging => "staging",
                 Environment::Production => "production",
             };
-            
+
             let _ = registry.set_active_profile(profile_name);
         }
-        
+
         registry
     }
 }
@@ -252,8 +281,14 @@ mod tests {
 
     #[test]
     fn test_environment_from_str() {
-        assert_eq!(Environment::from_str("dev").unwrap(), Environment::Development);
-        assert_eq!(Environment::from_str("production").unwrap(), Environment::Production);
+        assert_eq!(
+            Environment::from_str("dev").unwrap(),
+            Environment::Development
+        );
+        assert_eq!(
+            Environment::from_str("production").unwrap(),
+            Environment::Production
+        );
         assert!(Environment::from_str("invalid").is_err());
     }
 
@@ -262,7 +297,7 @@ mod tests {
         let dev_defaults = Environment::Development.get_defaults();
         assert_eq!(dev_defaults.get("log_level").unwrap(), "debug");
         assert_eq!(dev_defaults.get("debug_mode").unwrap(), true);
-        
+
         let prod_defaults = Environment::Production.get_defaults();
         assert_eq!(prod_defaults.get("log_level").unwrap(), "error");
         assert_eq!(prod_defaults.get("debug_mode").unwrap(), false);
@@ -271,9 +306,12 @@ mod tests {
     #[test]
     fn test_config_profile() {
         let profile = ConfigProfile::new("test".to_string(), Environment::Development)
-            .with_override("custom_key".to_string(), serde_json::Value::String("custom_value".to_string()))
+            .with_override(
+                "custom_key".to_string(),
+                serde_json::Value::String("custom_value".to_string()),
+            )
             .with_feature("test_feature".to_string(), true);
-        
+
         let config = profile.get_merged_config();
         assert_eq!(config.get("log_level").unwrap(), "debug");
         assert_eq!(config.get("custom_key").unwrap(), "custom_value");
@@ -284,17 +322,20 @@ mod tests {
     #[test]
     fn test_profile_registry() {
         let mut registry = ProfileRegistry::default();
-        
+
         assert!(registry.get_active_profile().is_some());
         assert!(registry.list_profiles().contains(&"development"));
         assert!(registry.list_profiles().contains(&"production"));
-        
+
         let active_config = registry.get_active_config();
         assert!(active_config.is_some());
-        
+
         // Test setting active profile
         let result = registry.set_active_profile("production");
         assert!(result.is_ok());
-        assert_eq!(registry.get_active_profile().unwrap().environment, Environment::Production);
+        assert_eq!(
+            registry.get_active_profile().unwrap().environment,
+            Environment::Production
+        );
     }
 }

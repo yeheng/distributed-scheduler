@@ -1,6 +1,6 @@
 use crate::database::{DatabaseManager, DatabaseType};
-use scheduler_core::SchedulerResult;
 use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};
+use scheduler_core::SchedulerResult;
 
 /// Example application service that works with any database backend
 /// This demonstrates how the unified database layer follows SOLID principles

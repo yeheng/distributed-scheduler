@@ -8,7 +8,7 @@ use tokio::sync::Mutex;
 use scheduler_core::{
     models::{Message, Task, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
     traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 
 use scheduler_dispatcher::retry_service::{RetryConfig, RetryService, TaskRetryService};
@@ -65,7 +65,10 @@ impl TaskRepository for MockTaskRepository {
         Ok(())
     }
 
-    async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> SchedulerResult<Vec<Task>> {
+    async fn list(
+        &self,
+        _filter: &scheduler_core::models::TaskFilter,
+    ) -> SchedulerResult<Vec<Task>> {
         let tasks = self.tasks.lock().await;
         Ok(tasks.values().cloned().collect())
     }
@@ -79,7 +82,10 @@ impl TaskRepository for MockTaskRepository {
             .collect())
     }
 
-    async fn get_schedulable_tasks(&self, _current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>> {
+    async fn get_schedulable_tasks(
+        &self,
+        _current_time: DateTime<Utc>,
+    ) -> SchedulerResult<Vec<Task>> {
         Ok(vec![])
     }
 
@@ -91,7 +97,11 @@ impl TaskRepository for MockTaskRepository {
         Ok(vec![])
     }
 
-    async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        _task_ids: &[i64],
+        _status: TaskStatus,
+    ) -> SchedulerResult<()> {
         Ok(())
     }
 }
@@ -249,7 +259,11 @@ impl TaskRunRepository for MockTaskRunRepository {
         Ok(0)
     }
 
-    async fn batch_update_status(&self, _run_ids: &[i64], _status: TaskRunStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        _run_ids: &[i64],
+        _status: TaskRunStatus,
+    ) -> SchedulerResult<()> {
         Ok(())
     }
 }
@@ -350,7 +364,9 @@ impl WorkerRepository for MockWorkerRepository {
         Ok(0)
     }
 
-    async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<scheduler_core::traits::WorkerLoadStats>> {
+    async fn get_worker_load_stats(
+        &self,
+    ) -> SchedulerResult<Vec<scheduler_core::traits::WorkerLoadStats>> {
         Ok(vec![])
     }
 

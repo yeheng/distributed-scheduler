@@ -1,6 +1,6 @@
 use crate::config::models::{
-    ApiConfig, DatabaseConfig, DispatcherConfig, MessageQueueConfig,
-    ObservabilityConfig, WorkerConfig,
+    ApiConfig, DatabaseConfig, DispatcherConfig, MessageQueueConfig, ObservabilityConfig,
+    WorkerConfig,
 };
 
 #[test]

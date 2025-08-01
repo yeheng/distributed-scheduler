@@ -51,7 +51,7 @@
 //!     
 //!     // 创建类型安全的配置包装器
 //!     let db_config = TypedConfig::<DatabaseConfig>::new(
-//!         manager.clone(), 
+//!         manager.clone(),
 //!         "database".to_string()
 //!     );
 //!     
@@ -82,7 +82,7 @@ use serde_json::Value;
 
 use crate::{errors::SchedulerError, SchedulerResult};
 
-use super::manager::{UnifiedConfigManager, ConfigSource, ConfigValidator, ReloadStrategy};
+use super::manager::{ConfigSource, ConfigValidator, ReloadStrategy, UnifiedConfigManager};
 
 /// 类型安全的配置包装器
 ///
@@ -114,20 +114,20 @@ use super::manager::{UnifiedConfigManager, ConfigSource, ConfigValidator, Reload
 /// use scheduler_core::config::typesafe::TypedConfig;
 /// use serde::{Deserialize, Serialize};
 /// use std::sync::Arc;
-/// 
+///
 /// #[derive(Debug, Serialize, Deserialize)]
 /// struct DatabaseConfig {
 ///     url: String,
 ///     pool_size: u32,
 /// }
-/// 
+///
 /// #[tokio::main]
 /// async fn main() -> Result<(), Box<dyn std::error::Error>> {
 ///     let manager = Arc::new(create_config_manager());
 ///     
 ///     // 创建类型安全的配置包装器
 ///     let db_config = TypedConfig::<DatabaseConfig>::new(
-///         manager.clone(), 
+///         manager.clone(),
 ///         "database".to_string()
 ///     );
 ///     
@@ -262,7 +262,7 @@ impl ConfigurationService for UnifiedConfigManager {
         // Get all keys from the configuration
         let config_json = self.to_json().await?;
         let config: Value = serde_json::from_str(&config_json).map_err(|e| {
-            SchedulerError::Configuration(format!("Failed to parse config JSON: {}", e))
+            SchedulerError::Configuration(format!("Failed to parse config JSON: {e}"))
         })?;
         if let Value::Object(map) = config {
             Ok(map.keys().cloned().collect())
@@ -366,7 +366,7 @@ impl ConfigBuilder {
     pub async fn list_keys(&self) -> SchedulerResult<Vec<String>> {
         let config_json = self.manager.to_json().await?;
         let config: Value = serde_json::from_str(&config_json).map_err(|e| {
-            SchedulerError::Configuration(format!("Failed to parse config JSON: {}", e))
+            SchedulerError::Configuration(format!("Failed to parse config JSON: {e}"))
         })?;
         if let Value::Object(map) = config {
             Ok(map.keys().cloned().collect())
@@ -509,9 +509,9 @@ pub mod utils {
     {
         if let Ok(env_value) = std::env::var(env_var) {
             // Try to parse environment variable as JSON, fall back to string
-            let parsed_value: Value = serde_json::from_str(&env_value)
-                .unwrap_or_else(|_| Value::String(env_value));
-            
+            let parsed_value: Value =
+                serde_json::from_str(&env_value).unwrap_or(Value::String(env_value));
+
             T::deserialize(&parsed_value).map_err(|e| {
                 SchedulerError::Configuration(format!(
                     "Failed to deserialize environment variable '{env_var}': {e}"
@@ -527,11 +527,11 @@ pub mod utils {
         configs: &[serde_json::Value],
     ) -> SchedulerResult<serde_json::Value> {
         let mut result = Value::Object(serde_json::Map::new());
-        
+
         for config in configs {
             result = merge_two_configs(result, config.clone());
         }
-        
+
         Ok(result)
     }
 
@@ -567,9 +567,11 @@ mod tests {
 
     #[tokio::test]
     async fn test_typed_config() {
-        let manager = Arc::new(UnifiedConfigManager::new().add_source(ConfigSource::Memory {
-            data: serde_json::json!({"test_key": "test_value"}),
-        }));
+        let manager = Arc::new(
+            UnifiedConfigManager::new().add_source(ConfigSource::Memory {
+                data: serde_json::json!({"test_key": "test_value"}),
+            }),
+        );
 
         manager.load().await.unwrap();
 
@@ -590,18 +592,18 @@ mod tests {
 
     #[tokio::test]
     async fn test_config_builder_fluent() {
-        let builder = ConfigBuilder::new()
-            .add_source(ConfigSource::Memory {
-                data: serde_json::json!({"database": {"url": "postgresql://localhost/test"}}),
-            });
+        let builder = ConfigBuilder::new().add_source(ConfigSource::Memory {
+            data: serde_json::json!({"database": {"url": "postgresql://localhost/test"}}),
+        });
 
         let manager = builder.build();
         manager.load().await.unwrap();
 
         // Test typed configuration
-        let typed_db = TypedConfig::<serde_json::Value>::new(manager.clone(), "database.url".to_string());
+        let typed_db =
+            TypedConfig::<serde_json::Value>::new(manager.clone(), "database.url".to_string());
         let result = typed_db.get().await.unwrap();
-        
+
         assert!(result.is_some());
     }
 
@@ -635,21 +637,26 @@ mod tests {
 
     #[tokio::test]
     async fn test_env_or_config() {
-        let manager = UnifiedConfigManager::new()
-            .add_source(ConfigSource::Memory {
-                data: serde_json::json!({"fallback": "config_value"}),
-            });
+        let manager = UnifiedConfigManager::new().add_source(ConfigSource::Memory {
+            data: serde_json::json!({"fallback": "config_value"}),
+        });
 
         manager.load().await.unwrap();
 
         // Test with environment variable
         std::env::set_var("TEST_VAR", "env_value");
-        let result: String = utils::env_or_config(&manager, "TEST_VAR", "fallback", "default".to_string()).await.unwrap();
+        let result: String =
+            utils::env_or_config(&manager, "TEST_VAR", "fallback", "default".to_string())
+                .await
+                .unwrap();
         assert_eq!(result, "env_value");
 
         // Test without environment variable (fallback to config)
         std::env::remove_var("TEST_VAR");
-        let result: String = utils::env_or_config(&manager, "TEST_VAR", "fallback", "default".to_string()).await.unwrap();
+        let result: String =
+            utils::env_or_config(&manager, "TEST_VAR", "fallback", "default".to_string())
+                .await
+                .unwrap();
         assert_eq!(result, "config_value");
     }
 }

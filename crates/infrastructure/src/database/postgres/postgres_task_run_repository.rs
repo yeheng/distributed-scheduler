@@ -1,10 +1,10 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_core::{
-    SchedulerResult,
     errors::SchedulerError,
     models::{TaskRun, TaskRunStatus},
     traits::{TaskExecutionStats, TaskRunRepository},
+    SchedulerResult,
 };
 use sqlx::{PgPool, Row};
 use tracing::debug;
@@ -146,7 +146,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -160,7 +161,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -174,7 +176,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -192,7 +195,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             .await
             .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -219,7 +223,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
@@ -320,12 +325,17 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         .await
         .map_err(SchedulerError::Database)?;
 
-        let task_runs: SchedulerResult<Vec<TaskRun>> = rows.iter().map(Self::row_to_task_run).collect();
+        let task_runs: SchedulerResult<Vec<TaskRun>> =
+            rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
 
     /// 获取任务执行统计信息
-    async fn get_execution_stats(&self, task_id: i64, days: i32) -> SchedulerResult<TaskExecutionStats> {
+    async fn get_execution_stats(
+        &self,
+        task_id: i64,
+        days: i32,
+    ) -> SchedulerResult<TaskExecutionStats> {
         let row = sqlx::query(
             r#"
             SELECT 
@@ -386,7 +396,11 @@ impl TaskRunRepository for PostgresTaskRunRepository {
     }
 
     /// 批量更新任务执行状态
-    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        run_ids: &[i64],
+        status: TaskRunStatus,
+    ) -> SchedulerResult<()> {
         if run_ids.is_empty() {
             return Ok(());
         }

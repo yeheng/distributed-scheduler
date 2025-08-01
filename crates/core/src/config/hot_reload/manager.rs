@@ -5,8 +5,11 @@ use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
 
+use crate::config::{
+    core::ConfigValue,
+    hot_reload::{events::ConfigChangeEvent, watchers::ConfigWatcher},
+};
 use crate::SchedulerError;
-use crate::config::{core::ConfigValue, hot_reload::{events::ConfigChangeEvent, watchers::ConfigWatcher}};
 
 /// Hot reload manager for configuration
 pub struct HotReloadManager {
@@ -38,7 +41,7 @@ impl HotReloadManager {
     }
 
     /// Add change callback
-    pub fn add_callback<F>(mut self, callback: F) -> Self 
+    pub fn add_callback<F>(mut self, callback: F) -> Self
     where
         F: Fn(ConfigChangeEvent) + Send + Sync + 'static,
     {
@@ -50,7 +53,9 @@ impl HotReloadManager {
     pub async fn start(&self) -> Result<(), SchedulerError> {
         let mut running = self.running.write().await;
         if *running {
-            return Err(SchedulerError::Configuration("Hot reload already running".to_string()));
+            return Err(SchedulerError::Configuration(
+                "Hot reload already running".to_string(),
+            ));
         }
         *running = true;
         drop(running);
@@ -108,14 +113,14 @@ mod tests {
     #[tokio::test]
     async fn test_hot_reload_manager() {
         let manager = HotReloadManager::new();
-        
+
         // Should not be running initially
         assert!(!manager.is_running().await);
-        
+
         // Start hot reload
         manager.start().await.unwrap();
         assert!(manager.is_running().await);
-        
+
         // Stop hot reload
         manager.stop().await.unwrap();
         assert!(!manager.is_running().await);

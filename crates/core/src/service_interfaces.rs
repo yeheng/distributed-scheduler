@@ -5,8 +5,8 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use crate::{
-    SchedulerResult,
     models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
+    SchedulerResult,
 };
 
 /// Task management services - Handle task lifecycle and operations
@@ -38,7 +38,11 @@ pub mod task_services {
         async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool>;
 
         /// Get recent execution history
-        async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>>;
+        async fn get_recent_executions(
+            &self,
+            task_id: i64,
+            limit: usize,
+        ) -> SchedulerResult<Vec<TaskRun>>;
     }
 
     /// Task scheduler service - Handle task scheduling and execution
@@ -117,7 +121,11 @@ pub mod worker_services {
         async fn unregister_worker(&self, worker_id: &str) -> SchedulerResult<()>;
 
         /// Update worker status
-        async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()>;
+        async fn update_worker_status(
+            &self,
+            worker_id: &str,
+            status: WorkerStatus,
+        ) -> SchedulerResult<()>;
 
         /// Get list of active workers
         async fn get_active_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
@@ -146,10 +154,14 @@ pub mod worker_services {
     #[async_trait]
     pub trait WorkerHealthService: Send + Sync {
         /// Perform health check on worker
-        async fn perform_health_check(&self, worker_id: &str) -> SchedulerResult<HealthCheckResult>;
+        async fn perform_health_check(&self, worker_id: &str)
+            -> SchedulerResult<HealthCheckResult>;
 
         /// Get worker health status
-        async fn get_worker_health_status(&self, worker_id: &str) -> SchedulerResult<WorkerHealthStatus>;
+        async fn get_worker_health_status(
+            &self,
+            worker_id: &str,
+        ) -> SchedulerResult<WorkerHealthStatus>;
 
         /// Update worker health metrics
         async fn update_health_metrics(
@@ -235,7 +247,11 @@ pub mod system_services {
         async fn get_audit_stats(&self, time_range: TimeRange) -> SchedulerResult<AuditStats>;
 
         /// Export audit events
-        async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> SchedulerResult<Vec<u8>>;
+        async fn export_events(
+            &self,
+            query: &AuditQuery,
+            format: ExportFormat,
+        ) -> SchedulerResult<Vec<u8>>;
     }
 }
 
@@ -268,7 +284,8 @@ pub trait ServiceFactory: Send + Sync {
     async fn create_monitoring_service(
         &self,
     ) -> SchedulerResult<Box<dyn system_services::MonitoringService>>;
-    async fn create_audit_service(&self) -> SchedulerResult<Box<dyn system_services::AuditService>>;
+    async fn create_audit_service(&self)
+        -> SchedulerResult<Box<dyn system_services::AuditService>>;
 }
 
 // Data structures for services

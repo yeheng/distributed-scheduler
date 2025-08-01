@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, Task, TaskExecutionMessage, TaskRun, TaskRunStatus},
     traits::{MessageQueue, TaskRepository, TaskRunRepository, TaskSchedulerService},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
@@ -301,7 +301,10 @@ impl TaskScheduler {
     }
 
     /// 检测并处理过期任务
-    pub async fn detect_overdue_tasks(&self, grace_period_minutes: i64) -> SchedulerResult<Vec<Task>> {
+    pub async fn detect_overdue_tasks(
+        &self,
+        grace_period_minutes: i64,
+    ) -> SchedulerResult<Vec<Task>> {
         info!("开始检测过期任务，宽限期: {}分钟", grace_period_minutes);
 
         let active_tasks = self.task_repo.get_active_tasks().await?;
@@ -335,7 +338,10 @@ impl TaskScheduler {
     }
 
     /// 获取任务的下次执行时间
-    pub async fn get_next_execution_time(&self, task_id: i64) -> SchedulerResult<Option<DateTime<Utc>>> {
+    pub async fn get_next_execution_time(
+        &self,
+        task_id: i64,
+    ) -> SchedulerResult<Option<DateTime<Utc>>> {
         let task = self
             .task_repo
             .get_by_id(task_id)

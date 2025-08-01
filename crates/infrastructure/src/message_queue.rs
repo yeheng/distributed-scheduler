@@ -4,8 +4,8 @@ use lapin::{
     Consumer, Queue,
 };
 use scheduler_core::{
-    config::models::MessageQueueConfig, SchedulerResult, errors::SchedulerError, models::Message,
-    traits::MessageQueue,
+    config::models::MessageQueueConfig, errors::SchedulerError, models::Message,
+    traits::MessageQueue, SchedulerResult,
 };
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -108,7 +108,11 @@ impl RabbitMQMessageQueue {
     }
 
     /// 创建消费者
-    pub async fn create_consumer(&self, queue: &str, consumer_tag: &str) -> SchedulerResult<Consumer> {
+    pub async fn create_consumer(
+        &self,
+        queue: &str,
+        consumer_tag: &str,
+    ) -> SchedulerResult<Consumer> {
         let channel = self.channel.lock().await;
         let consumer = channel
             .basic_consume(

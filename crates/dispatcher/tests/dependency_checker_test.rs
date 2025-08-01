@@ -60,7 +60,10 @@ mod dependency_checker_tests {
             Ok(())
         }
 
-        async fn list(&self, _filter: &scheduler_core::models::TaskFilter) -> SchedulerResult<Vec<Task>> {
+        async fn list(
+            &self,
+            _filter: &scheduler_core::models::TaskFilter,
+        ) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().cloned().collect())
         }
@@ -89,7 +92,11 @@ mod dependency_checker_tests {
             Ok(vec![])
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _task_ids: &[i64],
+            _status: TaskStatus,
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }

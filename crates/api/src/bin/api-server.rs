@@ -32,7 +32,10 @@ impl scheduler_core::traits::repository::TaskRepository for MockTaskRepository {
         unimplemented!()
     }
 
-    async fn update(&self, _task: &scheduler_core::models::Task) -> scheduler_core::SchedulerResult<()> {
+    async fn update(
+        &self,
+        _task: &scheduler_core::models::Task,
+    ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
 
@@ -47,7 +50,9 @@ impl scheduler_core::traits::repository::TaskRepository for MockTaskRepository {
         unimplemented!()
     }
 
-    async fn get_active_tasks(&self) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+    async fn get_active_tasks(
+        &self,
+    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
         unimplemented!()
     }
 
@@ -176,7 +181,8 @@ impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunReposi
         &self,
         _task_id: i64,
         _days: i32,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats> {
+    ) -> scheduler_core::SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats>
+    {
         unimplemented!()
     }
 
@@ -220,7 +226,9 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
         unimplemented!()
     }
 
-    async fn list(&self) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+    async fn list(
+        &self,
+    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
         unimplemented!()
     }
 
@@ -261,13 +269,17 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
         unimplemented!()
     }
 
-    async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> scheduler_core::SchedulerResult<u64> {
+    async fn cleanup_offline_workers(
+        &self,
+        _timeout_seconds: i64,
+    ) -> scheduler_core::SchedulerResult<u64> {
         unimplemented!()
     }
 
     async fn get_worker_load_stats(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::traits::repository::WorkerLoadStats>> {
+    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::traits::repository::WorkerLoadStats>>
+    {
         unimplemented!()
     }
 

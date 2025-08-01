@@ -4,7 +4,7 @@ use std::time::{Duration, Instant};
 use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
 
-use crate::{SchedulerResult, SchedulerError};
+use crate::{SchedulerError, SchedulerResult};
 
 /// Circuit breaker state
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]

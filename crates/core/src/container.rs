@@ -1,8 +1,9 @@
 use std::sync::Arc;
 
 use crate::{
-    SchedulerResult, errors::SchedulerError,
+    errors::SchedulerError,
     traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
+    SchedulerResult,
 };
 
 /// Simplified service container - stores only essential services
@@ -53,7 +54,10 @@ impl ServiceContainer {
     }
 
     /// Register message queue
-    pub async fn register_message_queue(&mut self, service: Arc<dyn MessageQueue>) -> SchedulerResult<()> {
+    pub async fn register_message_queue(
+        &mut self,
+        service: Arc<dyn MessageQueue>,
+    ) -> SchedulerResult<()> {
         self.message_queue = Some(service);
         Ok(())
     }

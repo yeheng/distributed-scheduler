@@ -5,9 +5,8 @@ use async_trait::async_trait;
 use tokio::sync::RwLock;
 
 use crate::{
-    SchedulerResult,
     traits::{ExecutorRegistry, TaskExecutor},
-    ExecutorStatus,
+    ExecutorStatus, SchedulerResult,
 };
 
 /// 默认的执行器注册表实现
@@ -108,7 +107,11 @@ impl Default for DefaultExecutorRegistry {
 
 #[async_trait]
 impl ExecutorRegistry for DefaultExecutorRegistry {
-    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> SchedulerResult<()> {
+    async fn register(
+        &mut self,
+        name: String,
+        executor: Arc<dyn TaskExecutor>,
+    ) -> SchedulerResult<()> {
         let mut registry = self.executors.write().await;
         registry.insert(name, executor);
         Ok(())
@@ -187,7 +190,10 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         Ok(results)
     }
 
-    async fn get_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>> {
+    async fn get_by_task_type(
+        &self,
+        task_type: &str,
+    ) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>> {
         let registry = self.executors.read().await;
         let mut matching_executors = Vec::new();
 

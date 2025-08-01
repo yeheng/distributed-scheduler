@@ -1,7 +1,7 @@
 use scheduler_core::{
-    SchedulerResult,
     errors::SchedulerError,
     traits::{TaskRepository, TaskRunRepository, WorkerRepository},
+    SchedulerResult,
 };
 
 // Import existing repository implementations

@@ -5,8 +5,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use crate::{
-    SchedulerResult,
     models::{TaskResult, TaskRun},
+    SchedulerResult,
 };
 
 /// 任务执行上下文 - 增强版本，包含更多执行信息
@@ -64,7 +64,10 @@ pub struct ExecutorStatus {
 #[async_trait]
 pub trait TaskExecutor: Send + Sync {
     /// 执行任务 - 新的增强接口
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult>;
+    async fn execute_task(
+        &self,
+        context: &TaskExecutionContextTrait,
+    ) -> SchedulerResult<TaskResult>;
 
     /// 执行任务 - 保持向后兼容的原有接口
     async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
@@ -203,7 +206,11 @@ impl Default for ExecutorConfig {
 #[async_trait]
 pub trait ExecutorRegistry: Send + Sync {
     /// 注册执行器 - 使用Arc确保线程安全
-    async fn register(&mut self, name: String, executor: Arc<dyn TaskExecutor>) -> SchedulerResult<()>;
+    async fn register(
+        &mut self,
+        name: String,
+        executor: Arc<dyn TaskExecutor>,
+    ) -> SchedulerResult<()>;
 
     /// 获取执行器(返回Arc包装以支持异步)
     async fn get(&self, name: &str) -> Option<Arc<dyn TaskExecutor>>;
@@ -230,5 +237,8 @@ pub trait ExecutorRegistry: Send + Sync {
     async fn health_check_all(&self) -> SchedulerResult<HashMap<String, bool>>;
 
     /// 获取支持指定任务类型的执行器
-    async fn get_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>>;
+    async fn get_by_task_type(
+        &self,
+        task_type: &str,
+    ) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>>;
 }

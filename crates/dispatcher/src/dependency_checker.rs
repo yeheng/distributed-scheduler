@@ -7,7 +7,7 @@ use tracing::{debug, warn};
 use scheduler_core::{
     models::Task,
     traits::{TaskRepository, TaskRunRepository},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 
 /// 任务依赖检查器
@@ -31,10 +31,18 @@ pub trait DependencyCheckService: Send + Sync {
     async fn check_dependencies(&self, task: &Task) -> SchedulerResult<DependencyCheckResult>;
 
     /// 验证任务依赖关系（检查循环依赖）
-    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<()>;
+    async fn validate_dependencies(
+        &self,
+        task_id: i64,
+        dependencies: &[i64],
+    ) -> SchedulerResult<()>;
 
     /// 检测循环依赖
-    async fn detect_circular_dependency(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<bool>;
+    async fn detect_circular_dependency(
+        &self,
+        task_id: i64,
+        dependencies: &[i64],
+    ) -> SchedulerResult<bool>;
 
     /// 获取任务的所有传递依赖
     async fn get_transitive_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<i64>>;
@@ -236,7 +244,11 @@ impl DependencyCheckService for DependencyChecker {
     }
 
     /// 验证任务依赖关系（检查循环依赖）
-    async fn validate_dependencies(&self, task_id: i64, dependencies: &[i64]) -> SchedulerResult<()> {
+    async fn validate_dependencies(
+        &self,
+        task_id: i64,
+        dependencies: &[i64],
+    ) -> SchedulerResult<()> {
         // 检查是否存在自依赖
         if dependencies.contains(&task_id) {
             return Err(SchedulerError::CircularDependency);

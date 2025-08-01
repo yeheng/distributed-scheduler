@@ -27,17 +27,17 @@
 //!
 //! // 创建配置服务
 //! let config_service = Arc::new(MyConfigService::new());
-//! 
+//!
 //! // 创建类型安全的配置包装器
 //! let db_url_config = TypedConfig::<String>::new(
-//!     config_service.clone(), 
+//!     config_service.clone(),
 //!     "database.url".to_string()
 //! );
-//! 
+//!
 //! // 获取配置值
 //! let db_url = db_url_config.get().await?;
 //! println!("Database URL: {:?}", db_url);
-//! 
+//!
 //! // 设置配置值
 //! db_url_config.set(&"postgresql://localhost/mydb".to_string()).await?;
 //! ```
@@ -135,13 +135,13 @@ pub enum ConfigSource {
 /// }
 ///
 /// let config_service = Arc::new(MyConfigService::new());
-/// 
+///
 /// // 创建数据库配置的类型安全包装器
 /// let db_config = TypedConfig::<DatabaseConfig>::new(
-///     config_service, 
+///     config_service,
 ///     "database".to_string()
 /// );
-/// 
+///
 /// // 获取配置值，返回类型为 DatabaseConfig
 /// let config = db_config.get().await?;
 /// if let Some(db_config) = config {
@@ -183,7 +183,7 @@ where
     ///
     /// let config_service = Arc::new(MyConfigService::new());
     /// let typed_config = TypedConfig::<String>::new(
-    ///     config_service, 
+    ///     config_service,
     ///     "database.url".to_string()
     /// );
     /// ```
@@ -496,18 +496,18 @@ pub trait ConfigurationService: Send + Sync {
 ///
 /// // 创建 TTL 为 1 分钟的缓存
 /// let cache = ConfigCache::new(Duration::from_secs(60));
-/// 
+///
 /// // 设置缓存值
 /// let config_value = create_config_value();
 /// cache.set("database.url".to_string(), config_value).await;
-/// 
+///
 /// // 获取缓存值
 /// if let Some(value) = cache.get("database.url").await {
 ///     println!("Cached value: {:?}", value);
 /// } else {
 ///     println!("Cache miss or expired");
 /// }
-/// 
+///
 /// // 清空缓存
 /// cache.clear().await;
 /// ```

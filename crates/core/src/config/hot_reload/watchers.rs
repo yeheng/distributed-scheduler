@@ -3,18 +3,21 @@ use std::collections::HashMap;
 use std::time::Duration;
 use tokio::time::sleep;
 
+use crate::config::{
+    core::ConfigValue,
+    hot_reload::{events::ConfigChangeEvent, ConfigChangeSource},
+};
 use crate::SchedulerError;
-use crate::config::{core::ConfigValue, hot_reload::{events::ConfigChangeEvent, ConfigChangeSource}};
 
 /// Configuration watcher trait
 #[async_trait]
 pub trait ConfigWatcher: Send + Sync {
     /// Wait for configuration change
     async fn wait_for_change(&mut self) -> Result<ConfigChangeEvent, SchedulerError>;
-    
+
     /// Get current configuration
     async fn get_current_config(&self) -> Result<HashMap<String, ConfigValue>, SchedulerError>;
-    
+
     /// Stop watching
     async fn stop(&mut self) -> Result<(), SchedulerError>;
 }
@@ -51,7 +54,7 @@ impl FileConfigWatcher {
     /// Load configuration from file
     async fn load_config(&self) -> Result<HashMap<String, ConfigValue>, SchedulerError> {
         let path = std::path::Path::new(&self.file_path);
-        
+
         if !path.exists() {
             return Err(SchedulerError::Configuration(format!(
                 "Configuration file not found: {}",
@@ -60,25 +63,29 @@ impl FileConfigWatcher {
         }
 
         let content = std::fs::read_to_string(path)
-            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {}", e)))?;
+            .map_err(|e| SchedulerError::Configuration(format!("Failed to read file: {e}")))?;
 
-        let config: HashMap<String, serde_json::Value> = if path.extension().and_then(|s| s.to_str()) == Some("toml") {
-            toml::from_str(&content)
-                .map_err(|e| SchedulerError::Configuration(format!("TOML parse error: {}", e)))?
-        } else {
-            serde_json::from_str(&content)
-                .map_err(|e| SchedulerError::Configuration(format!("JSON parse error: {}", e)))?
-        };
+        let config: HashMap<String, serde_json::Value> =
+            if path.extension().and_then(|s| s.to_str()) == Some("toml") {
+                toml::from_str(&content)
+                    .map_err(|e| SchedulerError::Configuration(format!("TOML parse error: {e}")))?
+            } else {
+                serde_json::from_str(&content)
+                    .map_err(|e| SchedulerError::Configuration(format!("JSON parse error: {e}")))?
+            };
 
         let mut result = HashMap::new();
         let timestamp = std::time::SystemTime::now();
 
         for (key, value) in config {
-            result.insert(key, ConfigValue {
-                value,
-                source: crate::config::core::ConfigSource::File(self.file_path.clone()),
-                last_updated: timestamp,
-            });
+            result.insert(
+                key,
+                ConfigValue {
+                    value,
+                    source: crate::config::core::ConfigSource::File(self.file_path.clone()),
+                    last_updated: timestamp,
+                },
+            );
         }
 
         Ok(result)
@@ -87,16 +94,17 @@ impl FileConfigWatcher {
     /// Get file modification time
     fn get_file_modified_time(&self) -> Result<Option<std::time::SystemTime>, SchedulerError> {
         let path = std::path::Path::new(&self.file_path);
-        
+
         if !path.exists() {
             return Ok(None);
         }
 
-        let metadata = std::fs::metadata(path)
-            .map_err(|e| SchedulerError::Configuration(format!("Failed to get file metadata: {}", e)))?;
-        
+        let metadata = std::fs::metadata(path).map_err(|e| {
+            SchedulerError::Configuration(format!("Failed to get file metadata: {e}"))
+        })?;
+
         Ok(Some(metadata.modified().map_err(|e| {
-            SchedulerError::Configuration(format!("Failed to get modified time: {}", e))
+            SchedulerError::Configuration(format!("Failed to get modified time: {e}"))
         })?))
     }
 
@@ -159,21 +167,21 @@ impl ConfigWatcher for FileConfigWatcher {
                 if current_modified != self.last_modified {
                     // Load new configuration
                     let new_config = self.load_config().await?;
-                    
+
                     // Compare with current configuration to find changes
                     let changes = self.find_config_changes(&self.current_config, &new_config);
-                    
+
                     // Update state
                     self.last_modified = current_modified;
                     self.current_config = new_config;
-                    
+
                     // Return first change found
                     if let Some(change) = changes.into_iter().next() {
                         return Ok(change);
                     }
                 }
             }
-            
+
             // Wait before next check
             sleep(self.polling_interval).await;
         }
@@ -192,8 +200,8 @@ impl ConfigWatcher for FileConfigWatcher {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use std::io::Write;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_file_config_watcher() {
@@ -204,15 +212,15 @@ mod tests {
         let file_path = temp_file.path().to_string_lossy().to_string();
 
         let mut watcher = FileConfigWatcher::new(file_path.clone());
-        
+
         // Load initial config
         let initial_config = watcher.load_config().await.unwrap();
         assert_eq!(initial_config.get("test_key").unwrap().value, "test_value");
-        
+
         // Get current config
         let current_config = watcher.get_current_config().await.unwrap();
         assert!(current_config.is_empty()); // Initially empty
-        
+
         // Stop watcher
         watcher.stop().await.unwrap();
     }

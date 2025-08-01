@@ -1,4 +1,4 @@
-use crate::config::models::{MessageQueueConfig, RedisConfig, AppConfig};
+use crate::config::models::{AppConfig, MessageQueueConfig, RedisConfig};
 
 #[test]
 fn test_rabbitmq_config() {
@@ -184,7 +184,10 @@ log_level = "info"
 
     let config = AppConfig::from_toml(toml_content).unwrap();
     assert!(config.message_queue.is_redis_stream());
-    assert_eq!(config.message_queue.get_redis_url().unwrap(), "redis://:secret@127.0.0.1:6379/0");
+    assert_eq!(
+        config.message_queue.get_redis_url().unwrap(),
+        "redis://:secret@127.0.0.1:6379/0"
+    );
     assert!(config.validate().is_ok());
 }
 
@@ -211,19 +214,22 @@ fn test_redis_config_functionality() {
     };
 
     assert!(!redis_config_no_password.has_password());
-    assert_eq!(redis_config_no_password.build_url(), "redis://localhost:6379/0");
+    assert_eq!(
+        redis_config_no_password.build_url(),
+        "redis://localhost:6379/0"
+    );
 }
 
 #[test]
 fn test_message_queue_type_detection() {
     let mut mq_config = MessageQueueConfig::default();
-    
+
     // Test RabbitMQ detection
     mq_config.r#type = crate::config::models::MessageQueueType::Rabbitmq;
     mq_config.url = "redis://localhost:6379".to_string();
     assert!(mq_config.is_rabbitmq());
     assert!(!mq_config.is_redis_stream());
-    
+
     // Test Redis Stream detection
     mq_config.r#type = crate::config::models::MessageQueueType::RedisStream;
     mq_config.url = "redis://localhost:6379".to_string();

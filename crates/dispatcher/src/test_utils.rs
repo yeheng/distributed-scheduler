@@ -5,8 +5,8 @@ pub mod mocks {
     use chrono::{DateTime, Utc};
     use scheduler_core::models::{TaskFilter, TaskStatus};
     use scheduler_core::{
-        SchedulerResult, Task, TaskRepository, TaskRun, TaskRunRepository, TaskRunStatus, WorkerInfo,
-        WorkerRepository, WorkerStatus,
+        SchedulerResult, Task, TaskRepository, TaskRun, TaskRunRepository, TaskRunStatus,
+        WorkerInfo, WorkerRepository, WorkerStatus,
     };
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
@@ -82,7 +82,11 @@ pub mod mocks {
             Ok(vec![])
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _task_ids: &[i64],
+            _status: TaskStatus,
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }
@@ -183,7 +187,11 @@ pub mod mocks {
             Ok(0)
         }
 
-        async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> SchedulerResult<Vec<TaskRun>> {
+        async fn get_recent_runs(
+            &self,
+            _task_id: i64,
+            _limit: i64,
+        ) -> SchedulerResult<Vec<TaskRun>> {
             Ok(vec![])
         }
 
@@ -204,7 +212,11 @@ pub mod mocks {
             })
         }
 
-        async fn batch_update_status(&self, _ids: &[i64], _status: TaskRunStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _ids: &[i64],
+            _status: TaskRunStatus,
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }
@@ -256,7 +268,10 @@ pub mod mocks {
             Ok(vec![])
         }
 
-        async fn get_workers_by_task_type(&self, _task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
+        async fn get_workers_by_task_type(
+            &self,
+            _task_type: &str,
+        ) -> SchedulerResult<Vec<WorkerInfo>> {
             Ok(vec![])
         }
 
@@ -269,11 +284,18 @@ pub mod mocks {
             Ok(())
         }
 
-        async fn update_status(&self, _worker_id: &str, _status: WorkerStatus) -> SchedulerResult<()> {
+        async fn update_status(
+            &self,
+            _worker_id: &str,
+            _status: WorkerStatus,
+        ) -> SchedulerResult<()> {
             Ok(())
         }
 
-        async fn get_timeout_workers(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
+        async fn get_timeout_workers(
+            &self,
+            _timeout_seconds: i64,
+        ) -> SchedulerResult<Vec<WorkerInfo>> {
             Ok(vec![])
         }
 

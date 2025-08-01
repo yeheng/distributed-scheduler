@@ -198,20 +198,30 @@ pub mod services;
 pub mod tests;
 
 // 向后兼容的传统模块
-pub mod config_loader;
 pub mod builder;
+pub mod config_loader;
 
 // 重新导出关键类型和特征以方便导入
-pub use core::{ConfigurationService, TypedConfig, ConfigValue, ConfigSource};
-pub use validation::{ConfigValidator, ConfigValidationError, BasicConfigValidator};
-pub use loader::{ConfigLoader as FileConfigLoaderTrait, FileConfigLoader, ConfigSourceType, MultiSourceLoader, MergeStrategy};
-pub use environment::{Environment, ConfigProfile};
-pub use hot_reload::{HotReloadManager, ConfigChangeEvent};
-pub use manager::{UnifiedConfigManager, ConfigBuilder as UnifiedConfigBuilder, ReloadStrategy, ConfigMetadata};
-pub use typesafe::{TypedConfig as TypeSafeConfig, ConfigBuilder, ConfigProfile as TypeSafeProfile};
-pub use models::{AppConfig, DatabaseConfig, MessageQueueConfig, MessageQueueType, RedisConfig, DispatcherConfig, WorkerConfig, ApiConfig, ObservabilityConfig};
-pub use services::{ConfigurationService as ServiceTrait, ConfigCache};
-pub use builder::{InMemoryConfigService, ConfigBuilder as LegacyConfigBuilder, ConfigManager};
+pub use builder::{ConfigBuilder as LegacyConfigBuilder, ConfigManager, InMemoryConfigService};
+pub use core::{ConfigSource, ConfigValue, ConfigurationService, TypedConfig};
+pub use environment::{ConfigProfile, Environment};
+pub use hot_reload::{ConfigChangeEvent, HotReloadManager};
+pub use loader::{
+    ConfigLoader as FileConfigLoaderTrait, ConfigSourceType, FileConfigLoader, MergeStrategy,
+    MultiSourceLoader,
+};
+pub use manager::{
+    ConfigBuilder as UnifiedConfigBuilder, ConfigMetadata, ReloadStrategy, UnifiedConfigManager,
+};
+pub use models::{
+    ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, MessageQueueConfig, MessageQueueType,
+    ObservabilityConfig, RedisConfig, WorkerConfig,
+};
+pub use services::{ConfigCache, ConfigurationService as ServiceTrait};
+pub use typesafe::{
+    ConfigBuilder, ConfigProfile as TypeSafeProfile, TypedConfig as TypeSafeConfig,
+};
+pub use validation::{BasicConfigValidator, ConfigValidationError, ConfigValidator};
 
 // 传统导出
 pub use config_loader::ConfigLoader as LegacyConfigLoader;

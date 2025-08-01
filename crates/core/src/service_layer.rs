@@ -2,8 +2,9 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::{
-    SchedulerResult, errors::SchedulerError,
+    errors::SchedulerError,
     models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
+    SchedulerResult,
 };
 
 /// 服务层抽象 - 任务控制服务
@@ -31,7 +32,11 @@ pub trait TaskControlService: Send + Sync {
     async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool>;
 
     /// 获取任务的最近执行历史
-    async fn get_recent_executions(&self, task_id: i64, limit: usize) -> SchedulerResult<Vec<TaskRun>>;
+    async fn get_recent_executions(
+        &self,
+        task_id: i64,
+        limit: usize,
+    ) -> SchedulerResult<Vec<TaskRun>>;
 }
 
 /// 调度器服务抽象
@@ -86,7 +91,11 @@ pub trait WorkerManagementService: Send + Sync {
     async fn unregister_worker(&self, worker_id: &str) -> SchedulerResult<()>;
 
     /// 更新Worker状态
-    async fn update_worker_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()>;
+    async fn update_worker_status(
+        &self,
+        worker_id: &str,
+        status: WorkerStatus,
+    ) -> SchedulerResult<()>;
 
     /// 获取活跃的Worker列表
     async fn get_active_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
@@ -192,13 +201,17 @@ pub trait MonitoringService: Send + Sync {
     ) -> SchedulerResult<()>;
 
     /// 记录事件
-    async fn record_event(&self, event_type: &str, data: &serde_json::Value) -> SchedulerResult<()>;
+    async fn record_event(&self, event_type: &str, data: &serde_json::Value)
+        -> SchedulerResult<()>;
 
     /// 获取系统健康状态
     async fn get_system_health(&self) -> SchedulerResult<SystemHealth>;
 
     /// 获取性能指标
-    async fn get_performance_metrics(&self, time_range: TimeRange) -> SchedulerResult<PerformanceMetrics>;
+    async fn get_performance_metrics(
+        &self,
+        time_range: TimeRange,
+    ) -> SchedulerResult<PerformanceMetrics>;
 
     /// 设置告警规则
     async fn set_alert_rule(&self, rule: &AlertRule) -> SchedulerResult<()>;
@@ -430,7 +443,11 @@ pub trait AuditLogService: Send + Sync {
     async fn get_audit_stats(&self, time_range: TimeRange) -> SchedulerResult<AuditStats>;
 
     /// 导出审计日志
-    async fn export_events(&self, query: &AuditQuery, format: ExportFormat) -> SchedulerResult<Vec<u8>>;
+    async fn export_events(
+        &self,
+        query: &AuditQuery,
+        format: ExportFormat,
+    ) -> SchedulerResult<Vec<u8>>;
 }
 
 /// 审计事件
@@ -519,7 +536,9 @@ pub trait ServiceFactory: Send + Sync {
     async fn create_scheduler_service(&self) -> SchedulerResult<Box<dyn SchedulerService>>;
 
     /// 创建Worker管理服务
-    async fn create_worker_management_service(&self) -> SchedulerResult<Box<dyn WorkerManagementService>>;
+    async fn create_worker_management_service(
+        &self,
+    ) -> SchedulerResult<Box<dyn WorkerManagementService>>;
 
     /// 创建任务分发服务
     async fn create_task_dispatch_service(&self) -> SchedulerResult<Box<dyn TaskDispatchService>>;

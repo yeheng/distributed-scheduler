@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 use scheduler_core::{
     models::{Message, MessageType, StatusUpdateMessage, TaskRunStatus},
     traits::{MessageQueue, StateListenerService, TaskRunRepository, WorkerRepository},
-    SchedulerResult, SchedulerError,
+    SchedulerError, SchedulerResult,
 };
 
 use crate::retry_service::RetryService;
@@ -130,7 +130,10 @@ impl StateListener {
     }
 
     /// 处理状态更新消息的内部实现
-    async fn process_status_update_message(&self, status_msg: &StatusUpdateMessage) -> SchedulerResult<()> {
+    async fn process_status_update_message(
+        &self,
+        status_msg: &StatusUpdateMessage,
+    ) -> SchedulerResult<()> {
         debug!(
             "处理任务运行 {} 的状态更新: {:?}",
             status_msg.task_run_id, status_msg.status

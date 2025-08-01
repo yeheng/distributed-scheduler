@@ -3,7 +3,7 @@ use std::sync::Arc;
 use scheduler_core::{
     models::{TaskRun, TaskStatusUpdate},
     traits::ExecutorRegistry,
-    SchedulerResult, SchedulerError, ServiceLocator,
+    SchedulerError, SchedulerResult, ServiceLocator,
 };
 
 use super::components::{

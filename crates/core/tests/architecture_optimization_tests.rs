@@ -2,7 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use scheduler_core::{
-    config::{typesafe::ConfigBuilder, manager::ConfigSource, Environment},
+    config::{manager::ConfigSource, typesafe::ConfigBuilder, Environment},
     error_handling::{
         DefaultErrorHandler, ErrorAction, ErrorContext, ErrorHandler, ErrorHandlingMiddleware,
         ErrorSeverity,
@@ -50,10 +50,9 @@ async fn test_error_handling_middleware() {
 /// Test typed configuration
 #[tokio::test]
 async fn test_typed_configuration() {
-    let builder = ConfigBuilder::new()
-        .add_source(ConfigSource::Memory {
-            data: serde_json::json!({"test_string": "hello"}),
-        });
+    let builder = ConfigBuilder::new().add_source(ConfigSource::Memory {
+        data: serde_json::json!({"test_string": "hello"}),
+    });
 
     // Build the manager and load configuration
     let manager = builder.build();

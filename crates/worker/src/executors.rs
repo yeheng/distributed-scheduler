@@ -5,7 +5,7 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use scheduler_core::{
-    SchedulerResult, SchedulerError, TaskExecutionContextTrait, TaskExecutor, TaskResult, TaskRun,
+    SchedulerError, SchedulerResult, TaskExecutionContextTrait, TaskExecutor, TaskResult, TaskRun,
 };
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -37,7 +37,10 @@ impl Default for ShellExecutor {
 
 #[async_trait]
 impl TaskExecutor for ShellExecutor {
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
+    async fn execute_task(
+        &self,
+        context: &TaskExecutionContextTrait,
+    ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
 
         // 从上下文中获取Shell任务参数
@@ -339,7 +342,10 @@ impl Default for HttpExecutor {
 
 #[async_trait]
 impl TaskExecutor for HttpExecutor {
-    async fn execute_task(&self, context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
+    async fn execute_task(
+        &self,
+        context: &TaskExecutionContextTrait,
+    ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
 
         // 从上下文中获取HTTP任务参数
@@ -572,7 +578,10 @@ impl MockTaskExecutor {
 
 #[async_trait]
 impl TaskExecutor for MockTaskExecutor {
-    async fn execute_task(&self, _context: &TaskExecutionContextTrait) -> SchedulerResult<TaskResult> {
+    async fn execute_task(
+        &self,
+        _context: &TaskExecutionContextTrait,
+    ) -> SchedulerResult<TaskResult> {
         // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 

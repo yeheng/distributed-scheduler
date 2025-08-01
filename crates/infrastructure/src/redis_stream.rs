@@ -9,7 +9,7 @@ use tokio::time::sleep;
 use tracing::{debug, error, info, warn};
 
 use scheduler_core::{
-    SchedulerResult, errors::SchedulerError, models::Message, traits::MessageQueue,
+    errors::SchedulerError, models::Message, traits::MessageQueue, SchedulerResult,
 };
 
 /// Redis Stream消息队列实现
@@ -323,7 +323,11 @@ impl RedisStreamMessageQueue {
     }
 
     /// 确保消费者组存在
-    async fn ensure_consumer_group_exists(&self, stream_key: &str, group_name: &str) -> SchedulerResult<()> {
+    async fn ensure_consumer_group_exists(
+        &self,
+        stream_key: &str,
+        group_name: &str,
+    ) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
 
         // 首先确保Stream存在
@@ -645,7 +649,11 @@ impl RedisStreamMessageQueue {
     }
 
     /// 带重试机制的消息发布
-    async fn publish_message_with_retry(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
+    async fn publish_message_with_retry(
+        &self,
+        queue: &str,
+        message: &Message,
+    ) -> SchedulerResult<()> {
         let mut last_error = None;
 
         for attempt in 1..=self.config.max_retry_attempts {

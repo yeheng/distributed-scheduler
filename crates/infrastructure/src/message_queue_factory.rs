@@ -4,9 +4,9 @@ use tracing::{debug, info};
 
 use scheduler_core::{
     config::models::{MessageQueueConfig, MessageQueueType},
-    SchedulerResult,
     errors::SchedulerError,
     traits::MessageQueue,
+    SchedulerResult,
 };
 
 use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};
@@ -69,7 +69,10 @@ impl MessageQueueFactory {
     }
 
     /// 从Redis URL解析配置
-    pub fn parse_redis_url(url: &str, config: &MessageQueueConfig) -> SchedulerResult<RedisStreamConfig> {
+    pub fn parse_redis_url(
+        url: &str,
+        config: &MessageQueueConfig,
+    ) -> SchedulerResult<RedisStreamConfig> {
         // 简单的URL解析，实际项目中可能需要更复杂的解析逻辑
         let url = url::Url::parse(url)
             .map_err(|e| SchedulerError::Configuration(format!("无效的Redis URL: {e}")))?;
@@ -229,7 +232,10 @@ impl MessageQueue for MessageQueueManager {
         self.current_queue.publish_message(queue, message).await
     }
 
-    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<scheduler_core::models::Message>> {
+    async fn consume_messages(
+        &self,
+        queue: &str,
+    ) -> SchedulerResult<Vec<scheduler_core::models::Message>> {
         self.current_queue.consume_messages(queue).await
     }
 

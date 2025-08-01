@@ -188,10 +188,10 @@ impl MessageQueueConfig {
         if self.is_redis_stream() {
             if !self.url.is_empty() {
                 Some(self.url.clone())
-            } else if let Some(redis_config) = &self.redis {
-                Some(redis_config.build_url())
             } else {
-                None
+                self.redis
+                    .as_ref()
+                    .map(|redis_config| redis_config.build_url())
             }
         } else {
             None

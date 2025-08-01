@@ -3,7 +3,7 @@ use std::time::Duration;
 
 use scheduler_core::{
     models::{MessageType, TaskControlMessage},
-    SchedulerResult, SchedulerError, ServiceLocator,
+    SchedulerError, SchedulerResult, ServiceLocator,
 };
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
@@ -135,7 +135,10 @@ impl WorkerLifecycle {
     }
 
     /// Start task polling loop
-    async fn start_task_polling(&self, mut shutdown_rx: broadcast::Receiver<()>) -> SchedulerResult<()> {
+    async fn start_task_polling(
+        &self,
+        mut shutdown_rx: broadcast::Receiver<()>,
+    ) -> SchedulerResult<()> {
         let mut poll_interval = interval(Duration::from_millis(self.poll_interval_ms));
         let service_locator = Arc::clone(&self.service_locator);
         let task_queue = self.task_queue.clone();
