@@ -81,6 +81,15 @@ impl Default for ShutdownManager {
     }
 }
 
+impl Clone for ShutdownManager {
+    fn clone(&self) -> Self {
+        Self {
+            shutdown_tx: Arc::clone(&self.shutdown_tx),
+            is_shutdown: Arc::clone(&self.is_shutdown),
+        }
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -174,14 +183,5 @@ mod tests {
         // 等待任务应该完成
         let result = timeout(Duration::from_millis(100), wait_handle).await;
         assert!(result.is_ok());
-    }
-}
-
-impl Clone for ShutdownManager {
-    fn clone(&self) -> Self {
-        Self {
-            shutdown_tx: Arc::clone(&self.shutdown_tx),
-            is_shutdown: Arc::clone(&self.is_shutdown),
-        }
     }
 }

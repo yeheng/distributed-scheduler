@@ -32,7 +32,7 @@ impl PostgresTaskRepository {
         let dependency_checker = TaskDependencyChecker::new(pool.clone());
         Self {
             pool,
-            dependency_checker: dependency_checker,
+            dependency_checker,
         }
     }
 

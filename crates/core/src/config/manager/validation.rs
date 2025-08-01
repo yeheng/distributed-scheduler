@@ -8,6 +8,9 @@ use std::collections::HashMap;
 
 use crate::errors::SchedulerError;
 
+/// Type alias for custom validator function to reduce type complexity
+pub type CustomValidator = Box<dyn Fn(&Value) -> Result<(), ConfigValidationError> + Send + Sync>;
+
 /// Configuration validation error
 #[derive(Debug, Clone, thiserror::Error)]
 pub enum ConfigValidationError {
@@ -45,7 +48,7 @@ pub trait ConfigValidator: Send + Sync {
 pub struct BasicConfigValidator {
     required_fields: Vec<String>,
     type_checks: HashMap<String, String>,
-    custom_validators: Vec<Box<dyn Fn(&Value) -> Result<(), ConfigValidationError> + Send + Sync>>,
+    custom_validators: Vec<CustomValidator>,
 }
 
 impl BasicConfigValidator {

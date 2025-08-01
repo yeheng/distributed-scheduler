@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 use std::sync::Arc;
 use std::time::{SystemTime, UNIX_EPOCH};
 
@@ -23,9 +24,10 @@ pub enum LogLevel {
     Error = 4,
 }
 
-impl LogLevel {
-    /// Parse log level from string
-    pub fn from_str(level: &str) -> SchedulerResult<Self> {
+impl FromStr for LogLevel {
+    type Err = crate::errors::SchedulerError;
+
+    fn from_str(level: &str) -> Result<Self, Self::Err> {
         match level.to_lowercase().as_str() {
             "trace" => Ok(LogLevel::Trace),
             "debug" => Ok(LogLevel::Debug),
@@ -37,11 +39,19 @@ impl LogLevel {
             ))),
         }
     }
+}
+
+impl LogLevel {
+    /// Parse log level from string
+    #[deprecated(since = "1.0.0", note = "use `FromStr` trait instead")]
+    pub fn from_str(level: &str) -> SchedulerResult<Self> {
+        level.parse()
+    }
 
     /// Get current log level from environment variable
     pub fn from_env() -> Self {
         std::env::var("LOG_LEVEL")
-            .map(|s| Self::from_str(&s).unwrap_or(Self::Info))
+            .map(|s| s.parse().unwrap_or(Self::Info))
             .unwrap_or(Self::Info)
     }
 

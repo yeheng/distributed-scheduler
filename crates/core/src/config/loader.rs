@@ -153,8 +153,8 @@ impl ConfigLoader for FileConfigLoader {
         let timestamp = std::time::SystemTime::now();
 
         for (key, value) in std::env::vars() {
-            if key.starts_with(prefix) {
-                let config_key = key[prefix.len()..].to_lowercase().replace('_', ".");
+            if let Some(stripped) = key.strip_prefix(prefix) {
+                let config_key = stripped.to_lowercase().replace('_', ".");
                 let json_value = serde_json::Value::String(value);
 
                 result.insert(

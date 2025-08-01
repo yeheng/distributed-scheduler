@@ -75,8 +75,8 @@ impl ConfigSource {
         let mut config = Value::Object(serde_json::Map::new());
 
         for (key, value) in std::env::vars() {
-            if key.starts_with(prefix) {
-                let config_key = key[prefix.len()..].to_lowercase().replace('_', ".");
+            if let Some(stripped) = key.strip_prefix(prefix) {
+                let config_key = stripped.to_lowercase().replace('_', ".");
                 let parsed_value: Value =
                     serde_json::from_str(&value).unwrap_or_else(|_| Value::String(value.clone()));
 
@@ -95,14 +95,14 @@ impl ConfigSource {
         let mut current_key = None;
 
         for arg in args {
-            if arg.starts_with("--") {
+            if let Some(stripped) = arg.strip_prefix("--") {
                 if let Some(key) = current_key {
                     // Set previous key as boolean flag
                     if let Value::Object(ref mut map) = config {
                         map.insert(key, Value::Bool(true));
                     }
                 }
-                current_key = Some(arg[2..].to_string());
+                current_key = Some(stripped.to_string());
             } else if let Some(key) = current_key.take() {
                 // Set key with value
                 let parsed_value: Value =
@@ -176,18 +176,16 @@ impl ConfigMerger {
                         }
                     } else {
                         // Handle nested merge for non-flat keys
-                        if let (Some(base_value), Value::Object(override_obj)) =
+                        if let (Some(Value::Object(base_obj)), Value::Object(override_obj)) =
                             (base_map.get(&key), &value)
                         {
-                            if let Value::Object(base_obj) = base_value {
-                                // Recursively merge nested objects
-                                let merged = Self::merge(
-                                    Value::Object(base_obj.clone()),
-                                    Value::Object(override_obj.clone()),
-                                );
-                                base_map.insert(key, merged);
-                                continue;
-                            }
+                            // Recursively merge nested objects
+                            let merged = Self::merge(
+                                Value::Object(base_obj.clone()),
+                                Value::Object(override_obj.clone()),
+                            );
+                            base_map.insert(key, merged);
+                            continue;
                         }
                         base_map.insert(key, value);
                     }

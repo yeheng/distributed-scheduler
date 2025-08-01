@@ -5,11 +5,14 @@
 
 use serde_json::Value;
 
+/// Type alias for configuration callback function to reduce type complexity
+pub type ConfigCallback = Box<dyn Fn(&Value) + Send + Sync>;
+
 /// Configuration callback manager - Handles configuration change callbacks
 /// Follows SRP: Only responsible for callback management
 pub struct ConfigCallbackManager {
     /// Configuration change callbacks
-    callbacks: Vec<Box<dyn Fn(&Value) + Send + Sync>>,
+    callbacks: Vec<ConfigCallback>,
 }
 
 impl ConfigCallbackManager {

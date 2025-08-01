@@ -47,10 +47,7 @@ pub struct BasicConfigValidator {
     name: String,
     required_fields: Vec<String>,
     field_types: HashMap<String, String>,
-    custom_validators: HashMap<
-        String,
-        Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>,
-    >,
+    custom_validators: HashMap<String, CustomValidator>,
 }
 
 impl BasicConfigValidator {

@@ -189,8 +189,8 @@ impl ConfigLoader {
             // Collect all keys that start with the prefix
             let mut result_map = serde_json::Map::new();
             for (key, value) in map {
-                if key.starts_with(prefix) {
-                    let remaining_key = key[prefix.len()..].trim_start_matches('.');
+                if let Some(stripped) = key.strip_prefix(prefix) {
+                    let remaining_key = stripped.trim_start_matches('.');
                     if !remaining_key.is_empty() {
                         result_map.insert(remaining_key.to_string(), value.clone());
                     }

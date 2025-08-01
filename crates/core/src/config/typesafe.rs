@@ -75,6 +75,7 @@
 //! ```
 
 use std::marker::PhantomData;
+use std::str::FromStr;
 use std::sync::Arc;
 
 use serde::{de::DeserializeOwned, Serialize};
@@ -396,9 +397,10 @@ pub enum Environment {
     Production,
 }
 
-impl Environment {
-    /// Parse environment from string
-    pub fn from_str(env: &str) -> SchedulerResult<Self> {
+impl FromStr for Environment {
+    type Err = SchedulerError;
+
+    fn from_str(env: &str) -> Result<Self, Self::Err> {
         match env.to_lowercase().as_str() {
             "development" | "dev" => Ok(Environment::Development),
             "testing" | "test" => Ok(Environment::Testing),
@@ -409,11 +411,19 @@ impl Environment {
             ))),
         }
     }
+}
+
+impl Environment {
+    /// Parse environment from string
+    #[deprecated(since = "1.0.0", note = "use `FromStr` trait instead")]
+    pub fn from_str(env: &str) -> SchedulerResult<Self> {
+        env.parse()
+    }
 
     /// Get current environment from environment variable
     pub fn current() -> SchedulerResult<Self> {
         std::env::var("APP_ENV")
-            .map(|s| Self::from_str(&s))
+            .map(|s| s.parse())
             .unwrap_or(Ok(Environment::Development))
     }
 
@@ -540,17 +550,15 @@ pub mod utils {
         match (base, override_config) {
             (Value::Object(mut base_map), Value::Object(override_map)) => {
                 for (key, value) in override_map {
-                    if let (Some(base_value), Value::Object(override_obj)) =
+                    if let (Some(Value::Object(base_obj)), Value::Object(override_obj)) =
                         (base_map.get(&key), &value)
                     {
-                        if let Value::Object(base_obj) = base_value {
-                            let merged = merge_two_configs(
-                                Value::Object(base_obj.clone()),
-                                Value::Object(override_obj.clone()),
-                            );
-                            base_map.insert(key, merged);
-                            continue;
-                        }
+                        let merged = merge_two_configs(
+                            Value::Object(base_obj.clone()),
+                            Value::Object(override_obj.clone()),
+                        );
+                        base_map.insert(key, merged);
+                        continue;
                     }
                     base_map.insert(key, value);
                 }

@@ -1,4 +1,5 @@
 use std::collections::HashMap;
+use std::str::FromStr;
 
 use serde::{Deserialize, Serialize};
 
@@ -13,9 +14,10 @@ pub enum Environment {
     Production,
 }
 
-impl Environment {
-    /// Parse environment from string
-    pub fn from_str(env: &str) -> Result<Self, SchedulerError> {
+impl FromStr for Environment {
+    type Err = SchedulerError;
+
+    fn from_str(env: &str) -> Result<Self, Self::Err> {
         match env.to_lowercase().as_str() {
             "development" | "dev" => Ok(Environment::Development),
             "testing" | "test" => Ok(Environment::Testing),
@@ -26,11 +28,19 @@ impl Environment {
             ))),
         }
     }
+}
+
+impl Environment {
+    /// Parse environment from string
+    #[deprecated(since = "1.0.0", note = "use `FromStr` trait instead")]
+    pub fn from_str(env: &str) -> Result<Self, SchedulerError> {
+        env.parse()
+    }
 
     /// Get current environment from environment variable
     pub fn current() -> Result<Self, SchedulerError> {
         std::env::var("APP_ENV")
-            .map(|s| Self::from_str(&s))
+            .map(|s| s.parse())
             .unwrap_or(Ok(Environment::Development))
     }
 
