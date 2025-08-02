@@ -1,5 +1,5 @@
 //! 值对象
-//! 
+//!
 //! 领域值对象定义
 
 use serde::{Deserialize, Serialize};
@@ -46,15 +46,15 @@ impl WorkerCapacity {
             current_load: 0,
         }
     }
-    
+
     pub fn is_available(&self) -> bool {
         self.current_load < self.max_concurrent_tasks
     }
-    
+
     pub fn available_slots(&self) -> u32 {
         self.max_concurrent_tasks.saturating_sub(self.current_load)
     }
-    
+
     pub fn utilization_rate(&self) -> f64 {
         if self.max_concurrent_tasks == 0 {
             0.0

@@ -189,7 +189,7 @@ impl CircuitBreaker {
         Fut: std::future::Future<Output = SchedulerResult<T>>,
     {
         // Check if we should allow the call
-        if !self.should_allow_call().await {
+        if !self.should_allow_call().await? {
             return Err(SchedulerError::Internal(
                 "Circuit breaker is open - calls are blocked".to_string(),
             ));
@@ -200,25 +200,25 @@ impl CircuitBreaker {
 
         match result {
             Ok(Ok(result)) => {
-                self.record_success().await;
+                self.record_success().await?;
                 Ok(result)
             }
             Ok(Err(error)) => {
-                self.record_failure().await;
+                self.record_failure().await?;
                 Err(error)
             }
             Err(_) => {
-                self.record_failure().await;
+                self.record_failure().await?;
                 Err(SchedulerError::Internal("Operation timed out".to_string()))
             }
         }
     }
 
     /// Check if call should be allowed based on circuit state
-    async fn should_allow_call(&self) -> bool {
+    async fn should_allow_call(&self) -> SchedulerResult<bool> {
         let stats = self.stats.read().await;
 
-        match stats.state {
+        let result = match stats.state {
             CircuitState::Closed => true,
             CircuitState::Open => {
                 // Check if recovery timeout has passed
@@ -226,18 +226,19 @@ impl CircuitBreaker {
                     > stats.current_recovery_timeout
                 {
                     drop(stats);
-                    self.transition_to_half_open().await;
+                    self.transition_to_half_open().await?;
                     true
                 } else {
                     false
                 }
             }
             CircuitState::HalfOpen => true,
-        }
+        };
+        Ok(result)
     }
 
     /// Record successful call
-    async fn record_success(&self) {
+    async fn record_success(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
 
         stats.total_calls += 1;
@@ -253,10 +254,11 @@ impl CircuitBreaker {
             stats.last_state_change = Instant::now();
             stats.current_recovery_timeout = self.config.recovery_timeout; // Reset timeout
         }
+        Ok(())
     }
 
     /// Record failed call
-    async fn record_failure(&self) {
+    async fn record_failure(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
 
         stats.total_calls += 1;
@@ -284,46 +286,51 @@ impl CircuitBreaker {
                 self.config.max_recovery_timeout,
             );
         }
+        Ok(())
     }
 
     /// Transition to half-open state
-    async fn transition_to_half_open(&self) {
+    async fn transition_to_half_open(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
         stats.state = CircuitState::HalfOpen;
         stats.last_state_change = Instant::now();
         stats.consecutive_successes = 0;
+        Ok(())
     }
 
     /// Get current circuit state
-    pub async fn get_state(&self) -> CircuitState {
-        self.stats.read().await.state.clone()
+    pub async fn get_state(&self) -> SchedulerResult<CircuitState> {
+        Ok(self.stats.read().await.state.clone())
     }
 
     /// Get circuit breaker statistics
-    pub async fn get_stats(&self) -> CircuitBreakerStats {
-        self.stats.read().await.clone()
+    pub async fn get_stats(&self) -> SchedulerResult<CircuitBreakerStats> {
+        Ok(self.stats.read().await.clone())
     }
 
     /// Reset circuit breaker to closed state
-    pub async fn reset(&self) {
+    pub async fn reset(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
         *stats = CircuitBreakerStats::new(&self.config);
+        Ok(())
     }
 
     /// Force open circuit (for testing or maintenance)
-    pub async fn force_open(&self) {
+    pub async fn force_open(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
         stats.state = CircuitState::Open;
         stats.last_state_change = Instant::now();
+        Ok(())
     }
 
     /// Force close circuit (for testing or recovery)
-    pub async fn force_close(&self) {
+    pub async fn force_close(&self) -> SchedulerResult<()> {
         let mut stats = self.stats.write().await;
         stats.state = CircuitState::Closed;
         stats.last_state_change = Instant::now();
         stats.consecutive_failures = 0;
         stats.current_recovery_timeout = self.config.recovery_timeout;
+        Ok(())
     }
 }
 
@@ -363,13 +370,13 @@ impl CircuitBreakerMiddleware {
     }
 
     /// Get circuit breaker statistics
-    pub async fn get_stats(&self) -> CircuitBreakerStats {
+    pub async fn get_stats(&self) -> SchedulerResult<CircuitBreakerStats> {
         self.circuit_breaker.get_stats().await
     }
 
     /// Reset circuit breaker
     pub async fn reset(&self) -> SchedulerResult<()> {
-        self.circuit_breaker.reset().await;
+        self.circuit_breaker.reset().await?;
         Ok(())
     }
 }
@@ -383,12 +390,12 @@ mod tests {
         let cb = CircuitBreaker::new();
 
         // Initially in closed state
-        assert_eq!(cb.get_state().await, CircuitState::Closed);
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Closed);
 
         // Successful call should keep it closed
         let result = cb.execute(|| async { Ok::<(), SchedulerError>(()) }).await;
         assert!(result.is_ok());
-        assert_eq!(cb.get_state().await, CircuitState::Closed);
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Closed);
     }
 
     #[tokio::test]
@@ -409,7 +416,7 @@ mod tests {
         }
 
         // Circuit should be open
-        assert_eq!(cb.get_state().await, CircuitState::Open);
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Open);
 
         // Further calls should be blocked
         let result = cb.execute(|| async { Ok::<(), SchedulerError>(()) }).await;
@@ -437,7 +444,7 @@ mod tests {
                 .await;
         }
 
-        assert_eq!(cb.get_state().await, CircuitState::Open);
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Open);
 
         // Wait for recovery timeout
         tokio::time::sleep(Duration::from_millis(150)).await;
@@ -448,7 +455,7 @@ mod tests {
             assert!(result.is_ok());
         }
 
-        assert_eq!(cb.get_state().await, CircuitState::Closed);
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Closed);
     }
 
     #[tokio::test]
@@ -471,7 +478,7 @@ mod tests {
         assert!(result.unwrap_err().to_string().contains("timed out"));
 
         // Should count as failure
-        let stats = cb.get_stats().await;
+        let stats = cb.get_stats().await.unwrap();
         assert_eq!(stats.consecutive_failures, 1);
     }
 
@@ -520,8 +527,8 @@ mod tests {
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
-        assert_eq!(cb.get_state().await, CircuitState::Open);
-        let stats1 = cb.get_stats().await;
+        assert_eq!(cb.get_state().await.unwrap(), CircuitState::Open);
+        let stats1 = cb.get_stats().await.unwrap();
         assert_eq!(stats1.current_recovery_timeout, Duration::from_millis(100));
 
         // Wait and fail again in half-open
@@ -530,7 +537,7 @@ mod tests {
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
-        let stats2 = cb.get_stats().await;
+        let stats2 = cb.get_stats().await.unwrap();
         assert_eq!(stats2.current_recovery_timeout, Duration::from_millis(200)); // 100 * 2
 
         // Wait and fail again
@@ -539,7 +546,7 @@ mod tests {
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
-        let stats3 = cb.get_stats().await;
+        let stats3 = cb.get_stats().await.unwrap();
         assert_eq!(stats3.current_recovery_timeout, Duration::from_millis(400)); // 200 * 2
 
         // Should be capped at max
@@ -548,7 +555,7 @@ mod tests {
             .execute(|| async { Err(SchedulerError::Internal("Test error".to_string())) })
             .await;
 
-        let stats4 = cb.get_stats().await;
+        let stats4 = cb.get_stats().await.unwrap();
         assert_eq!(stats4.current_recovery_timeout, Duration::from_millis(400));
         // Still 400 (max)
     }

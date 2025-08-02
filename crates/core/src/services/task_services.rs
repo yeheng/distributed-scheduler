@@ -1,11 +1,11 @@
-use async_trait::async_trait;
 use crate::{
     models::{Task, TaskRun, TaskRunStatus},
     SchedulerResult,
 };
+use async_trait::async_trait;
 
 /// 任务控制服务接口
-/// 
+///
 /// 专注于任务的生命周期管理和控制操作
 #[async_trait]
 pub trait TaskControlService: Send + Sync {
@@ -20,7 +20,7 @@ pub trait TaskControlService: Send + Sync {
 }
 
 /// 任务运行管理服务接口
-/// 
+///
 /// 专注于任务运行实例的管理
 #[async_trait]
 pub trait TaskRunManagementService: Send + Sync {

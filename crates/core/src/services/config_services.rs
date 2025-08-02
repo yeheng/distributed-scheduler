@@ -1,6 +1,6 @@
-use async_trait::async_trait;
-use crate::SchedulerResult;
 use super::TimeRange;
+use crate::SchedulerResult;
+use async_trait::async_trait;
 
 /// 配置管理服务接口
 ///
@@ -100,8 +100,9 @@ impl<C: ConfigurationService> ConfigurationServiceExt for C {
     {
         match self.get_config_value(key).await? {
             Some(value) => {
-                let typed_value: T = serde_json::from_value(value)
-                    .map_err(|e| crate::errors::SchedulerError::Internal(format!("配置反序列化失败: {e}")))?;
+                let typed_value: T = serde_json::from_value(value).map_err(|e| {
+                    crate::errors::SchedulerError::Internal(format!("配置反序列化失败: {e}"))
+                })?;
                 Ok(Some(typed_value))
             }
             None => Ok(None),

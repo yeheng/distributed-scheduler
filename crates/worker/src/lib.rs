@@ -26,6 +26,5 @@ pub use refactored_service::{
 
 #[deprecated(note = "Use WorkerService from composed_service instead")]
 pub use service::{
-    WorkerService as LegacyWorkerService, 
-    WorkerServiceBuilder as LegacyWorkerServiceBuilder,
+    WorkerService as LegacyWorkerService, WorkerServiceBuilder as LegacyWorkerServiceBuilder,
 };

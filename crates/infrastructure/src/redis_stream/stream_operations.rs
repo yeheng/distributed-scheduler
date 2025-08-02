@@ -40,12 +40,17 @@ impl RedisStreamOperations {
 
         // 创建消费者组
         let group_name = self.get_consumer_group_name(queue_name);
-        self.ensure_consumer_group_exists(queue_name, &group_name).await?;
+        self.ensure_consumer_group_exists(queue_name, &group_name)
+            .await?;
 
         let duration = start.elapsed();
-        self.metrics.record_operation_duration("create_queue", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("create_queue", duration.as_millis() as f64);
 
-        info!("Successfully created queue: {} in {:?}", queue_name, duration);
+        info!(
+            "Successfully created queue: {} in {:?}",
+            queue_name, duration
+        );
         Ok(())
     }
 
@@ -66,10 +71,14 @@ impl RedisStreamOperations {
         let deleted_count: i64 = self.connection_manager.execute_command(&mut cmd).await?;
 
         let duration = start.elapsed();
-        self.metrics.record_operation_duration("delete_queue", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("delete_queue", duration.as_millis() as f64);
 
         if deleted_count > 0 {
-            info!("Successfully deleted queue: {} in {:?}", queue_name, duration);
+            info!(
+                "Successfully deleted queue: {} in {:?}",
+                queue_name, duration
+            );
         } else {
             warn!("Queue {} was not found or already deleted", queue_name);
         }
@@ -87,9 +96,13 @@ impl RedisStreamOperations {
         let size: u64 = self.connection_manager.execute_command(&mut cmd).await?;
 
         let duration = start.elapsed();
-        self.metrics.record_operation_duration("get_queue_size", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("get_queue_size", duration.as_millis() as f64);
 
-        debug!("Queue {} has {} messages, query took {:?}", queue_name, size, duration);
+        debug!(
+            "Queue {} has {} messages, query took {:?}",
+            queue_name, size, duration
+        );
         Ok(size)
     }
 
@@ -109,13 +122,17 @@ impl RedisStreamOperations {
         // 重新创建Stream和消费者组
         self.ensure_stream_exists(queue_name).await?;
         let group_name = self.get_consumer_group_name(queue_name);
-        self.ensure_consumer_group_exists(queue_name, &group_name).await?;
+        self.ensure_consumer_group_exists(queue_name, &group_name)
+            .await?;
 
         let duration = start.elapsed();
-        self.metrics.record_operation_duration("purge_queue", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("purge_queue", duration.as_millis() as f64);
 
-        info!("Successfully purged queue: {}, removed {} messages in {:?}", 
-              queue_name, original_size, duration);
+        info!(
+            "Successfully purged queue: {}, removed {} messages in {:?}",
+            queue_name, original_size, duration
+        );
         Ok(original_size)
     }
 
@@ -126,8 +143,12 @@ impl RedisStreamOperations {
         // 尝试获取Stream信息
         let mut cmd = redis::cmd("XINFO");
         cmd.arg("STREAM").arg(stream_name);
-        
-        match self.connection_manager.execute_command::<redis::Value>(&mut cmd).await {
+
+        match self
+            .connection_manager
+            .execute_command::<redis::Value>(&mut cmd)
+            .await
+        {
             Ok(_) => {
                 debug!("Stream {} already exists", stream_name);
                 Ok(())
@@ -146,7 +167,10 @@ impl RedisStreamOperations {
         stream_name: &str,
         group_name: &str,
     ) -> SchedulerResult<()> {
-        debug!("Ensuring consumer group exists: {} for stream: {}", group_name, stream_name);
+        debug!(
+            "Ensuring consumer group exists: {} for stream: {}",
+            group_name, stream_name
+        );
 
         let mut cmd = redis::cmd("XGROUP");
         cmd.arg("CREATE")
@@ -155,7 +179,11 @@ impl RedisStreamOperations {
             .arg("0") // 从Stream开始读取
             .arg("MKSTREAM"); // 如果Stream不存在则创建
 
-        match self.connection_manager.execute_command::<String>(&mut cmd).await {
+        match self
+            .connection_manager
+            .execute_command::<String>(&mut cmd)
+            .await
+        {
             Ok(_) => {
                 debug!("Successfully created consumer group: {}", group_name);
                 Ok(())
@@ -189,24 +217,34 @@ impl RedisStreamOperations {
         // 删除临时消息
         let mut del_cmd = redis::cmd("XDEL");
         del_cmd.arg(stream_name).arg(&temp_id);
-        let _: i64 = self.connection_manager.execute_command(&mut del_cmd).await?;
+        let _: i64 = self
+            .connection_manager
+            .execute_command(&mut del_cmd)
+            .await?;
 
         debug!("Created empty stream: {}", stream_name);
         Ok(())
     }
 
-    async fn delete_consumer_group(&self, stream_name: &str, group_name: &str) -> SchedulerResult<()> {
+    async fn delete_consumer_group(
+        &self,
+        stream_name: &str,
+        group_name: &str,
+    ) -> SchedulerResult<()> {
         let mut cmd = redis::cmd("XGROUP");
         cmd.arg("DESTROY").arg(stream_name).arg(group_name);
-        
+
         let destroyed: i64 = self.connection_manager.execute_command(&mut cmd).await?;
-        
+
         if destroyed > 0 {
             debug!("Successfully deleted consumer group: {}", group_name);
         } else {
-            debug!("Consumer group {} was not found or already deleted", group_name);
+            debug!(
+                "Consumer group {} was not found or already deleted",
+                group_name
+            );
         }
-        
+
         Ok(())
     }
 }

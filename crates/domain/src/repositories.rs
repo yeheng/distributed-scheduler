@@ -1,9 +1,9 @@
 //! 领域仓储抽象
-//! 
+//!
 //! 定义数据访问的抽象接口，遵循依赖倒置原则
 
-use async_trait::async_trait;
 use crate::entities::{Task, TaskRun, Worker};
+use async_trait::async_trait;
 use scheduler_core::SchedulerResult;
 
 /// 任务仓储抽象

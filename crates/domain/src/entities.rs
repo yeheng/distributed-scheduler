@@ -1,5 +1,5 @@
 //! 领域实体
-//! 
+//!
 //! 核心业务实体定义
 
 use chrono::{DateTime, Utc};

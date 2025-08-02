@@ -42,12 +42,6 @@ impl FromStr for LogLevel {
 }
 
 impl LogLevel {
-    /// Parse log level from string
-    #[deprecated(since = "1.0.0", note = "use `FromStr` trait instead")]
-    pub fn from_str(level: &str) -> SchedulerResult<Self> {
-        level.parse()
-    }
-
     /// Get current log level from environment variable
     pub fn from_env() -> Self {
         std::env::var("LOG_LEVEL")

@@ -8,14 +8,14 @@
 //! - `services::worker_services` - Worker相关服务  
 //! - `services::monitoring_services` - 监控相关服务
 //! - `services::config_services` - 配置相关服务
+//!
+//! 注意：此模块保留用于向后兼容，但新代码应使用 services 模块。
 
 use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::{
-    errors::SchedulerError,
-    models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
-    SchedulerResult,
+    errors::SchedulerError, models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus}, service_interfaces::{DispatchStats, TimeRange}, services::SchedulerStats, SchedulerResult
 };
 
 /// 服务层抽象 - 任务控制服务
@@ -73,23 +73,6 @@ pub trait SchedulerService: Send + Sync {
 
     /// 重新加载调度配置
     async fn reload_config(&self) -> SchedulerResult<()>;
-}
-
-/// 调度器统计信息
-#[derive(Debug, Clone)]
-pub struct SchedulerStats {
-    /// 总任务数
-    pub total_tasks: i64,
-    /// 活跃任务数
-    pub active_tasks: i64,
-    /// 正在运行的任务实例数
-    pub running_task_runs: i64,
-    /// 待处理的任务实例数
-    pub pending_task_runs: i64,
-    /// 调度器运行时间（秒）
-    pub uptime_seconds: u64,
-    /// 最后调度时间
-    pub last_schedule_time: Option<chrono::DateTime<chrono::Utc>>,
 }
 
 /// Worker管理服务抽象
@@ -185,21 +168,6 @@ pub trait TaskDispatchService: Send + Sync {
     async fn get_dispatch_stats(&self) -> SchedulerResult<DispatchStats>;
 }
 
-/// 分发统计信息
-#[derive(Debug, Clone)]
-pub struct DispatchStats {
-    /// 总分发数
-    pub total_dispatched: i64,
-    /// 成功分发数
-    pub successful_dispatched: i64,
-    /// 失败分发数
-    pub failed_dispatched: i64,
-    /// 重新分发数
-    pub redispatched: i64,
-    /// 平均分发时间（毫秒）
-    pub avg_dispatch_time_ms: f64,
-}
-
 /// 监控服务抽象
 #[async_trait]
 pub trait MonitoringService: Send + Sync {
@@ -260,15 +228,6 @@ pub struct ComponentHealth {
     pub message: Option<String>,
     /// 最后检查时间
     pub last_check: chrono::DateTime<chrono::Utc>,
-}
-
-/// 时间范围
-#[derive(Debug, Clone)]
-pub struct TimeRange {
-    /// 开始时间
-    pub start: chrono::DateTime<chrono::Utc>,
-    /// 结束时间
-    pub end: chrono::DateTime<chrono::Utc>,
 }
 
 /// 性能指标

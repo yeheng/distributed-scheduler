@@ -1,9 +1,12 @@
 //! 领域服务
-//! 
+//!
 //! 核心业务逻辑服务
 
+use crate::{
+    entities::{Task, TaskRun},
+    repositories::TaskRunRepository,
+};
 use async_trait::async_trait;
-use crate::{entities::{Task, TaskRun, Worker}, repositories::{TaskRepository, TaskRunRepository, WorkerRepository}};
 use scheduler_core::{SchedulerError, SchedulerResult};
 
 /// 任务调度服务
@@ -14,46 +17,28 @@ pub trait TaskSchedulingService: Send + Sync {
     async fn retry_failed_task(&self, task_run_id: i64) -> SchedulerResult<TaskRun>;
 }
 
-/// Worker选择服务
-#[async_trait]
-pub trait WorkerSelectionService: Send + Sync {
-    async fn select_worker_for_task(&self, task: &Task) -> SchedulerResult<Option<Worker>>;
-    async fn release_worker(&self, worker_id: &str) -> SchedulerResult<()>;
-}
 
 /// 默认任务调度服务实现
-pub struct DefaultTaskSchedulingService<TR, TRR, WR> 
+pub struct DefaultTaskSchedulingService<TRR>
 where
-    TR: TaskRepository,
     TRR: TaskRunRepository,
-    WR: WorkerRepository,
 {
-    task_repo: TR,
     task_run_repo: TRR,
-    worker_repo: WR,
 }
 
-impl<TR, TRR, WR> DefaultTaskSchedulingService<TR, TRR, WR>
+impl<TRR> DefaultTaskSchedulingService<TRR>
 where
-    TR: TaskRepository,
     TRR: TaskRunRepository,
-    WR: WorkerRepository,
 {
-    pub fn new(task_repo: TR, task_run_repo: TRR, worker_repo: WR) -> Self {
-        Self {
-            task_repo,
-            task_run_repo,
-            worker_repo,
-        }
+    pub fn new(task_run_repo: TRR) -> Self {
+        Self { task_run_repo }
     }
 }
 
 #[async_trait]
-impl<TR, TRR, WR> TaskSchedulingService for DefaultTaskSchedulingService<TR, TRR, WR>
+impl<TRR> TaskSchedulingService for DefaultTaskSchedulingService<TRR>
 where
-    TR: TaskRepository + 'static,
-    TRR: TaskRunRepository + 'static,  
-    WR: WorkerRepository + 'static,
+    TRR: TaskRunRepository + 'static,
 {
     async fn schedule_task(&self, task: &Task) -> SchedulerResult<TaskRun> {
         // 基础实现：创建任务执行实例
@@ -68,7 +53,7 @@ where
             result: None,
             retry_count: 0,
         };
-        
+
         self.task_run_repo.create(&task_run).await
     }
 
@@ -94,7 +79,7 @@ where
                 result: None,
                 retry_count: failed_run.retry_count + 1,
             };
-            
+
             self.task_run_repo.create(&retry_run).await
         } else {
             Err(SchedulerError::TaskRunNotFound { id: task_run_id })

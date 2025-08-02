@@ -126,10 +126,7 @@ fn test_database_url_override() {
 
     // 测试默认值
     env::remove_var("SCHEDULER_DATABASE_URL");
-    assert_eq!(
-        config.database.url,
-        "postgresql://localhost/scheduler"
-    );
+    assert_eq!(config.database.url, "postgresql://localhost/scheduler");
 
     // 测试环境变量覆盖
     let test_url = "postgresql://test:5432/test_db";
@@ -149,10 +146,7 @@ fn test_message_queue_url_override() {
 
     // 测试默认值
     env::remove_var("SCHEDULER_MESSAGE_QUEUE_URL");
-    assert_eq!(
-        config.message_queue.url,
-        "amqp://localhost:5672"
-    );
+    assert_eq!(config.message_queue.url, "amqp://localhost:5672");
 
     // 测试环境变量覆盖
     let test_url = "amqp://test:5672";

@@ -1,9 +1,9 @@
-use async_trait::async_trait;
-use std::collections::HashMap;
 use crate::{
     models::{WorkerInfo, WorkerStatus},
     SchedulerResult,
 };
+use async_trait::async_trait;
+use std::collections::HashMap;
 
 /// Worker注册服务接口
 ///

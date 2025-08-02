@@ -1,7 +1,7 @@
+use super::TimeRange;
+use crate::SchedulerResult;
 use async_trait::async_trait;
 use std::collections::HashMap;
-use crate::SchedulerResult;
-use super::TimeRange;
 
 /// 指标收集服务接口
 ///
@@ -17,7 +17,7 @@ pub trait MetricsCollectionService: Send + Sync {
     ) -> SchedulerResult<()>;
 
     /// 批量记录指标
-    async fn record_metrics(&self, metrics: &[MetricRecord]) ->SchedulerResult<()>;
+    async fn record_metrics(&self, metrics: &[MetricRecord]) -> SchedulerResult<()>;
 }
 
 /// 事件记录服务接口
@@ -26,7 +26,8 @@ pub trait MetricsCollectionService: Send + Sync {
 #[async_trait]
 pub trait EventRecordingService: Send + Sync {
     /// 记录事件
-    async fn record_event(&self, event_type: &str, data: &serde_json::Value) -> SchedulerResult<()>;
+    async fn record_event(&self, event_type: &str, data: &serde_json::Value)
+        -> SchedulerResult<()>;
 
     /// 批量记录事件
     async fn record_events(&self, events: &[EventRecord]) -> SchedulerResult<()>;

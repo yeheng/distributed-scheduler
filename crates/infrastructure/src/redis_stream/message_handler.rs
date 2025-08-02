@@ -1,8 +1,10 @@
-use scheduler_core::{errors::SchedulerError, models::Message, SchedulerResult};
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 use std::time::Instant;
+
 use tracing::{debug, warn};
+
+use scheduler_core::{errors::SchedulerError, models::Message, SchedulerResult};
 
 use super::config::RedisStreamConfig;
 use super::connection_manager::RedisConnectionManager;
@@ -40,7 +42,7 @@ impl RedisMessageHandler {
 
         self.validate_queue_name(queue)?;
         self.validate_message(message)?;
-        
+
         self.publish_message_with_retry(queue, message).await
     }
 
@@ -54,17 +56,29 @@ impl RedisMessageHandler {
 
         // 处理待处理的消息
         if let Ok(mut pending_messages) = self.consume_pending_messages(queue).await {
-            debug!("Found {} pending messages in queue: {}", pending_messages.len(), queue);
+            debug!(
+                "Found {} pending messages in queue: {}",
+                pending_messages.len(),
+                queue
+            );
             all_messages.append(&mut pending_messages);
         }
 
         // 读取新消息
         if let Ok(mut new_messages) = self.consume_new_messages(queue).await {
-            debug!("Found {} new messages in queue: {}", new_messages.len(), queue);
+            debug!(
+                "Found {} new messages in queue: {}",
+                new_messages.len(),
+                queue
+            );
             all_messages.append(&mut new_messages);
         }
 
-        debug!("Consumed {} total messages from queue: {}", all_messages.len(), queue);
+        debug!(
+            "Consumed {} total messages from queue: {}",
+            all_messages.len(),
+            queue
+        );
         Ok(all_messages)
     }
 
@@ -77,19 +91,28 @@ impl RedisMessageHandler {
         let group_name = self.get_consumer_group_name(&queue_name);
 
         let mut cmd = redis::cmd("XACK");
-        cmd.arg(&queue_name).arg(&group_name).arg(&stream_message_id);
-        
+        cmd.arg(&queue_name)
+            .arg(&group_name)
+            .arg(&stream_message_id);
+
         let ack_count: i64 = self.connection_manager.execute_command(&mut cmd).await?;
 
         let duration = start.elapsed();
         self.metrics.record_message_acked();
-        self.metrics.record_operation_duration("ack", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("ack", duration.as_millis() as f64);
 
         if ack_count > 0 {
-            debug!("Successfully acknowledged message {} in {:?}", message_id, duration);
+            debug!(
+                "Successfully acknowledged message {} in {:?}",
+                message_id, duration
+            );
             self.remove_message_mapping(message_id);
         } else {
-            warn!("Message {} was not acknowledged (possibly already processed)", message_id);
+            warn!(
+                "Message {} was not acknowledged (possibly already processed)",
+                message_id
+            );
         }
 
         Ok(())
@@ -104,21 +127,28 @@ impl RedisMessageHandler {
 
         if requeue {
             // 重新排队：将消息添加回流的末尾
-            self.requeue_message(&queue_name, &stream_message_id).await?;
+            self.requeue_message(&queue_name, &stream_message_id)
+                .await?;
         }
 
         // 从消费者组的待处理消息中移除
         let group_name = self.get_consumer_group_name(&queue_name);
         let mut cmd = redis::cmd("XACK");
-        cmd.arg(&queue_name).arg(&group_name).arg(&stream_message_id);
-        
+        cmd.arg(&queue_name)
+            .arg(&group_name)
+            .arg(&stream_message_id);
+
         let _: i64 = self.connection_manager.execute_command(&mut cmd).await?;
 
         let duration = start.elapsed();
         self.metrics.record_message_nacked();
-        self.metrics.record_operation_duration("nack", duration.as_millis() as f64);
+        self.metrics
+            .record_operation_duration("nack", duration.as_millis() as f64);
 
-        debug!("Successfully nacked message {} in {:?}", message_id, duration);
+        debug!(
+            "Successfully nacked message {} in {:?}",
+            message_id, duration
+        );
         self.remove_message_mapping(message_id);
 
         Ok(())
@@ -127,31 +157,42 @@ impl RedisMessageHandler {
     // 私有辅助方法
     fn validate_queue_name(&self, queue: &str) -> SchedulerResult<()> {
         if queue.is_empty() {
-            return Err(SchedulerError::MessageQueue("Queue name cannot be empty".to_string()));
+            return Err(SchedulerError::MessageQueue(
+                "Queue name cannot be empty".to_string(),
+            ));
         }
         if queue.len() > 255 {
-            return Err(SchedulerError::MessageQueue("Queue name too long".to_string()));
+            return Err(SchedulerError::MessageQueue(
+                "Queue name too long".to_string(),
+            ));
         }
         if queue.contains(' ') || queue.contains('\n') || queue.contains('\r') {
-            return Err(SchedulerError::MessageQueue("Queue name contains invalid characters".to_string()));
+            return Err(SchedulerError::MessageQueue(
+                "Queue name contains invalid characters".to_string(),
+            ));
         }
         Ok(())
     }
 
     fn validate_message(&self, message: &Message) -> SchedulerResult<()> {
         if message.id.is_empty() {
-            return Err(SchedulerError::MessageQueue("Message ID cannot be empty".to_string()));
+            return Err(SchedulerError::MessageQueue(
+                "Message ID cannot be empty".to_string(),
+            ));
         }
         Ok(())
     }
 
-    fn serialize_message(&self, message: &Message) -> SchedulerResult<String> {
+    fn _serialize_message(&self, message: &Message) -> SchedulerResult<String> {
         serde_json::to_string(message).map_err(|e| {
-            SchedulerError::Serialization(format!("Failed to serialize message {}: {}", message.id, e))
+            SchedulerError::Serialization(format!(
+                "Failed to serialize message {}: {}",
+                message.id, e
+            ))
         })
     }
 
-    fn deserialize_message(&self, data: &str) -> SchedulerResult<Message> {
+    fn _deserialize_message(&self, data: &str) -> SchedulerResult<Message> {
         serde_json::from_str(data).map_err(|e| {
             SchedulerError::Serialization(format!("Failed to deserialize message data: {e}"))
         })
@@ -171,12 +212,6 @@ impl RedisMessageHandler {
         })
     }
 
-    fn add_message_mapping(&self, message_id: String, stream_id: String, queue_name: String) {
-        if let Ok(mut mapping) = self.message_id_mapping.lock() {
-            mapping.insert(message_id, (stream_id, queue_name));
-        }
-    }
-
     fn remove_message_mapping(&self, message_id: &str) {
         if let Ok(mut mapping) = self.message_id_mapping.lock() {
             mapping.remove(message_id);
@@ -184,7 +219,11 @@ impl RedisMessageHandler {
     }
 
     // 占位符方法 - 实际实现需要从原文件迁移
-    async fn publish_message_with_retry(&self, _queue: &str, _message: &Message) -> SchedulerResult<()> {
+    async fn publish_message_with_retry(
+        &self,
+        _queue: &str,
+        _message: &Message,
+    ) -> SchedulerResult<()> {
         // TODO: 从原文件迁移实现
         Ok(())
     }
@@ -199,7 +238,11 @@ impl RedisMessageHandler {
         Ok(vec![])
     }
 
-    async fn requeue_message(&self, _queue_name: &str, _stream_message_id: &str) -> SchedulerResult<()> {
+    async fn requeue_message(
+        &self,
+        _queue_name: &str,
+        _stream_message_id: &str,
+    ) -> SchedulerResult<()> {
         // TODO: 从原文件迁移实现
         Ok(())
     }

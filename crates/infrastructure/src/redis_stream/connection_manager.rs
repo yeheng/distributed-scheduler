@@ -33,7 +33,10 @@ impl RedisConnectionManager {
 
         // 测试连接
         manager.test_connection().await?;
-        debug!("Successfully connected to Redis at {}:{}", manager.config.host, manager.config.port);
+        debug!(
+            "Successfully connected to Redis at {}:{}",
+            manager.config.host, manager.config.port
+        );
 
         Ok(manager)
     }
@@ -56,7 +59,10 @@ impl RedisConnectionManager {
             match self.client.get_connection() {
                 Ok(conn) => {
                     if attempt > 0 {
-                        debug!("Successfully reconnected to Redis after {} attempts", attempt + 1);
+                        debug!(
+                            "Successfully reconnected to Redis after {} attempts",
+                            attempt + 1
+                        );
                     }
                     self.metrics.set_active_connections(1);
                     return Ok(conn);
@@ -64,7 +70,7 @@ impl RedisConnectionManager {
                 Err(e) => {
                     last_error = Some(e);
                     self.metrics.record_connection_error();
-                    
+
                     if attempt < self.config.max_retry_attempts - 1 {
                         warn!(
                             "Failed to connect to Redis (attempt {}/{}): {}. Retrying in {}s...",
@@ -91,7 +97,7 @@ impl RedisConnectionManager {
     /// 测试连接
     async fn test_connection(&self) -> SchedulerResult<()> {
         let mut conn = self.get_connection().await?;
-        
+
         // 执行PING命令测试连接
         let result: RedisResult<String> = redis::cmd("PING").query(&mut conn);
         match result {

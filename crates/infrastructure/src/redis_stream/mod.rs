@@ -17,9 +17,7 @@ pub use metrics_collector::RedisStreamMetrics;
 pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
-use scheduler_core::{
-    models::Message, traits::MessageQueue, SchedulerResult,
-};
+use scheduler_core::{models::Message, traits::MessageQueue, SchedulerResult};
 use std::sync::Arc;
 
 /// 健康状态
@@ -72,7 +70,7 @@ impl RedisStreamMessageQueue {
     pub async fn health_check(&self) -> SchedulerResult<HealthStatus> {
         // 尝试ping Redis连接
         let ping_result = self.connection_manager.ping().await;
-        
+
         match ping_result {
             Ok(_) => Ok(HealthStatus {
                 healthy: true,
@@ -89,7 +87,9 @@ impl RedisStreamMessageQueue {
 #[async_trait]
 impl MessageQueue for RedisStreamMessageQueue {
     async fn create_queue(&self, queue_name: &str, durable: bool) -> SchedulerResult<()> {
-        self.stream_operations.create_queue(queue_name, durable).await
+        self.stream_operations
+            .create_queue(queue_name, durable)
+            .await
     }
 
     async fn delete_queue(&self, queue_name: &str) -> SchedulerResult<()> {
@@ -97,7 +97,9 @@ impl MessageQueue for RedisStreamMessageQueue {
     }
 
     async fn publish_message(&self, queue_name: &str, message: &Message) -> SchedulerResult<()> {
-        self.message_handler.publish_message(queue_name, message).await
+        self.message_handler
+            .publish_message(queue_name, message)
+            .await
     }
 
     async fn consume_messages(&self, queue_name: &str) -> SchedulerResult<Vec<Message>> {

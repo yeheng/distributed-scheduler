@@ -94,8 +94,7 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
     println!("   SCHEDULER_OBSERVABILITY_LOG_LEVEL=warn");
 
     // 使用ConfigLoader加载配置（会应用环境变量覆盖）
-    let config_with_env = AppConfig::load(None)
-    .unwrap_or_else(|_| AppConfig::default());
+    let config_with_env = AppConfig::load(None).unwrap_or_else(|_| AppConfig::default());
     println!("   加载后的配置:");
     println!(
         "   数据库最大连接数: {}",
@@ -125,14 +124,8 @@ jaeger_endpoint = "http://jaeger:14268/api/traces"
 
     // 7. 数据库和消息队列URL获取
     println!("\n7. 连接字符串获取:");
-    println!(
-        "   数据库URL: {}",
-        config_with_env.database.url
-    );
-    println!(
-        "   消息队列URL: {}",
-        config_with_env.message_queue.url
-    );
+    println!("   数据库URL: {}", config_with_env.database.url);
+    println!("   消息队列URL: {}", config_with_env.message_queue.url);
 
     // 清理环境变量
     env::remove_var("SCHEDULER_DATABASE_MAX_CONNECTIONS");

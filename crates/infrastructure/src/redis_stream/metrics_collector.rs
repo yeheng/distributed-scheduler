@@ -1,6 +1,6 @@
+use metrics::{counter, gauge, histogram};
 use std::sync::atomic::{AtomicU32, AtomicU64, Ordering};
 use std::sync::Arc;
-use metrics::{counter, gauge, histogram};
 
 /// Redis Stream性能监控指标
 ///

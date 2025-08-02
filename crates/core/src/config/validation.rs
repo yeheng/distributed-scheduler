@@ -31,7 +31,8 @@ pub enum ConfigValidationError {
 }
 
 /// Type alias for custom validator function to reduce type complexity
-pub type CustomValidator = Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>;
+pub type CustomValidator =
+    Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>;
 
 /// Configuration validation trait
 pub trait ConfigValidator: Send + Sync {
