@@ -3,6 +3,7 @@ mod dependency_checker_tests {
     use async_trait::async_trait;
     use chrono::Utc;
     use scheduler_core::models::{TaskRun, TaskRunStatus, TaskStatus};
+    use scheduler_core::traits::{TaskRepository, TaskRunRepository};
     use scheduler_core::*;
     use serde_json::json;
     use std::collections::HashMap;

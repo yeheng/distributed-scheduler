@@ -3,8 +3,8 @@ use std::time::Duration;
 
 use chrono::Utc;
 use scheduler_core::{
-    models::TaskStatusUpdate, ApplicationContext, DefaultExecutorRegistry, MockMessageQueue,
-    ServiceLocator, TaskRunStatus,
+    models::TaskStatusUpdate, traits::MockMessageQueue, ApplicationContext,
+    DefaultExecutorRegistry, ServiceLocator, TaskRunStatus,
 };
 use tokio::time::sleep;
 

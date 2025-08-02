@@ -1,3 +1,14 @@
+//! 服务层抽象（已弃用）
+//!
+//! 此模块已被重构为更小的、职责单一的服务接口。
+//! 新的模块化接口位于 `services` 模块中。
+//!
+//! 建议使用：
+//! - `services::task_services` - 任务相关服务
+//! - `services::worker_services` - Worker相关服务  
+//! - `services::monitoring_services` - 监控相关服务
+//! - `services::config_services` - 配置相关服务
+
 use async_trait::async_trait;
 use std::collections::HashMap;
 

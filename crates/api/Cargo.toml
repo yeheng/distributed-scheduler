@@ -9,6 +9,7 @@ path = "src/bin/api-server.rs"
 
 [dependencies]
 scheduler-core = { path = "../core" }
+scheduler-domain = { path = "../domain" }
 scheduler-infrastructure = { path = "../infrastructure" }
 tokio = { workspace = true }
 serde = { workspace = true }

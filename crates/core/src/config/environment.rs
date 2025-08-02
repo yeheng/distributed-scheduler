@@ -31,12 +31,6 @@ impl FromStr for Environment {
 }
 
 impl Environment {
-    /// Parse environment from string
-    #[deprecated(since = "1.0.0", note = "use `FromStr` trait instead")]
-    pub fn from_str(env: &str) -> Result<Self, SchedulerError> {
-        env.parse()
-    }
-
     /// Get current environment from environment variable
     pub fn current() -> Result<Self, SchedulerError> {
         std::env::var("APP_ENV")

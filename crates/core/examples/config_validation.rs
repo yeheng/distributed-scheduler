@@ -3,7 +3,6 @@
 //! 此示例展示了如何使用配置验证框架来确保配置的正确性和完整性。
 //! 它演示了自定义验证器、类型检查、必需字段验证等功能。
 
-use scheduler_core::config::manager::{ConfigBuilder, ConfigSource};
 use scheduler_core::config::validation::{
     BasicConfigValidator, ConfigValidationError, ConfigValidator, SchemaValidator,
     ValidatorRegistry,
@@ -528,35 +527,6 @@ async fn main() -> anyhow::Result<()> {
         Err(e) => {
             println!("   ✓ 无效配置被正确拒绝");
             println!("   错误信息: {}", e);
-        }
-    }
-
-    // 8. 使用配置管理器集成验证
-    println!("\n8. 使用配置管理器集成验证:");
-
-    let manager = ConfigBuilder::new()
-        .add_source(ConfigSource::Memory {
-            data: valid_config.clone(),
-        })
-        .build();
-
-    // 加载配置
-    match manager.load().await {
-        Ok(_) => {
-            println!("   ✓ 配置加载成功");
-
-            // 手动验证配置
-            match validator_registry.validate(&valid_config) {
-                Ok(_) => {
-                    println!("   ✓ 配置验证通过");
-                }
-                Err(e) => {
-                    println!("   ✗ 配置验证失败: {}", e);
-                }
-            }
-        }
-        Err(e) => {
-            println!("   ✗ 配置加载失败: {}", e);
         }
     }
 

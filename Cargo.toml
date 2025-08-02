@@ -12,6 +12,7 @@ path = "src/main.rs"
 [dependencies]
 # 工作区内部crates
 scheduler-core = { path = "crates/core" }
+scheduler-domain = { path = "crates/domain" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
 scheduler-worker = { path = "crates/worker" }
 scheduler-api = { path = "crates/api" }
@@ -57,6 +58,7 @@ tempfile = "3.0"
 resolver = "2"
 members = [
     "crates/core",
+    "crates/domain",
     "crates/dispatcher",
     "crates/worker",
     "crates/api",

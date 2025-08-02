@@ -1,5 +1,5 @@
 use chrono::Utc;
-use scheduler_core::{models::*, *};
+use scheduler_core::{models::*, traits::MockMessageQueue, *};
 use serde_json::json;
 use std::collections::HashMap;
 

@@ -1,8 +1,9 @@
 use std::sync::Arc;
 use std::time::Duration;
+use std::str::FromStr;
 
 use scheduler_core::{
-    config::{manager::ConfigSource, typesafe::ConfigBuilder, Environment},
+    config::Environment,
     error_handling::{
         DefaultErrorHandler, ErrorAction, ErrorContext, ErrorHandler, ErrorHandlingMiddleware,
         ErrorSeverity,
@@ -50,23 +51,19 @@ async fn test_error_handling_middleware() {
 /// Test typed configuration
 #[tokio::test]
 async fn test_typed_configuration() {
-    let builder = ConfigBuilder::new().add_source(ConfigSource::Memory {
-        data: serde_json::json!({"test_string": "hello"}),
-    });
-
-    // Build the manager and load configuration
-    let manager = builder.build();
-    manager.load().await.unwrap();
-
-    // Test getting a string value
-    let result: String = manager.get("test_string").await.unwrap();
-    assert_eq!(result, "hello".to_string());
-
-    // Test with default value
-    let result: String = manager
-        .get_or_default("nonexistent_key", "default".to_string())
-        .await;
-    assert_eq!(result, "default");
+    // Test loading default configuration
+    use scheduler_core::config::AppConfig;
+    
+    let config = AppConfig::default();
+    assert!(config.validate().is_ok());
+    
+    // Test environment variable override
+    std::env::set_var("SCHEDULER_DATABASE_URL", "postgresql://test:5432/test_db");
+    let config_with_env = AppConfig::load(None).unwrap_or_else(|_| AppConfig::default());
+    assert_eq!(config_with_env.database.url, "postgresql://test:5432/test_db");
+    
+    // Clean up
+    std::env::remove_var("SCHEDULER_DATABASE_URL");
 }
 
 /// Test error handling strategies

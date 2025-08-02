@@ -8,4 +8,5 @@ pub use database::*;
 pub use message_queue::*;
 pub use message_queue_factory::*;
 pub use observability::*;
-pub use redis_stream::*;
+// Re-export only the main interface from redis_stream to avoid conflicts
+pub use redis_stream::{RedisStreamMessageQueue, RedisStreamConfig, RedisStreamMetrics};

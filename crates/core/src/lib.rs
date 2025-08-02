@@ -8,6 +8,7 @@ pub mod logging;
 pub mod models;
 pub mod service_interfaces;
 pub mod service_layer;
+pub mod services;
 pub mod traits;
 
 pub use circuit_breaker::*;
@@ -17,16 +18,47 @@ pub use error_handling::*;
 pub use executor_registry::*;
 pub use logging::*;
 // Re-export only specific items from models to avoid conflicts
-pub use models::{Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
-// Re-export only specific items from service_layer to avoid conflicts
+pub use models::{Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus, Message};
+// Re-export legacy service_layer items for backward compatibility
 pub use service_layer::{
-    AuditLogService, ComponentHealth, ConfigurationService, ConfigurationServiceExt, HealthStatus,
-    MonitoringService, PerformanceMetrics, SchedulerService, SchedulerStats, ServiceFactory,
-    SystemHealth, TaskDispatchService, TimeRange, WorkerManagementService,
+    AuditLogService as LegacyAuditLogService, 
+    ComponentHealth, 
+    HealthStatus,
+    MonitoringService as LegacyMonitoringService, 
+    PerformanceMetrics, 
+    SchedulerService as LegacySchedulerService, 
+    SchedulerStats, 
+    ServiceFactory,
+    SystemHealth, 
+    TaskDispatchService as LegacyTaskDispatchService, 
+    TimeRange as LegacyTimeRange, 
+    WorkerManagementService as LegacyWorkerManagementService,
 };
-// Re-export all items from traits
+// Re-export new modular services (primary interface)
+// Re-export new modular services with explicit naming to avoid conflicts
+pub use services::{
+    // Config services
+    AuditEvent, AuditLogService, AuditQuery, AuditQueryService, AuditResult, AuditStats,
+    ConfigChange, ConfigWatcher, ConfigurationQueryService, ConfigurationReloadService, 
+    ConfigurationService, ConfigurationServiceExt, ExportFormat, TimeRange,
+    // Task services
+    DispatchStats, TaskControlService, TaskDispatchService,
+    TaskHistoryService, TaskRetryService, TaskRunManagementService, TaskSchedulingService,
+    // Worker services  
+    WorkerHealthService, WorkerHeartbeat, WorkerLoadStats, WorkerQueryService,
+    WorkerRegistrationService, WorkerSelectionService,
+    // Monitoring services (avoiding duplicates with legacy imports)
+    Alert, AlertCondition, AlertLevel, AlertManagementService, AlertRule,
+    EventRecord, EventRecordingService, HealthCheckService, MetricRecord,
+    MetricsCollectionService, PerformanceMonitoringService, RealtimeStats,
+    ResourceUsage,
+};
+// Re-export traits (excluding conflicting ones)
+pub use traits::{
+    ExecutorRegistry, ExecutorStatus, MessageQueue, ResourceLimits, TaskExecutor, 
+    TaskExecutionContextTrait, WorkerServiceTrait,
+};
 pub use errors::*;
-pub use traits::*;
 
 /// 统一的Result类型
 pub type SchedulerResult<T> = std::result::Result<T, SchedulerError>;

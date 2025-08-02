@@ -4,7 +4,7 @@ mod strategies_tests {
 
     use chrono::Utc;
     use scheduler_core::{
-        models::TaskStatus, Task, TaskDispatchStrategy, WorkerInfo, WorkerStatus,
+        models::TaskStatus, traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus
     };
     use scheduler_dispatcher::strategies::*;
     use serde_json::json;
@@ -54,7 +54,7 @@ mod strategies_tests {
             create_test_worker("worker2", vec!["shell"], 1, 5),
             create_test_worker("worker3", vec!["shell"], 2, 5),
         ];
-
+        
         // 测试轮询选择
         let selected1 = strategy.select_worker(&task, &workers).await.unwrap();
         let selected2 = strategy.select_worker(&task, &workers).await.unwrap();

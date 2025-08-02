@@ -119,10 +119,11 @@ async fn test_concurrent_message_publishing() -> Result<()> {
     println!("  Final queue size: {}", queue_size);
 
     // 获取性能指标
-    let metrics = queue.get_metrics_snapshot();
+    let metrics = queue.metrics();
     println!(
         "  Metrics - Published: {}, Errors: {}",
-        metrics.messages_published, metrics.connection_errors
+        metrics.messages_published.load(std::sync::atomic::Ordering::Relaxed), 
+        metrics.connection_errors.load(std::sync::atomic::Ordering::Relaxed)
     );
 
     // 清理
@@ -259,12 +260,12 @@ async fn test_message_consumption_performance() -> Result<()> {
     );
 
     // 获取最终指标
-    let metrics = queue.get_metrics_snapshot();
+    let metrics = queue.metrics();
     println!("  Final metrics:");
-    println!("    Published: {}", metrics.messages_published);
-    println!("    Consumed: {}", metrics.messages_consumed);
-    println!("    Acked: {}", metrics.messages_acked);
-    println!("    Errors: {}", metrics.connection_errors);
+    println!("    Published: {}", metrics.messages_published.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Consumed: {}", metrics.messages_consumed.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Acked: {}", metrics.messages_acked.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Errors: {}", metrics.connection_errors.load(std::sync::atomic::Ordering::Relaxed));
 
     // 验证队列为空
     let final_queue_size = queue.get_queue_size(test_queue).await?;
@@ -356,10 +357,10 @@ async fn test_connection_pool_efficiency() -> Result<()> {
     );
 
     // 获取最终指标
-    let metrics = queue.get_metrics_snapshot();
+    let metrics = queue.metrics();
     println!("Connection pool efficiency metrics:");
-    println!("  Active connections: {}", metrics.active_connections);
-    println!("  Connection errors: {}", metrics.connection_errors);
+    println!("  Active connections: {}", metrics.active_connections.load(std::sync::atomic::Ordering::Relaxed));
+    println!("  Connection errors: {}", metrics.connection_errors.load(std::sync::atomic::Ordering::Relaxed));
 
     // 清理
     queue.purge_queue(test_queue).await?;
@@ -543,14 +544,14 @@ async fn test_high_load_stress() -> Result<()> {
     );
 
     // 获取最终指标
-    let metrics = queue.get_metrics_snapshot();
+    let metrics = queue.metrics();
     println!("  Final metrics:");
-    println!("    Published: {}", metrics.messages_published);
-    println!("    Consumed: {}", metrics.messages_consumed);
-    println!("    Acked: {}", metrics.messages_acked);
-    println!("    Nacked: {}", metrics.messages_nacked);
-    println!("    Connection errors: {}", metrics.connection_errors);
-    println!("    Active connections: {}", metrics.active_connections);
+    println!("    Published: {}", metrics.messages_published.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Consumed: {}", metrics.messages_consumed.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Acked: {}", metrics.messages_acked.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Nacked: {}", metrics.messages_nacked.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Connection errors: {}", metrics.connection_errors.load(std::sync::atomic::Ordering::Relaxed));
+    println!("    Active connections: {}", metrics.active_connections.load(std::sync::atomic::Ordering::Relaxed));
 
     // 清理
     queue.purge_queue(test_queue).await?;

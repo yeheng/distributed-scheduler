@@ -4,10 +4,10 @@ pub mod mocks {
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
     use scheduler_core::models::{TaskFilter, TaskStatus};
-    use scheduler_core::{
-        SchedulerResult, Task, TaskRepository, TaskRun, TaskRunRepository, TaskRunStatus,
-        WorkerInfo, WorkerRepository, WorkerStatus,
+    use scheduler_core::traits::{
+        TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerRepository,
     };
+    use scheduler_core::{SchedulerResult, Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
@@ -199,8 +199,8 @@ pub mod mocks {
             &self,
             task_id: i64,
             _days: i32,
-        ) -> SchedulerResult<scheduler_core::TaskExecutionStats> {
-            Ok(scheduler_core::TaskExecutionStats {
+        ) -> SchedulerResult<TaskExecutionStats> {
+            Ok(TaskExecutionStats {
                 task_id,
                 total_runs: 0,
                 successful_runs: 0,
