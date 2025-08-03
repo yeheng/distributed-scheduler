@@ -86,11 +86,7 @@ impl AppConfig {
     pub fn load(config_path: Option<&str>) -> Result<Self> {
         let mut builder = ConfigBuilder::builder();
 
-        // 1. Set default configuration
-        let default_config = AppConfig::default();
-        builder = builder.add_source(config::Config::try_from(&default_config)?);
-
-        // 2. Load config file
+        // 1. Load config file if provided
         if let Some(path) = config_path {
             if Path::new(path).exists() {
                 builder = builder.add_source(File::new(path, FileFormat::Toml));
@@ -105,15 +101,58 @@ impl AppConfig {
                 "/etc/scheduler/config.toml",
             ];
 
+            let mut config_file_found = false;
             for path in &default_paths {
                 if Path::new(path).exists() {
                     builder = builder.add_source(File::new(path, FileFormat::Toml));
+                    config_file_found = true;
                     break;
                 }
             }
+
+            // If no config file found, set minimal defaults for structure
+            if !config_file_found {
+                // Set minimal structure defaults
+                builder = builder.set_default("database.url", "postgresql://localhost/scheduler")?
+                    .set_default("database.max_connections", 10)?
+                    .set_default("database.min_connections", 1)?
+                    .set_default("database.connection_timeout_seconds", 30)?
+                    .set_default("database.idle_timeout_seconds", 600)?
+                    .set_default("message_queue.url", "redis://localhost:6379")?
+                    .set_default("message_queue.task_queue", "tasks")?
+                    .set_default("message_queue.status_queue", "status_updates")?
+                    .set_default("message_queue.heartbeat_queue", "heartbeats")?
+                    .set_default("message_queue.control_queue", "control")?
+                    .set_default("message_queue.max_retries", 3)?
+                    .set_default("message_queue.retry_delay_seconds", 5)?
+                    .set_default("message_queue.connection_timeout_seconds", 30)?
+                    .set_default("dispatcher.enabled", true)?
+                    .set_default("dispatcher.schedule_interval_seconds", 10)?
+                    .set_default("dispatcher.max_concurrent_dispatches", 100)?
+                    .set_default("dispatcher.worker_timeout_seconds", 90)?
+                    .set_default("dispatcher.dispatch_strategy", "round_robin")?
+                    .set_default("worker.enabled", false)?
+                    .set_default("worker.worker_id", "worker-001")?
+                    .set_default("worker.hostname", "localhost")?
+                    .set_default("worker.ip_address", "127.0.0.1")?
+                    .set_default("worker.max_concurrent_tasks", 5)?
+                    .set_default("worker.heartbeat_interval_seconds", 30)?
+                    .set_default("worker.task_poll_interval_seconds", 5)?
+                    .set_default("worker.supported_task_types", vec!["shell", "http"])?
+                    .set_default("api.enabled", true)?
+                    .set_default("api.bind_address", "0.0.0.0:8080")?
+                    .set_default("api.cors_enabled", true)?
+                    .set_default("api.cors_origins", vec!["*"])?
+                    .set_default("api.request_timeout_seconds", 30)?
+                    .set_default("api.max_request_size_mb", 10)?
+                    .set_default("observability.tracing_enabled", true)?
+                    .set_default("observability.metrics_enabled", true)?
+                    .set_default("observability.metrics_endpoint", "/metrics")?
+                    .set_default("observability.log_level", "info")?;
+            }
         }
 
-        // 3. Environment variable overrides (prefix: SCHEDULER_)
+        // 2. Environment variable overrides (prefix: SCHEDULER_) - highest priority
         builder = builder.add_source(
             Environment::with_prefix("SCHEDULER")
                 .separator("_")

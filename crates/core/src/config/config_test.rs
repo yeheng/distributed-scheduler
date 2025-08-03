@@ -227,9 +227,50 @@ fn test_config_load_from_file() {
 [database]
 url = "postgresql://file-test:5432/scheduler"
 max_connections = 25
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
 
 [dispatcher]
+enabled = true
 schedule_interval_seconds = 15
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
+
+[worker]
+enabled = false
+worker_id = "test-worker"
+hostname = "localhost"
+ip_address = "127.0.0.1"
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
+
+[message_queue]
+url = "redis://localhost:6379"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 5
+connection_timeout_seconds = 30
+
+[api]
+enabled = true
+bind_address = "0.0.0.0:8080"
+cors_enabled = true
+cors_origins = ["*"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[observability]
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
 "#;
 
     // 创建临时文件
