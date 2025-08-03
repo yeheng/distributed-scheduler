@@ -335,8 +335,9 @@ impl WorkerServiceTrait for WorkerService {
 
 #[cfg(test)]
 mod tests {
+    use scheduler_core::prelude::ApplicationContext;
+
     use super::*;
-    use scheduler_core::ApplicationContext;
 
     #[tokio::test]
     async fn test_worker_service_builder() {
