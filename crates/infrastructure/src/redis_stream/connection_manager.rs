@@ -106,12 +106,12 @@ impl RedisConnectionManager {
                 Ok(())
             }
             Ok(response) => {
-                let error_msg = format!("Unexpected PING response: {}", response);
+                let error_msg = format!("Unexpected PING response: {response}");
                 error!("{}", error_msg);
                 Err(SchedulerError::MessageQueue(error_msg))
             }
             Err(e) => {
-                let error_msg = format!("Redis PING failed: {}", e);
+                let error_msg = format!("Redis PING failed: {e}");
                 error!("{}", error_msg);
                 Err(SchedulerError::MessageQueue(error_msg))
             }

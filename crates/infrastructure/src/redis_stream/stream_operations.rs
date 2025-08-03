@@ -195,8 +195,7 @@ impl RedisStreamOperations {
                     Ok(())
                 } else {
                     Err(SchedulerError::MessageQueue(format!(
-                        "Failed to create consumer group {}: {}",
-                        group_name, e
+                        "Failed to create consumer group {group_name}: {e}"
                     )))
                 }
             }

@@ -124,7 +124,7 @@ fn test_database_url_override() {
 
     // 测试配置加载正常工作
     let config = AppConfig::load(None).unwrap_or_else(|_| AppConfig::default());
-    
+
     // 验证配置有效且包含预期的数据库URL
     assert!(!config.database.url.is_empty());
     assert!(config.database.url.starts_with("postgresql://"));
@@ -137,11 +137,11 @@ fn test_message_queue_url_override() {
 
     // 测试配置加载正常工作
     let config = AppConfig::load(None).unwrap_or_else(|_| AppConfig::default());
-    
+
     // 验证配置有效且包含预期的消息队列URL
     assert!(!config.message_queue.url.is_empty());
     assert!(config.validate().is_ok());
-    
+
     // 验证消息队列配置的其他字段
     assert!(!config.message_queue.task_queue.is_empty());
     assert!(!config.message_queue.status_queue.is_empty());

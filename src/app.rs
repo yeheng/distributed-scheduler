@@ -21,8 +21,7 @@ use scheduler_infrastructure::{
     observability::MetricsCollector,
 };
 use scheduler_worker::{
-    executors::{HttpExecutor, ShellExecutor},
-    service::WorkerService,
+    executors::{HttpExecutor, ShellExecutor}, refactored_service::WorkerService,
 };
 use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};
@@ -182,7 +181,6 @@ impl Application {
         .heartbeat_interval_seconds(self.config.worker.heartbeat_interval_seconds)
         .hostname(self.config.worker.hostname.clone())
         .ip_address(self.config.worker.ip_address.clone())
-        .with_metrics(Arc::clone(&self.metrics))
         .build()
         .await?;
 

@@ -17,7 +17,6 @@ pub trait TaskSchedulingService: Send + Sync {
     async fn retry_failed_task(&self, task_run_id: i64) -> SchedulerResult<TaskRun>;
 }
 
-
 /// 默认任务调度服务实现
 pub struct DefaultTaskSchedulingService<TRR>
 where

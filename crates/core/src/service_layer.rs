@@ -15,7 +15,11 @@ use async_trait::async_trait;
 use std::collections::HashMap;
 
 use crate::{
-    errors::SchedulerError, models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus}, service_interfaces::{DispatchStats, TimeRange}, services::SchedulerStats, SchedulerResult
+    errors::SchedulerError,
+    models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
+    service_interfaces::{DispatchStats, TimeRange},
+    services::SchedulerStats,
+    SchedulerResult,
 };
 
 /// 服务层抽象 - 任务控制服务

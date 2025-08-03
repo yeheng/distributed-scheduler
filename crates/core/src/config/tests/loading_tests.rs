@@ -51,54 +51,60 @@ fn test_config_environment_override() {
 fn test_simple_config_builder() {
     use config::{Config, Environment};
     use serde::{Deserialize, Serialize};
-    
+
     #[derive(Debug, Serialize, Deserialize)]
     struct TestConfig {
         database: DatabaseConfig,
     }
-    
+
     #[derive(Debug, Serialize, Deserialize)]
     struct DatabaseConfig {
         max_connections: i64,
     }
-    
+
     // Set environment variable
     std::env::set_var("SCHEDULER_DATABASE_MAX_CONNECTIONS", "50");
-    
+
     // Test the config builder directly to see if environment variables work
     let mut builder = Config::builder();
-    
+
     // Add default values first
     builder = builder.set_default("database.max_connections", 10).unwrap();
-    
+
     // Add environment variables first (highest priority)
     builder = builder.add_source(
         Environment::with_prefix("SCHEDULER")
             .separator("_")
             .try_parsing(true),
     );
-    
+
     // Build config
     let config = builder.build().unwrap();
-    
+
     // Check raw value first
     let max_connections = config.get_int("database.max_connections").unwrap_or(0);
-    
+
     // Try to deserialize into our struct
     match config.clone().try_deserialize::<TestConfig>() {
         Ok(test_config) => {
-            eprintln!("Deserialized config - max_connections: {}", test_config.database.max_connections);
+            eprintln!(
+                "Deserialized config - max_connections: {}",
+                test_config.database.max_connections
+            );
         }
         Err(e) => {
             eprintln!("Failed to deserialize: {:?}", e);
         }
     }
     eprintln!("Raw config - max_connections: {}", max_connections);
-    eprintln!("Environment var: {:?}", std::env::var("SCHEDULER_DATABASE_MAX_CONNECTIONS"));
-    
+    eprintln!(
+        "Environment var: {:?}",
+        std::env::var("SCHEDULER_DATABASE_MAX_CONNECTIONS")
+    );
+
     // Clean up
     std::env::remove_var("SCHEDULER_DATABASE_MAX_CONNECTIONS");
-    
+
     // This test should pass if the config builder is working correctly
     assert!(max_connections > 0);
 }

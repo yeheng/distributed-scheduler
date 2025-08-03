@@ -113,7 +113,8 @@ impl AppConfig {
             // If no config file found, set minimal defaults for structure
             if !config_file_found {
                 // Set minimal structure defaults
-                builder = builder.set_default("database.url", "postgresql://localhost/scheduler")?
+                builder = builder
+                    .set_default("database.url", "postgresql://localhost/scheduler")?
                     .set_default("database.max_connections", 10)?
                     .set_default("database.min_connections", 1)?
                     .set_default("database.connection_timeout_seconds", 30)?
