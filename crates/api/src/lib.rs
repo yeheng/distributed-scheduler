@@ -1,3 +1,297 @@
+//! # Scheduler API
+//!
+//! 分布式任务调度系统的REST API服务模块，提供HTTP接口用于任务管理和系统监控。
+//!
+//! ## 概述
+//!
+//! 此模块基于Axum框架构建，提供完整的RESTful API接口，包括：
+//! - 任务管理（创建、查询、更新、删除）
+//! - Worker节点管理（注册、心跳、状态查询）
+//! - 系统监控（健康检查、性能指标）
+//! - 实时状态查询（任务运行状态、Worker负载）
+//!
+//! ## 架构设计
+//!
+//! ```
+//! ┌─────────────────────────────────────────────────────────────┐
+//! │                    Scheduler API                             │
+//! ├─────────────────────────────────────────────────────────────┤
+//! │  Routes  │  Handlers  │  Middleware  │  Response  │  Error  │
+//! │  (路由定义) │ (处理器)   │ (中间件)     │ (响应格式) │ (错误处理) │
+//! └─────────────────────────────────────────────────────────────┘
+//!                       ↓
+//!                ┌─────────────────┐
+//!                │  Core Services  │
+//!                │  (核心服务层)    │
+//!                └─────────────────┘
+//! ```
+//!
+//! ## API 端点
+//!
+//! ### 任务管理
+//! - `GET /api/tasks` - 获取任务列表
+//! - `POST /api/tasks` - 创建新任务
+//! - `GET /api/tasks/{id}` - 获取任务详情
+//! - `PUT /api/tasks/{id}` - 更新任务
+//! - `DELETE /api/tasks/{id}` - 删除任务
+//! - `POST /api/tasks/{id}/trigger` - 手动触发任务
+//! - `POST /api/tasks/{id}/pause` - 暂停任务
+//! - `POST /api/tasks/{id}/resume` - 恢复任务
+//!
+//! ### Worker管理
+//! - `GET /api/workers` - 获取Worker列表
+//! - `POST /api/workers` - 注册Worker
+//! - `GET /api/workers/{id}` - 获取Worker详情
+//! - `PUT /api/workers/{id}` - 更新Worker
+//! - `DELETE /api/workers/{id}` - 注销Worker
+//! - `POST /api/workers/{id}/heartbeat` - Worker心跳
+//!
+//! ### 系统监控
+//! - `GET /api/system/health` - 系统健康检查
+//! - `GET /api/system/stats` - 系统统计信息
+//! - `GET /api/system/metrics` - 性能指标
+//! - `GET /api/system/logs` - 系统日志
+//!
+//! ### 任务运行管理
+//! - `GET /api/runs` - 获取任务运行列表
+//! - `GET /api/runs/{id}` - 获取运行详情
+//! - `POST /api/runs/{id}/restart` - 重启任务运行
+//! - `POST /api/runs/{id}/abort` - 中止任务运行
+//!
+//! ## 使用示例
+//!
+//! ### 创建应用
+//!
+//! ```rust
+//! use scheduler_api::create_app;
+//! use scheduler_core::traits::*;
+//! use std::sync::Arc;
+//!
+//! // 创建依赖的服务
+//! let task_repo = Arc::new(MyTaskRepository::new());
+//! let task_run_repo = Arc::new(MyTaskRunRepository::new());
+//! let worker_repo = Arc::new(MyWorkerRepository::new());
+//! let task_controller = Arc::new(MyTaskController::new());
+//!
+//! // 创建API应用
+//! let app = create_app(
+//!     task_repo,
+//!     task_run_repo, 
+//!     worker_repo,
+//!     task_controller
+//! );
+//!
+//! // 启动服务器
+//! let listener = tokio::net::TcpListener::bind("0.0.0.0:8080").await?;
+//! axum::serve(listener, app).await?;
+//! ```
+//!
+//! ### API 调用示例
+//!
+//! ```bash
+//! # 创建任务
+//! curl -X POST http://localhost:8080/api/tasks \
+//!   -H "Content-Type: application/json" \
+//!   -d '{
+//!     "name": "data_processing",
+//!     "description": "处理每日数据",
+//!     "task_type": "batch",
+//!     "executor": "python",
+//!     "command": "process_data.py",
+//!     "schedule": "0 2 * * *"
+//!   }'
+//!
+//! # 获取任务列表
+//! curl -X GET http://localhost:8080/api/tasks
+//!
+//! # 触发任务
+//! curl -X POST http://localhost:8080/api/tasks/1/trigger
+//!
+//! # 系统健康检查
+//! curl -X GET http://localhost:8080/api/system/health
+//! ```
+//!
+//! ## 中间件
+//!
+//! ### 内置中间件
+//! - **CORS**: 跨域资源共享
+//! - **日志记录**: 请求和响应日志
+//! - **追踪**: 分布式追踪支持
+//! - **错误处理**: 统一错误响应格式
+//!
+//! ### 自定义中间件
+//!
+//! ```rust
+//! use axum::middleware;
+//! use tower::ServiceBuilder;
+//!
+//! // 添加自定义中间件
+//! let app = create_routes(state).layer(
+//!     ServiceBuilder::new()
+//!         .layer(trace_layer())
+//!         .layer(cors_layer())
+//!         .layer(axum::middleware::from_fn(custom_middleware))
+//! );
+//! ```
+//!
+//! ## 响应格式
+//!
+//! ### 成功响应
+//! ```json
+//! {
+//!   "success": true,
+//!   "data": {
+//!     "id": 1,
+//!     "name": "data_processing",
+//!     "status": "active"
+//!   },
+//!   "timestamp": "2024-01-01T00:00:00Z"
+//! }
+//! ```
+//!
+//! ### 错误响应
+//! ```json
+//! {
+//!   "success": false,
+//!   "error": {
+//!     "code": "VALIDATION_ERROR",
+//!     "message": "任务名称不能为空",
+//!     "details": {
+//!       "field": "name",
+//!       "rule": "required"
+//!     }
+//!   },
+//!   "timestamp": "2024-01-01T00:00:00Z"
+//! }
+//! ```
+//!
+//! ## 错误处理
+//!
+//! API模块提供统一的错误处理机制：
+//!
+//! ```rust
+//! use scheduler_api::error::ApiError;
+//!
+//! // 处理验证错误
+//! let error = ApiError::validation("任务名称不能为空");
+//!
+//! // 处理数据库错误
+//! let error = ApiError::database("数据库连接失败");
+//!
+//! // 处理内部错误
+//! let error = ApiError::internal("服务器内部错误");
+//! ```
+//!
+//! ## 测试
+//!
+//! ### 单元测试
+//!
+//! ```rust
+//! #[tokio::test]
+//! async fn test_create_task_endpoint() {
+//!     // 准备测试数据
+//!     let app = create_test_app();
+//!     
+//!     // 发送请求
+//!     let response = app
+//!         .oneshot(Request::builder()
+//!             .uri("/api/tasks")
+//!             .method("POST")
+//!             .header("content-type", "application/json")
+//!             .body(Body::from(r#"{"name":"test"}"#))
+//!             .unwrap())
+//!         .await
+//!         .unwrap();
+//!     
+//!     // 验证响应
+//!     assert_eq!(response.status(), StatusCode::CREATED);
+//! }
+//! ```
+//!
+//! ### 集成测试
+//!
+//! ```bash
+//! # 运行API测试
+//! cargo test -p scheduler-api
+//!
+//! # 运行集成测试
+//! cargo test --test api_integration_tests
+//! ```
+//!
+//! ## 性能优化
+//!
+//! ### 数据库查询优化
+//! - 使用连接池
+//! - 批量查询
+//! - 索引优化
+//!
+//! ### 响应缓存
+//! - 静态资源缓存
+//! - 查询结果缓存
+//! - ETag支持
+//!
+//! ### 并发处理
+//! - 异步处理
+//! - 请求限流
+//! - 超时控制
+//!
+//! ## 监控和日志
+//!
+//! ### 结构化日志
+//! ```rust
+//! use tracing::{info, error, warn};
+//!
+//! info!(method = %method, path = %path, "请求处理开始");
+//! error!(error = %e, "请求处理失败");
+//! ```
+//!
+//! ### 性能指标
+//! - 请求处理时间
+//! - 响应大小
+//! - 错误率
+//! - 并发连接数
+//!
+//! ## 安全考虑
+//!
+//! ### 输入验证
+//! - 所有输入参数验证
+//! - SQL注入防护
+//! - XSS攻击防护
+//!
+//! ### 访问控制
+//! - API密钥认证
+//! - 权限验证
+//! - 速率限制
+//!
+//! ## 部署配置
+//!
+//! ### 环境变量
+//! ```bash
+//! # 服务器配置
+//! RUST_LOG=info
+//! API_PORT=8080
+//! API_HOST=0.0.0.0
+//!
+//! # 数据库配置
+//! DATABASE_URL=postgresql://user:pass@localhost/scheduler
+//!
+//! # 安全配置
+//! API_KEY=your-secret-key
+//! CORS_ORIGINS=http://localhost:3000
+//! ```
+//!
+//! ## 相关模块
+//!
+//! - [`scheduler_core`] - 核心数据模型和服务接口
+//! - [`scheduler_dispatcher`] - 任务调度器
+//! - [`scheduler_worker`] - Worker节点
+//! - [`scheduler_infrastructure`] - 基础设施实现
+//!
+//! [`scheduler_core`]: ../core/index.html
+//! [`scheduler_dispatcher`]: ../dispatcher/index.html
+//! [`scheduler_worker`]: ../worker/index.html
+//! [`scheduler_infrastructure`]: ../infrastructure/index.html
+
 pub mod error;
 pub mod handlers;
 pub mod middleware;
