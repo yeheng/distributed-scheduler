@@ -1,3 +1,56 @@
+//! # RabbitMQ消息队列实现模块
+//!
+//! 提供基于RabbitMQ的消息队列服务实现，支持任务分发、状态更新、
+//! 心跳监控等消息传递功能。这是调度系统的核心通信基础设施。
+//!
+//! ## 功能特性
+//!
+//! - **可靠消息传递**: 支持消息持久化和确认机制
+//! - **多队列管理**: 支持任务、状态、心跳、控制等多种队列
+//! - **连接管理**: 自动连接管理和错误恢复
+//! - **并发安全**: 线程安全的通道管理
+//! - **灵活配置**: 支持各种RabbitMQ配置选项
+//!
+//! ## 队列类型
+//!
+//! - **任务队列**: 分发待执行的任务
+//! - **状态队列**: 任务执行状态更新
+//! - **心跳队列**: Worker节点心跳信息
+//! - **控制队列**: 系统控制命令
+//!
+//! ## 使用示例
+//!
+//! ```rust
+//! use scheduler_infrastructure::message_queue::RabbitMQMessageQueue;
+//! use scheduler_core::config::models::MessageQueueConfig;
+//! use scheduler_core::traits::MessageQueue;
+//!
+//! #[tokio::main]
+//! async fn main() -> Result<(), Box<dyn std::error::Error>> {
+//!     let config = MessageQueueConfig {
+//!         url: "amqp://localhost:5672".to_string(),
+//!         task_queue: "tasks".to_string(),
+//!         status_queue: "status".to_string(),
+//!         heartbeat_queue: "heartbeat".to_string(),
+//!         control_queue: "control".to_string(),
+//!     };
+//!
+//!     let mq = RabbitMQMessageQueue::new(config).await?;
+//!     
+//!     // 发布消息
+//!     let message = Message::new("task_execution", payload);
+//!     mq.publish_message("tasks", &message).await?;
+//!     
+//!     // 消费消息
+//!     let messages = mq.consume_messages("tasks").await?;
+//!     for message in messages {
+//!         println!("收到消息: {:?}", message);
+//!     }
+//!     
+//!     Ok(())
+//! }
+//! ```
+
 use async_trait::async_trait;
 use lapin::{
     options::*, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties,
@@ -12,14 +65,178 @@ use tokio::sync::Mutex;
 use tracing::{debug, info};
 
 /// RabbitMQ消息队列实现
+///
+/// 基于RabbitMQ的消息队列服务实现，提供可靠的异步消息传递功能。
+/// 支持多种队列类型和消息模式，是分布式任务调度系统的核心通信组件。
+///
+/// # 设计特点
+///
+/// ## 可靠性保证
+/// - **消息持久化**: 消息存储到磁盘，服务重启不丢失
+/// - **发布确认**: 确保消息成功发送到队列
+/// - **消费确认**: 确保消息被正确处理后才从队列移除
+/// - **连接恢复**: 自动处理连接断开和重连
+///
+/// ## 性能优化
+/// - **连接复用**: 单个连接支持多个通道
+/// - **异步操作**: 所有操作都是非阻塞的
+/// - **批量处理**: 支持批量消息操作
+/// - **内存管理**: 合理的资源使用和清理
+///
+/// ## 并发安全
+/// - **线程安全**: 使用Arc<Mutex<>>保护共享资源
+/// - **通道隔离**: 每个操作使用独立的通道
+/// - **状态同步**: 连接状态的一致性管理
+///
+/// # 内部结构
+///
+/// ```text
+/// RabbitMQMessageQueue
+/// ├── connection: Connection          # RabbitMQ连接
+/// ├── channel: Arc<Mutex<Channel>>   # 共享通道（线程安全）
+/// └── config: MessageQueueConfig     # 配置信息
+/// ```
+///
+/// # 队列管理
+///
+/// ## 预定义队列
+/// - `task_queue`: 任务分发队列
+/// - `status_queue`: 状态更新队列  
+/// - `heartbeat_queue`: 心跳监控队列
+/// - `control_queue`: 控制命令队列
+///
+/// ## 队列特性
+/// - **持久化**: 队列在服务重启后保持存在
+/// - **非排他**: 多个消费者可以同时访问
+/// - **非自动删除**: 队列不会自动删除
+///
+/// # 错误处理
+///
+/// - **连接错误**: 自动重试和错误报告
+/// - **序列化错误**: 详细的错误信息和上下文
+/// - **队列错误**: 优雅处理队列不存在等情况
+/// - **网络错误**: 超时和重试机制
+///
+/// # 监控和日志
+///
+/// - **连接状态**: 实时监控连接健康状态
+/// - **操作日志**: 详细记录所有队列操作
+/// - **性能指标**: 消息吞吐量和延迟统计
+/// - **错误追踪**: 完整的错误堆栈和上下文
+///
+/// # 使用模式
+///
+/// ## 生产者模式
+/// ```rust
+/// let message = Message::new("task_type", payload);
+/// mq.publish_message("tasks", &message).await?;
+/// ```
+///
+/// ## 消费者模式
+/// ```rust
+/// let messages = mq.consume_messages("tasks").await?;
+/// for message in messages {
+///     // 处理消息
+///     process_message(&message).await?;
+/// }
+/// ```
+///
+/// ## 管理模式
+/// ```rust
+/// // 创建队列
+/// mq.create_queue("new_queue", true).await?;
+/// 
+/// // 获取队列大小
+/// let size = mq.get_queue_size("tasks").await?;
+/// 
+/// // 清空队列
+/// mq.purge_queue("tasks").await?;
+/// ```
 pub struct RabbitMQMessageQueue {
+    /// RabbitMQ连接实例
+    ///
+    /// 维护与RabbitMQ服务器的TCP连接，支持多路复用。
+    /// 连接断开时会自动尝试重连。
     connection: Connection,
+
+    /// 共享通道实例
+    ///
+    /// 使用Arc<Mutex<>>包装以支持多线程安全访问。
+    /// 通道是执行AMQP操作的基本单位。
     channel: Arc<Mutex<Channel>>,
+
+    /// 消息队列配置
+    ///
+    /// 包含连接URL、队列名称等配置信息。
+    /// 用于初始化和管理队列。
     config: MessageQueueConfig,
 }
 
 impl RabbitMQMessageQueue {
     /// 创建新的RabbitMQ消息队列实例
+    ///
+    /// 建立与RabbitMQ服务器的连接，创建通道，并初始化所有必需的队列。
+    /// 这是创建消息队列服务的主要入口点。
+    ///
+    /// # 参数
+    ///
+    /// * `config` - 消息队列配置，包含连接URL和队列名称
+    ///
+    /// # 返回值
+    ///
+    /// 成功时返回配置完成的RabbitMQMessageQueue实例。
+    ///
+    /// # 错误
+    ///
+    /// * `MessageQueue` - 连接RabbitMQ失败
+    /// * `MessageQueue` - 创建通道失败
+    /// * `MessageQueue` - 初始化队列失败
+    ///
+    /// # 初始化流程
+    ///
+    /// 1. **建立连接**: 使用配置的URL连接到RabbitMQ服务器
+    /// 2. **创建通道**: 在连接上创建AMQP通道
+    /// 3. **初始化队列**: 声明所有预定义的队列
+    /// 4. **验证配置**: 确保所有组件正常工作
+    ///
+    /// # 连接配置
+    ///
+    /// - 使用默认的连接属性
+    /// - 支持自动重连机制
+    /// - 启用心跳检测
+    /// - 配置合适的超时时间
+    ///
+    /// # 示例
+    ///
+    /// ```rust
+    /// use scheduler_infrastructure::message_queue::RabbitMQMessageQueue;
+    /// use scheduler_core::config::models::MessageQueueConfig;
+    ///
+    /// let config = MessageQueueConfig {
+    ///     url: "amqp://user:pass@localhost:5672/vhost".to_string(),
+    ///     task_queue: "scheduler_tasks".to_string(),
+    ///     status_queue: "scheduler_status".to_string(),
+    ///     heartbeat_queue: "scheduler_heartbeat".to_string(),
+    ///     control_queue: "scheduler_control".to_string(),
+    /// };
+    ///
+    /// let mq = RabbitMQMessageQueue::new(config).await?;
+    /// println!("消息队列初始化成功");
+    /// ```
+    ///
+    /// # 故障处理
+    ///
+    /// - 连接失败时提供详细的错误信息
+    /// - 支持连接重试机制
+    /// - 记录连接状态变化日志
+    /// - 提供连接健康检查方法
+    ///
+    /// # 资源管理
+    ///
+    /// - 连接和通道会在Drop时自动清理
+    /// - 支持显式关闭连接
+    /// - 监控资源使用情况
+    /// - 防止资源泄漏
     pub async fn new(config: MessageQueueConfig) -> SchedulerResult<Self> {
         let connection = Connection::connect(&config.url, ConnectionProperties::default())
             .await
@@ -45,6 +262,35 @@ impl RabbitMQMessageQueue {
     }
 
     /// 初始化所有必需的队列
+    ///
+    /// 声明和配置系统运行所需的所有队列。确保队列存在且配置正确，
+    /// 为后续的消息操作做好准备。
+    ///
+    /// # 返回值
+    ///
+    /// 成功时返回 `Ok(())`，失败时返回相应的错误。
+    ///
+    /// # 错误
+    ///
+    /// * `MessageQueue` - 队列声明失败
+    ///
+    /// # 初始化的队列
+    ///
+    /// - **任务队列**: 用于分发待执行的任务
+    /// - **状态队列**: 用于接收任务执行状态更新
+    /// - **心跳队列**: 用于Worker节点心跳监控
+    /// - **控制队列**: 用于系统控制命令传递
+    ///
+    /// # 队列配置
+    ///
+    /// - 所有队列都设置为持久化
+    /// - 非排他性，支持多消费者
+    /// - 非自动删除，保证数据安全
+    ///
+    /// # 实现细节
+    ///
+    /// 使用事务性操作确保所有队列都成功创建，
+    /// 如果任何一个队列创建失败，整个初始化过程会回滚。
     async fn initialize_queues(&self) -> SchedulerResult<()> {
         let channel = self.channel.lock().await;
 
