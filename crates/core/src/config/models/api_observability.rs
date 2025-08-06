@@ -1,4 +1,5 @@
 use serde::{Deserialize, Serialize};
+use std::collections::HashMap;
 
 /// API configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -9,6 +10,49 @@ pub struct ApiConfig {
     pub cors_origins: Vec<String>,
     pub request_timeout_seconds: u64,
     pub max_request_size_mb: usize,
+    pub auth: AuthConfig,
+}
+
+/// Authentication configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct AuthConfig {
+    pub enabled: bool,
+    pub jwt_secret: String,
+    pub jwt_expiration_hours: i64,
+    pub api_keys: HashMap<String, ApiKeyConfig>,
+}
+
+/// API Key configuration
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct ApiKeyConfig {
+    pub name: String,
+    pub permissions: Vec<String>,
+    pub is_active: bool,
+    pub created_at: Option<String>,
+    pub expires_at: Option<String>,
+}
+
+impl Default for AuthConfig {
+    fn default() -> Self {
+        let mut api_keys = HashMap::new();
+        api_keys.insert(
+            "default-admin-key-hash".to_string(), // This should be a hashed version
+            ApiKeyConfig {
+                name: "default-admin".to_string(),
+                permissions: vec!["Admin".to_string()],
+                is_active: true,
+                created_at: None,
+                expires_at: None,
+            },
+        );
+
+        Self {
+            enabled: false,
+            jwt_secret: "your-secret-key-change-this-in-production".to_string(),
+            jwt_expiration_hours: 24,
+            api_keys,
+        }
+    }
 }
 
 impl ApiConfig {
@@ -29,6 +73,63 @@ impl ApiConfig {
 
         if self.max_request_size_mb == 0 {
             return Err(anyhow::anyhow!("最大请求大小必须大于0"));
+        }
+
+        // Validate auth configuration
+        self.auth.validate()?;
+
+        Ok(())
+    }
+}
+
+impl AuthConfig {
+    /// Validate authentication configuration
+    pub fn validate(&self) -> anyhow::Result<()> {
+        if self.enabled {
+            if self.jwt_secret.is_empty() {
+                return Err(anyhow::anyhow!("JWT密钥不能为空"));
+            }
+
+            if self.jwt_secret.len() < 32 {
+                return Err(anyhow::anyhow!("JWT密钥长度应至少32字符"));
+            }
+
+            if self.jwt_expiration_hours <= 0 {
+                return Err(anyhow::anyhow!("JWT过期时间必须大于0"));
+            }
+
+            // Validate API keys
+            for (hash, key_config) in &self.api_keys {
+                if hash.is_empty() {
+                    return Err(anyhow::anyhow!("API密钥哈希不能为空"));
+                }
+
+                if key_config.name.is_empty() {
+                    return Err(anyhow::anyhow!("API密钥名称不能为空"));
+                }
+
+                if key_config.permissions.is_empty() {
+                    return Err(anyhow::anyhow!("API密钥权限不能为空"));
+                }
+
+                // Validate permissions
+                let valid_permissions = [
+                    "TaskRead", "TaskWrite", "TaskDelete",
+                    "WorkerRead", "WorkerWrite", 
+                    "SystemRead", "SystemWrite",
+                    "Admin"
+                ];
+                
+                for permission in &key_config.permissions {
+                    if !valid_permissions.contains(&permission.as_str()) {
+                        return Err(anyhow::anyhow!(
+                            "无效的权限: {}，支持的权限: {:?}",
+                            permission,
+                            valid_permissions
+                        ));
+                    }
+                }
+            }
         }
 
         Ok(())

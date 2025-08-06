@@ -76,12 +76,21 @@ impl TestApp {
         // 创建模拟的任务控制服务
         let task_controller: Arc<dyn TaskControlService> = Arc::new(MockTaskControlService);
 
+        // 创建默认认证配置
+        let auth_config = Arc::new(scheduler_api::auth::AuthConfig {
+            enabled: false,
+            jwt_secret: "test-secret".to_string(),
+            api_keys: std::collections::HashMap::new(),
+            jwt_expiration_hours: 24,
+        });
+
         // 创建应用状态
         let app_state = AppState {
             task_repo,
             task_run_repo,
             worker_repo,
             task_controller,
+            auth_config,
         };
 
         // 创建路由

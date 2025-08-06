@@ -216,6 +216,7 @@ impl Application {
             self.service_locator.task_run_repository().await?,
             self.service_locator.worker_repository().await?,
             task_controller as Arc<dyn TaskControlService>,
+            self.config.api.clone(),
         );
 
         // 创建TCP监听器

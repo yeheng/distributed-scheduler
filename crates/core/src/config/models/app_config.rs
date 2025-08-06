@@ -56,6 +56,7 @@ impl Default for AppConfig {
                 cors_origins: vec!["*".to_string()],
                 request_timeout_seconds: 30,
                 max_request_size_mb: 10,
+                auth: super::api_observability::AuthConfig::default(),
             },
             observability: ObservabilityConfig {
                 tracing_enabled: true,
@@ -146,6 +147,9 @@ impl AppConfig {
                     .set_default("api.cors_origins", vec!["*"])?
                     .set_default("api.request_timeout_seconds", 30)?
                     .set_default("api.max_request_size_mb", 10)?
+                    .set_default("api.auth.enabled", false)?
+                    .set_default("api.auth.jwt_secret", "your-secret-key-change-this-in-production")?
+                    .set_default("api.auth.jwt_expiration_hours", 24)?
                     .set_default("observability.tracing_enabled", true)?
                     .set_default("observability.metrics_enabled", true)?
                     .set_default("observability.metrics_endpoint", "/metrics")?

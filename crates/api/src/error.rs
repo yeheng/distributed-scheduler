@@ -29,6 +29,12 @@ pub enum ApiError {
 
     #[error("请求参数错误: {0}")]
     BadRequest(String),
+
+    #[error("认证错误: {0}")]
+    Authentication(#[from] crate::auth::AuthError),
+
+    #[error("权限不足")]
+    Forbidden,
 }
 
 impl IntoResponse for ApiError {
@@ -54,6 +60,8 @@ impl IntoResponse for ApiError {
             }
             ApiError::Validation(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            ApiError::Authentication(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
+            ApiError::Forbidden => (StatusCode::FORBIDDEN, "权限不足".to_string()),
             ApiError::NotFound => (StatusCode::NOT_FOUND, "资源未找到".to_string()),
             ApiError::Conflict(_) => (StatusCode::CONFLICT, self.to_string()),
             ApiError::Serialization(_) => (StatusCode::BAD_REQUEST, self.to_string()),

@@ -1,6 +1,8 @@
+use std::collections::HashMap;
+
 use crate::config::models::{
-    ApiConfig, DatabaseConfig, DispatcherConfig, MessageQueueConfig, ObservabilityConfig,
-    WorkerConfig,
+    api_observability::AuthConfig, ApiConfig, DatabaseConfig, DispatcherConfig, MessageQueueConfig,
+    ObservabilityConfig, WorkerConfig,
 };
 
 #[test]
@@ -127,6 +129,12 @@ fn test_api_validation() {
         cors_origins: vec!["*".to_string()],
         request_timeout_seconds: 30,
         max_request_size_mb: 10,
+        auth: AuthConfig {
+            jwt_secret: "test-secret".to_string(),
+            api_keys: HashMap::new(),
+            jwt_expiration_hours: 24,
+            enabled: true,
+        },
     };
 
     assert!(config.validate().is_ok());
