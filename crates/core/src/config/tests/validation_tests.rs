@@ -130,7 +130,7 @@ fn test_api_validation() {
         request_timeout_seconds: 30,
         max_request_size_mb: 10,
         auth: AuthConfig {
-            jwt_secret: "test-secret".to_string(),
+            jwt_secret: "test-secret-that-is-at-least-32-characters-long-for-testing".to_string(),
             api_keys: HashMap::new(),
             jwt_expiration_hours: 24,
             enabled: true,

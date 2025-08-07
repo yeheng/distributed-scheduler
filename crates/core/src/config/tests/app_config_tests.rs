@@ -47,6 +47,12 @@ cors_origins = ["*"]
 request_timeout_seconds = 30
 max_request_size_mb = 10
 
+[api.auth]
+enabled = false
+jwt_secret = "test-jwt-secret-for-testing-only"
+jwt_expiration_hours = 24
+api_keys = {}
+
 [message_queue]
 url = "redis://test:6379"
 task_queue = "test_tasks"

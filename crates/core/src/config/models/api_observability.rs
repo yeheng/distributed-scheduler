@@ -1,6 +1,16 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
+/// Default JWT secret for testing
+fn default_jwt_secret() -> String {
+    "your-secret-key-change-this-in-production".to_string()
+}
+
+/// Default JWT expiration hours
+fn default_jwt_expiration_hours() -> i64 {
+    24
+}
+
 /// API configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
@@ -16,9 +26,13 @@ pub struct ApiConfig {
 /// Authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
+    #[serde(default)]
     pub enabled: bool,
+    #[serde(default = "default_jwt_secret")]
     pub jwt_secret: String,
+    #[serde(default = "default_jwt_expiration_hours")]
     pub jwt_expiration_hours: i64,
+    #[serde(default)]
     pub api_keys: HashMap<String, ApiKeyConfig>,
 }
 

@@ -46,6 +46,12 @@ cors_origins = ["*"]
 request_timeout_seconds = 30
 max_request_size_mb = 10
 
+[api.auth]
+enabled = false
+jwt_secret = "test-jwt-secret-for-testing-only"
+jwt_expiration_hours = 24
+api_keys = {}
+
 [observability]
 tracing_enabled = true
 metrics_enabled = true
@@ -105,6 +111,12 @@ cors_enabled = true
 cors_origins = ["*"]
 request_timeout_seconds = 30
 max_request_size_mb = 10
+
+[api.auth]
+enabled = false
+jwt_secret = "test-jwt-secret-for-testing-only"
+jwt_expiration_hours = 24
+api_keys = {}
 
 [observability]
 tracing_enabled = true
@@ -174,6 +186,12 @@ cors_enabled = true
 cors_origins = ["*"]
 request_timeout_seconds = 30
 max_request_size_mb = 10
+
+[api.auth]
+enabled = false
+jwt_secret = "test-jwt-secret-for-testing-only"
+jwt_expiration_hours = 24
+api_keys = {}
 
 [observability]
 tracing_enabled = true
