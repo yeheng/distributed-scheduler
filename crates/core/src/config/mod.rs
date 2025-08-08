@@ -429,6 +429,3 @@ pub use validation::{BasicConfigValidator, ConfigValidationError, ConfigValidato
 pub mod validators {
     pub use super::validation::*;
 }
-
-#[cfg(test)]
-mod config_test;

@@ -79,9 +79,10 @@
 //! }
 //! ```
 
-use crate::entities::{Task, TaskRun, Worker};
 use async_trait::async_trait;
 use scheduler_core::SchedulerResult;
+
+use crate::models::{Task, TaskRun, Worker};
 
 /// 任务仓储抽象接口
 ///
@@ -252,7 +253,7 @@ pub trait TaskRepository: Send + Sync {
     /// ```rust
     /// let all_tasks = repo.find_all().await?;
     /// println!("系统中共有 {} 个任务", all_tasks.len());
-    /// 
+    ///
     /// // 建议添加过滤逻辑
     /// let active_tasks: Vec<_> = all_tasks.into_iter()
     ///     .filter(|task| task.status == TaskStatus::Active)
@@ -298,7 +299,7 @@ pub trait TaskRepository: Send + Sync {
     /// let mut task = repo.find_by_id(123).await?.unwrap();
     /// task.status = TaskStatus::Paused;
     /// task.description = Some("临时暂停维护".to_string());
-    /// 
+    ///
     /// let updated_task = repo.update(&task).await?;
     /// assert_eq!(updated_task.status, TaskStatus::Paused);
     /// ```
@@ -390,8 +391,8 @@ pub trait TaskRepository: Send + Sync {
     /// # 调度逻辑
     ///
     /// ```sql
-    /// SELECT * FROM tasks 
-    /// WHERE status = 'Active' 
+    /// SELECT * FROM tasks
+    /// WHERE status = 'Active'
     ///   AND (next_run IS NULL OR next_run <= NOW())
     ///   AND retry_count < max_retries
     /// ORDER BY priority DESC, next_run ASC
@@ -404,7 +405,7 @@ pub trait TaskRepository: Send + Sync {
     /// // 调度器使用示例
     /// let ready_tasks = repo.find_ready_for_execution().await?;
     /// for task in ready_tasks {
-    ///     println!("准备执行任务: {} (下次执行: {:?})", 
+    ///     println!("准备执行任务: {} (下次执行: {:?})",
     ///              task.name, task.next_run);
     ///     
     ///     // 创建执行实例并发送到队列
@@ -583,24 +584,24 @@ pub trait TaskRunRepository: Send + Sync {
     ///
     /// ```rust
     /// let runs = repo.find_by_task_id(123).await?;
-    /// 
+    ///
     /// // 计算成功率
     /// let total = runs.len();
     /// let successful = runs.iter()
     ///     .filter(|run| run.status == TaskRunStatus::Completed)
     ///     .count();
     /// let success_rate = successful as f64 / total as f64 * 100.0;
-    /// 
+    ///
     /// // 计算平均执行时间
     /// let avg_duration = runs.iter()
     ///     .filter_map(|run| {
-    ///         run.completed_at.map(|end| 
+    ///         run.completed_at.map(|end|
     ///             (end - run.started_at).num_seconds()
     ///         )
     ///     })
     ///     .sum::<i64>() as f64 / successful as f64;
-    /// 
-    /// println!("任务成功率: {:.1}%, 平均执行时间: {:.1}秒", 
+    ///
+    /// println!("任务成功率: {:.1}%, 平均执行时间: {:.1}秒",
     ///          success_rate, avg_duration);
     /// ```
     async fn find_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>>;
@@ -643,7 +644,7 @@ pub trait TaskRunRepository: Send + Sync {
     /// let mut run = repo.find_by_id(456).await?.unwrap();
     /// run.status = TaskRunStatus::Running;
     /// repo.update(&run).await?;
-    /// 
+    ///
     /// // 执行完成
     /// run.status = TaskRunStatus::Completed;
     /// run.completed_at = Some(Utc::now());
@@ -734,25 +735,25 @@ pub trait TaskRunRepository: Send + Sync {
     ///
     /// ```rust
     /// let running_tasks = repo.find_running().await?;
-    /// 
+    ///
     /// println!("当前运行中的任务: {} 个", running_tasks.len());
-    /// 
+    ///
     /// // 按Worker分组统计
     /// let mut worker_loads = HashMap::new();
     /// for run in &running_tasks {
     ///     *worker_loads.entry(&run.worker_id).or_insert(0) += 1;
     /// }
-    /// 
+    ///
     /// for (worker_id, count) in worker_loads {
     ///     println!("Worker {}: {} 个任务", worker_id, count);
     /// }
-    /// 
+    ///
     /// // 检查超时任务
     /// let timeout_threshold = Utc::now() - Duration::hours(1);
     /// let timeout_tasks: Vec<_> = running_tasks.into_iter()
     ///     .filter(|run| run.started_at < timeout_threshold)
     ///     .collect();
-    /// 
+    ///
     /// if !timeout_tasks.is_empty() {
     ///     println!("发现 {} 个超时任务", timeout_tasks.len());
     /// }
@@ -915,8 +916,8 @@ pub trait WorkerRepository: Send + Sync {
     /// match repo.find_by_id("worker-001").await? {
     ///     Some(worker) => {
     ///         println!("Worker状态: {:?}", worker.status);
-    ///         println!("当前负载: {}/{}", 
-    ///                  worker.current_task_count, 
+    ///         println!("当前负载: {}/{}",
+    ///                  worker.current_task_count,
     ///                  worker.max_concurrent_tasks);
     ///         
     ///         // 检查心跳是否正常
@@ -954,18 +955,18 @@ pub trait WorkerRepository: Send + Sync {
     ///
     /// ```rust
     /// let all_workers = repo.find_all().await?;
-    /// 
+    ///
     /// // 统计各状态Worker数量
     /// let mut status_counts = HashMap::new();
     /// for worker in &all_workers {
     ///     *status_counts.entry(&worker.status).or_insert(0) += 1;
     /// }
-    /// 
+    ///
     /// println!("Worker状态统计:");
     /// for (status, count) in status_counts {
     ///     println!("  {:?}: {} 个", status, count);
     /// }
-    /// 
+    ///
     /// // 计算总体负载
     /// let total_capacity: i32 = all_workers.iter()
     ///     .map(|w| w.max_concurrent_tasks)
@@ -973,9 +974,9 @@ pub trait WorkerRepository: Send + Sync {
     /// let current_load: i32 = all_workers.iter()
     ///     .map(|w| w.current_task_count)
     ///     .sum();
-    /// 
+    ///
     /// let load_percentage = current_load as f64 / total_capacity as f64 * 100.0;
-    /// println!("集群负载: {:.1}% ({}/{})", 
+    /// println!("集群负载: {:.1}% ({}/{})",
     ///          load_percentage, current_load, total_capacity);
     /// ```
     async fn find_all(&self) -> SchedulerResult<Vec<Worker>>;
@@ -1030,7 +1031,7 @@ pub trait WorkerRepository: Send + Sync {
     /// worker.last_heartbeat = Utc::now();
     /// worker.current_task_count = 5;
     /// repo.update(&worker).await?;
-    /// 
+    ///
     /// // 状态变更
     /// worker.status = WorkerStatus::Maintenance;
     /// repo.update(&worker).await?;
@@ -1073,8 +1074,8 @@ pub trait WorkerRepository: Send + Sync {
     /// ) -> SchedulerResult<()> {
     ///     // 1. 获取Worker信息
     ///     let mut worker = repo.find_by_id(worker_id).await?
-    ///         .ok_or(SchedulerError::WorkerNotFound { 
-    ///             id: worker_id.to_string() 
+    ///         .ok_or(SchedulerError::WorkerNotFound {
+    ///             id: worker_id.to_string()
     ///         })?;
     ///     
     ///     // 2. 设置为离线状态，停止接收新任务
@@ -1133,21 +1134,21 @@ pub trait WorkerRepository: Send + Sync {
     /// let python_workers: Vec<_> = available_workers.into_iter()
     ///     .filter(|worker| worker.supported_task_types.contains(&"python".to_string()))
     ///     .collect();
-    /// 
+    ///
     /// if let Some(best_worker) = python_workers.first() {
-    ///     println!("选择Worker: {} (负载: {}/{})", 
+    ///     println!("选择Worker: {} (负载: {}/{})",
     ///              best_worker.id,
     ///              best_worker.current_task_count,
     ///              best_worker.max_concurrent_tasks);
     /// } else {
     ///     println!("没有可用的Python Worker");
     /// }
-    /// 
+    ///
     /// // 检查集群容量
     /// let total_available_slots: i32 = available_workers.iter()
     ///     .map(|w| w.max_concurrent_tasks - w.current_task_count)
     ///     .sum();
-    /// 
+    ///
     /// if total_available_slots == 0 {
     ///     println!("警告: 集群容量已满，考虑扩容");
     /// }

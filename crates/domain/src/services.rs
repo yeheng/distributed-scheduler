@@ -73,7 +73,7 @@
 //! ```
 
 use crate::{
-    entities::{Task, TaskRun},
+    models::{Task, TaskRun, TaskRunStatus},
     repositories::TaskRunRepository,
 };
 use async_trait::async_trait;
@@ -246,7 +246,7 @@ pub trait TaskSchedulingService: Send + Sync {
     ///     // 调度执行
     ///     let task_run = service.schedule_task(task).await?;
     ///     
-    ///     println!("任务已调度执行: 实例ID={}, Worker={}", 
+    ///     println!("任务已调度执行: 实例ID={}, Worker={}",
     ///              task_run.id, task_run.worker_id);
     ///     
     ///     Ok(())
@@ -464,7 +464,7 @@ pub trait TaskSchedulingService: Send + Sync {
     ///         // 执行重试
     ///         match service.retry_failed_task(failed_run_id).await {
     ///             Ok(retry_run) => {
-    ///                 println!("任务重试已调度: 实例ID={}, 重试次数={}", 
+    ///                 println!("任务重试已调度: 实例ID={}, 重试次数={}",
     ///                          retry_run.id, retry_run.retry_count);
     ///             },
     ///             Err(e) => {
@@ -652,7 +652,7 @@ where
             id: 0, // 数据库生成
             task_id: task.id,
             worker_id: "".to_string(), // 稍后分配
-            status: crate::entities::TaskRunStatus::Pending,
+            status: TaskRunStatus::Pending,
             started_at: chrono::Utc::now(),
             completed_at: None,
             error_message: None,
@@ -665,7 +665,7 @@ where
 
     async fn cancel_task_run(&self, task_run_id: i64) -> SchedulerResult<()> {
         if let Some(mut task_run) = self.task_run_repo.find_by_id(task_run_id).await? {
-            task_run.status = crate::entities::TaskRunStatus::Cancelled;
+            task_run.status = TaskRunStatus::Cancelled;
             task_run.completed_at = Some(chrono::Utc::now());
             self.task_run_repo.update(&task_run).await?;
         }
@@ -678,7 +678,7 @@ where
                 id: 0,
                 task_id: failed_run.task_id,
                 worker_id: "".to_string(),
-                status: crate::entities::TaskRunStatus::Pending,
+                status: TaskRunStatus::Pending,
                 started_at: chrono::Utc::now(),
                 completed_at: None,
                 error_message: None,
