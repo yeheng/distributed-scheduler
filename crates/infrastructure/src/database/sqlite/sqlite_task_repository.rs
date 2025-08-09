@@ -9,18 +9,14 @@ use scheduler_core::{
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
-/// SQLite任务仓储实现
 pub struct SqliteTaskRepository {
     pool: SqlitePool,
 }
 
 impl SqliteTaskRepository {
-    /// 创建新的SQLite任务仓储
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-
-    /// 将数据库行转换为Task模型
     fn row_to_task(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<Task> {
         let dependencies_json: Option<String> = row.try_get("dependencies").ok();
 
@@ -58,7 +54,6 @@ impl SqliteTaskRepository {
 
 #[async_trait]
 impl TaskRepository for SqliteTaskRepository {
-    /// 创建新任务
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
         let shard_config_json = task
             .shard_config
@@ -100,8 +95,6 @@ impl TaskRepository for SqliteTaskRepository {
         );
         Ok(created_task)
     }
-
-    /// 根据ID获取任务
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
@@ -116,8 +109,6 @@ impl TaskRepository for SqliteTaskRepository {
             None => Ok(None),
         }
     }
-
-    /// 根据名称获取任务
     async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE name = $1"
@@ -132,8 +123,6 @@ impl TaskRepository for SqliteTaskRepository {
             None => Ok(None),
         }
     }
-
-    /// 更新任务
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
         let shard_config_json = task
             .shard_config
@@ -178,8 +167,6 @@ impl TaskRepository for SqliteTaskRepository {
         debug!("更新任务成功: {} (ID: {})", task.name, task.id);
         Ok(())
     }
-
-    /// 删除任务
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
             .bind(id)
@@ -194,13 +181,9 @@ impl TaskRepository for SqliteTaskRepository {
         debug!("删除任务成功: ID {}", id);
         Ok(())
     }
-
-    /// 根据过滤条件查询任务列表
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
         let mut query = "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE 1=1".to_string();
         let mut bind_count = 0;
-
-        // 构建动态查询
         if filter.status.is_some() {
             bind_count += 1;
             query.push_str(&format!(" AND status = ${bind_count}"));
@@ -229,8 +212,6 @@ impl TaskRepository for SqliteTaskRepository {
         }
 
         let mut sqlx_query = sqlx::query(&query);
-
-        // 绑定参数
         if let Some(status) = filter.status {
             sqlx_query = sqlx_query.bind(status);
         }
@@ -259,8 +240,6 @@ impl TaskRepository for SqliteTaskRepository {
         let tasks: SchedulerResult<Vec<Task>> = rows.iter().map(Self::row_to_task).collect();
         tasks
     }
-
-    /// 获取所有活跃任务
     async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
         let filter = TaskFilter {
             status: Some(TaskStatus::Active),
@@ -268,17 +247,12 @@ impl TaskRepository for SqliteTaskRepository {
         };
         self.list(&filter).await
     }
-
-    /// 获取需要调度的任务（活跃且到达调度时间）
     async fn get_schedulable_tasks(
         &self,
         _current_time: DateTime<Utc>,
     ) -> SchedulerResult<Vec<Task>> {
-        // 这里简化实现，实际应该解析cron表达式判断是否到达调度时间
         self.get_active_tasks().await
     }
-
-    /// 检查任务依赖是否满足
     async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
         let task = self.get_by_id(task_id).await?;
 
@@ -286,8 +260,6 @@ impl TaskRepository for SqliteTaskRepository {
             if task.dependencies.is_empty() {
                 return Ok(true);
             }
-
-            // 检查所有依赖任务的最近执行是否成功
             for dep_id in &task.dependencies {
                 let recent_run = sqlx::query(
                     "SELECT status FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1"
@@ -312,8 +284,6 @@ impl TaskRepository for SqliteTaskRepository {
             Err(SchedulerError::TaskNotFound { id: task_id })
         }
     }
-
-    /// 获取任务的依赖列表
     async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         let task = self.get_by_id(task_id).await?;
 
@@ -333,8 +303,6 @@ impl TaskRepository for SqliteTaskRepository {
             Err(SchedulerError::TaskNotFound { id: task_id })
         }
     }
-
-    /// 批量更新任务状态
     async fn batch_update_status(
         &self,
         task_ids: &[i64],
@@ -348,8 +316,6 @@ impl TaskRepository for SqliteTaskRepository {
             TaskStatus::Active => "ACTIVE",
             TaskStatus::Inactive => "INACTIVE",
         };
-
-        // SQLite doesn't support ANY() operator, use IN clause instead
         let placeholders: Vec<String> =
             (0..task_ids.len()).map(|i| format!("${}", i + 2)).collect();
         let query = format!(

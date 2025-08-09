@@ -7,8 +7,6 @@ use std::collections::HashMap;
 async fn test_message_queue_publish_and_consume() {
     let mq = MockMessageQueue::new();
     let queue_name = "test_queue";
-
-    // Create a test message
     let task_execution = TaskExecutionMessage {
         task_run_id: 123,
         task_id: 456,
@@ -21,11 +19,7 @@ async fn test_message_queue_publish_and_consume() {
         shard_total: None,
     };
     let message = Message::task_execution(task_execution);
-
-    // Test publishing
     mq.publish_message(queue_name, &message).await.unwrap();
-
-    // Test consuming
     let consumed_messages = mq.consume_messages(queue_name).await.unwrap();
     assert_eq!(consumed_messages.len(), 1);
     assert_eq!(consumed_messages[0].id, message.id);
@@ -35,14 +29,10 @@ async fn test_message_queue_publish_and_consume() {
 async fn test_message_queue_ack_nack() {
     let mq = MockMessageQueue::new();
     let message_id = "test_message_123";
-
-    // Test ack
     mq.ack_message(message_id).await.unwrap();
     let acked = mq.get_acked_messages();
     assert_eq!(acked.len(), 1);
     assert_eq!(acked[0], message_id);
-
-    // Test nack
     mq.nack_message(message_id, true).await.unwrap();
     let nacked = mq.get_nacked_messages();
     assert_eq!(nacked.len(), 1);
@@ -53,13 +43,9 @@ async fn test_message_queue_ack_nack() {
 async fn test_message_queue_create_delete_queue() {
     let mq = MockMessageQueue::new();
     let queue_name = "test_queue";
-
-    // Test create queue
     mq.create_queue(queue_name, true).await.unwrap();
     let size = mq.get_queue_size(queue_name).await.unwrap();
     assert_eq!(size, 0);
-
-    // Test delete queue
     mq.delete_queue(queue_name).await.unwrap();
     let size_after_delete = mq.get_queue_size(queue_name).await.unwrap();
     assert_eq!(size_after_delete, 0);
@@ -69,8 +55,6 @@ async fn test_message_queue_create_delete_queue() {
 async fn test_message_queue_size_and_purge() {
     let mq = MockMessageQueue::new();
     let queue_name = "test_queue";
-
-    // Create queue and add messages
     mq.create_queue(queue_name, true).await.unwrap();
 
     let task_execution = TaskExecutionMessage {
@@ -84,19 +68,13 @@ async fn test_message_queue_size_and_purge() {
         shard_index: None,
         shard_total: None,
     };
-
-    // Publish multiple messages
     for i in 0..5 {
         let mut message = Message::task_execution(task_execution.clone());
         message.id = format!("message_{i}");
         mq.publish_message(queue_name, &message).await.unwrap();
     }
-
-    // Test queue size
     let size = mq.get_queue_size(queue_name).await.unwrap();
     assert_eq!(size, 5);
-
-    // Test purge
     mq.purge_queue(queue_name).await.unwrap();
     let size_after_purge = mq.get_queue_size(queue_name).await.unwrap();
     assert_eq!(size_after_purge, 0);
@@ -106,8 +84,6 @@ async fn test_message_queue_size_and_purge() {
 async fn test_message_queue_multiple_message_types() {
     let mq = MockMessageQueue::new();
     let queue_name = "mixed_queue";
-
-    // Create different types of messages
     let task_execution = TaskExecutionMessage {
         task_run_id: 123,
         task_id: 456,
@@ -149,8 +125,6 @@ async fn test_message_queue_multiple_message_types() {
         requester: "admin".to_string(),
         timestamp: Utc::now(),
     };
-
-    // Publish all message types
     let messages = vec![
         Message::task_execution(task_execution),
         Message::status_update(status_update),
@@ -161,12 +135,8 @@ async fn test_message_queue_multiple_message_types() {
     for message in &messages {
         mq.publish_message(queue_name, message).await.unwrap();
     }
-
-    // Consume and verify
     let consumed = mq.consume_messages(queue_name).await.unwrap();
     assert_eq!(consumed.len(), 4);
-
-    // Verify message types
     let mut type_counts = HashMap::new();
     for message in consumed {
         let type_str = message.message_type_str();
@@ -183,15 +153,9 @@ async fn test_message_queue_multiple_message_types() {
 async fn test_message_queue_empty_queue_operations() {
     let mq = MockMessageQueue::new();
     let queue_name = "empty_queue";
-
-    // Test consuming from non-existent queue
     let messages = mq.consume_messages(queue_name).await.unwrap();
     assert_eq!(messages.len(), 0);
-
-    // Test getting size of non-existent queue
     let size = mq.get_queue_size(queue_name).await.unwrap();
     assert_eq!(size, 0);
-
-    // Test purging non-existent queue (should not fail)
     mq.purge_queue(queue_name).await.unwrap();
 }

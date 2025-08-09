@@ -11,19 +11,14 @@ use super::config::RedisStreamConfig;
 use super::connection_manager::RedisConnectionManager;
 use super::metrics_collector::RedisStreamMetrics;
 
-/// Redis消息处理器
-///
-/// 负责消息的发布、消费、确认和拒绝操作
 pub struct RedisMessageHandler {
     connection_manager: Arc<RedisConnectionManager>,
     config: RedisStreamConfig,
     metrics: Arc<RedisStreamMetrics>,
-    // 存储Message ID到Redis Stream ID和队列名的映射
     message_id_mapping: Arc<Mutex<HashMap<String, (String, String)>>>,
 }
 
 impl RedisMessageHandler {
-    /// 创建新的消息处理器
     pub fn new(
         connection_manager: Arc<RedisConnectionManager>,
         config: RedisStreamConfig,
@@ -36,8 +31,6 @@ impl RedisMessageHandler {
             message_id_mapping: Arc::new(Mutex::new(HashMap::new())),
         }
     }
-
-    /// 发布消息
     pub async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
         debug!("Publishing message {} to queue: {}", message.id, queue);
 
@@ -46,16 +39,12 @@ impl RedisMessageHandler {
 
         self.publish_message_with_retry(queue, message).await
     }
-
-    /// 消费消息
     pub async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         debug!("Consuming messages from queue: {}", queue);
 
         self.validate_queue_name(queue)?;
 
         let mut all_messages = Vec::new();
-
-        // 处理待处理的消息
         if let Ok(mut pending_messages) = self.consume_pending_messages(queue).await {
             debug!(
                 "Found {} pending messages in queue: {}",
@@ -64,8 +53,6 @@ impl RedisMessageHandler {
             );
             all_messages.append(&mut pending_messages);
         }
-
-        // 读取新消息
         if let Ok(mut new_messages) = self.consume_new_messages(queue).await {
             debug!(
                 "Found {} new messages in queue: {}",
@@ -82,8 +69,6 @@ impl RedisMessageHandler {
         );
         Ok(all_messages)
     }
-
-    /// 确认消息
     pub async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Acknowledging message: {}", message_id);
@@ -118,8 +103,6 @@ impl RedisMessageHandler {
 
         Ok(())
     }
-
-    /// 拒绝消息
     pub async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Nacking message: {}, requeue: {}", message_id, requeue);
@@ -127,12 +110,9 @@ impl RedisMessageHandler {
         let (stream_message_id, queue_name) = self.get_message_mapping(message_id)?;
 
         if requeue {
-            // 重新排队：将消息添加回流的末尾
             self.requeue_message(&queue_name, &stream_message_id)
                 .await?;
         }
-
-        // 从消费者组的待处理消息中移除
         let group_name = self.get_consumer_group_name(&queue_name);
         let mut cmd = redis::cmd("XACK");
         cmd.arg(&queue_name)
@@ -154,8 +134,6 @@ impl RedisMessageHandler {
 
         Ok(())
     }
-
-    // 私有辅助方法
     fn validate_queue_name(&self, queue: &str) -> SchedulerResult<()> {
         if queue.is_empty() {
             return Err(SchedulerError::MessageQueue(
@@ -218,24 +196,19 @@ impl RedisMessageHandler {
             mapping.remove(message_id);
         }
     }
-
-    // 占位符方法 - 实际实现需要从原文件迁移
     async fn publish_message_with_retry(
         &self,
         _queue: &str,
         _message: &Message,
     ) -> SchedulerResult<()> {
-        // TODO: 从原文件迁移实现
         Ok(())
     }
 
     async fn consume_pending_messages(&self, _queue: &str) -> SchedulerResult<Vec<Message>> {
-        // TODO: 从原文件迁移实现
         Ok(vec![])
     }
 
     async fn consume_new_messages(&self, _queue: &str) -> SchedulerResult<Vec<Message>> {
-        // TODO: 从原文件迁移实现
         Ok(vec![])
     }
 
@@ -244,7 +217,6 @@ impl RedisMessageHandler {
         _queue_name: &str,
         _stream_message_id: &str,
     ) -> SchedulerResult<()> {
-        // TODO: 从原文件迁移实现
         Ok(())
     }
 }

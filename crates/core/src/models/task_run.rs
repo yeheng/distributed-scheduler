@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// 任务执行实例
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskRun {
     pub id: i64,
@@ -19,7 +18,6 @@ pub struct TaskRun {
     pub created_at: DateTime<Utc>,
 }
 
-/// 任务执行上下文
 #[derive(Debug, Clone)]
 pub struct TaskExecutionContext {
     pub task_run_id: i64,
@@ -32,7 +30,6 @@ pub struct TaskExecutionContext {
     pub worker_id: String,
 }
 
-/// 任务运行状态
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Hash)]
 pub enum TaskRunStatus {
     #[serde(rename = "PENDING")]
@@ -124,7 +121,6 @@ impl<'q> sqlx::Encode<'q, sqlx::Postgres> for TaskRunStatus {
         <&str as sqlx::Encode<sqlx::Postgres>>::encode(s, buf)
     }
 }
-/// 任务执行结果
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskResult {
     pub success: bool,
@@ -134,7 +130,6 @@ pub struct TaskResult {
     pub execution_time_ms: u64,
 }
 
-/// 任务状态更新
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskStatusUpdate {
     pub task_run_id: i64,
@@ -146,7 +141,6 @@ pub struct TaskStatusUpdate {
 }
 
 impl TaskRun {
-    /// 创建新的任务运行实例
     pub fn new(task_id: i64, scheduled_at: DateTime<Utc>) -> Self {
         let now = Utc::now();
         Self {
@@ -165,29 +159,21 @@ impl TaskRun {
             created_at: now,
         }
     }
-
-    /// 检查任务是否正在运行
     pub fn is_running(&self) -> bool {
         matches!(
             self.status,
             TaskRunStatus::Running | TaskRunStatus::Dispatched
         )
     }
-
-    /// 检查任务是否已完成（成功或失败）
     pub fn is_finished(&self) -> bool {
         matches!(
             self.status,
             TaskRunStatus::Completed | TaskRunStatus::Failed | TaskRunStatus::Timeout
         )
     }
-
-    /// 检查任务是否成功完成
     pub fn is_successful(&self) -> bool {
         matches!(self.status, TaskRunStatus::Completed)
     }
-
-    /// 更新任务状态
     pub fn update_status(&mut self, status: TaskRunStatus) {
         self.status = status;
         match status {
@@ -204,8 +190,6 @@ impl TaskRun {
             _ => {}
         }
     }
-
-    /// 获取执行时长（毫秒）
     pub fn execution_duration_ms(&self) -> Option<i64> {
         if let (Some(started), Some(completed)) = (self.started_at, self.completed_at) {
             Some((completed - started).num_milliseconds())

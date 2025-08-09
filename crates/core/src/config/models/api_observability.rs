@@ -1,17 +1,14 @@
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
-/// Default JWT secret for testing
 fn default_jwt_secret() -> String {
     "your-secret-key-change-this-in-production".to_string()
 }
 
-/// Default JWT expiration hours
 fn default_jwt_expiration_hours() -> i64 {
     24
 }
 
-/// API configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiConfig {
     pub enabled: bool,
@@ -23,7 +20,6 @@ pub struct ApiConfig {
     pub auth: AuthConfig,
 }
 
-/// Authentication configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AuthConfig {
     #[serde(default)]
@@ -36,7 +32,6 @@ pub struct AuthConfig {
     pub api_keys: HashMap<String, ApiKeyConfig>,
 }
 
-/// API Key configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ApiKeyConfig {
     pub name: String,
@@ -70,13 +65,10 @@ impl Default for AuthConfig {
 }
 
 impl ApiConfig {
-    /// Validate API configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.bind_address.is_empty() {
             return Err(anyhow::anyhow!("绑定地址不能为空"));
         }
-
-        // Simple address format validation
         if !self.bind_address.contains(':') {
             return Err(anyhow::anyhow!("绑定地址格式无效，应为 host:port"));
         }
@@ -88,8 +80,6 @@ impl ApiConfig {
         if self.max_request_size_mb == 0 {
             return Err(anyhow::anyhow!("最大请求大小必须大于0"));
         }
-
-        // Validate auth configuration
         self.auth.validate()?;
 
         Ok(())
@@ -97,7 +87,6 @@ impl ApiConfig {
 }
 
 impl AuthConfig {
-    /// Validate authentication configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.enabled {
             if self.jwt_secret.is_empty() {
@@ -111,8 +100,6 @@ impl AuthConfig {
             if self.jwt_expiration_hours <= 0 {
                 return Err(anyhow::anyhow!("JWT过期时间必须大于0"));
             }
-
-            // Validate API keys
             for (hash, key_config) in &self.api_keys {
                 if hash.is_empty() {
                     return Err(anyhow::anyhow!("API密钥哈希不能为空"));
@@ -125,8 +112,6 @@ impl AuthConfig {
                 if key_config.permissions.is_empty() {
                     return Err(anyhow::anyhow!("API密钥权限不能为空"));
                 }
-
-                // Validate permissions
                 let valid_permissions = [
                     "TaskRead", "TaskWrite", "TaskDelete",
                     "WorkerRead", "WorkerWrite", 
@@ -150,7 +135,6 @@ impl AuthConfig {
     }
 }
 
-/// Observability configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ObservabilityConfig {
     pub tracing_enabled: bool,
@@ -161,7 +145,6 @@ pub struct ObservabilityConfig {
 }
 
 impl ObservabilityConfig {
-    /// Validate observability configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         let valid_log_levels = ["trace", "debug", "info", "warn", "error"];
         if !valid_log_levels.contains(&self.log_level.to_lowercase().as_str()) {

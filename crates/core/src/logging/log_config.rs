@@ -1,36 +1,22 @@
 use crate::logging::log_level::LogLevel;
 
-/// Logging configuration
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LogConfig {
-    /// Minimum log level to display
     pub level: LogLevel,
-    /// Output format for logs
     pub format: OutputFormat,
-    /// Whether to enable file logging
     pub enable_file_logging: bool,
-    /// File path for log output (if enabled)
     pub log_file_path: Option<String>,
-    /// Maximum file size in bytes before rotation
     pub max_file_size: Option<u64>,
-    /// Maximum number of rotated files to keep
     pub max_files: Option<u32>,
-    /// Whether to include timestamps in logs
     pub include_timestamps: bool,
-    /// Whether to include caller information
     pub include_caller: bool,
-    /// Additional context fields to include
     pub default_context: std::collections::HashMap<String, serde_json::Value>,
 }
 
-/// Output format for log entries
 #[derive(Debug, Clone, Copy, serde::Serialize, serde::Deserialize)]
 pub enum OutputFormat {
-    /// JSON format
     Json,
-    /// Plain text format
     Text,
-    /// Pretty-printed JSON
     Pretty,
 }
 
@@ -51,18 +37,13 @@ impl Default for LogConfig {
 }
 
 impl LogConfig {
-    /// Create configuration from environment variables
     pub fn from_env() -> Self {
         let mut config = Self::default();
-
-        // Log level from environment
         if let Ok(level_str) = std::env::var("LOG_LEVEL") {
             if let Ok(level) = level_str.parse::<LogLevel>() {
                 config.level = level;
             }
         }
-
-        // Output format from environment
         if let Ok(format_str) = std::env::var("LOG_FORMAT") {
             config.format = match format_str.to_lowercase().as_str() {
                 "json" => OutputFormat::Json,
@@ -71,8 +52,6 @@ impl LogConfig {
                 _ => OutputFormat::Json,
             };
         }
-
-        // File logging configuration
         if let Ok(enable_file) = std::env::var("LOG_TO_FILE") {
             config.enable_file_logging = enable_file.to_lowercase() == "true";
         }
@@ -88,8 +67,6 @@ impl LogConfig {
                 config.max_files = max_files_str.parse().ok();
             }
         }
-
-        // Other configuration options
         if let Ok(include_timestamps) = std::env::var("LOG_TIMESTAMPS") {
             config.include_timestamps = include_timestamps.to_lowercase() == "true";
         }
@@ -100,35 +77,25 @@ impl LogConfig {
 
         config
     }
-
-    /// Create configuration with custom settings
     pub fn with_level(level: LogLevel) -> Self {
         Self {
             level,
             ..Self::default()
         }
     }
-
-    /// Enable file logging with specified path
     pub fn with_file_logging(mut self, path: String) -> Self {
         self.enable_file_logging = true;
         self.log_file_path = Some(path);
         self
     }
-
-    /// Set output format
     pub fn with_format(mut self, format: OutputFormat) -> Self {
         self.format = format;
         self
     }
-
-    /// Add default context field
     pub fn with_default_context(mut self, key: String, value: serde_json::Value) -> Self {
         self.default_context.insert(key, value);
         self
     }
-
-    /// Validate configuration
     pub fn validate(&self) -> Result<(), String> {
         if self.enable_file_logging && self.log_file_path.is_none() {
             return Err("Log file path is required when file logging is enabled".to_string());

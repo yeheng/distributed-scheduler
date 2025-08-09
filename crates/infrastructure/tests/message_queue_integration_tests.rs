@@ -13,7 +13,6 @@ use testcontainers_modules::rabbitmq::RabbitMq;
 use testcontainers_modules::redis::Redis;
 use tokio::time::{sleep, Duration};
 
-/// Message Queue Integration Test Setup
 pub struct MessageQueueIntegrationTestSetup {
     #[allow(dead_code)]
     postgres_container: ContainerAsync<Postgres>,
@@ -26,9 +25,7 @@ pub struct MessageQueueIntegrationTestSetup {
 }
 
 impl MessageQueueIntegrationTestSetup {
-    /// Create new message queue integration test setup
     pub async fn new() -> Result<Self> {
-        // Start PostgreSQL container for database operations
         let postgres_container = Postgres::default()
             .with_db_name("scheduler_mq_test")
             .with_user("test_user")
@@ -36,8 +33,6 @@ impl MessageQueueIntegrationTestSetup {
             .with_tag("16-alpine")
             .start()
             .await?;
-
-        // Start RabbitMQ container
         let rabbitmq_container = RabbitMq::default()
             .with_tag("3.12-management-alpine")
             .start()
@@ -45,14 +40,10 @@ impl MessageQueueIntegrationTestSetup {
 
         let rabbitmq_port = rabbitmq_container.get_host_port_ipv4(5672).await?;
         let rabbitmq_url = format!("amqp://guest:guest@localhost:{}", rabbitmq_port);
-
-        // Start Redis container
         let redis_container = Redis::default().with_tag("7-alpine").start().await?;
 
         let redis_port = redis_container.get_host_port_ipv4(6379).await?;
         let redis_url = format!("redis://localhost:{}", redis_port);
-
-        // Wait for services to be ready
         sleep(Duration::from_secs(5)).await;
 
         Ok(Self {
@@ -63,8 +54,6 @@ impl MessageQueueIntegrationTestSetup {
             redis_url,
         })
     }
-
-    /// Create RabbitMQ message queue
     pub async fn create_rabbitmq_queue(&self) -> Result<Arc<dyn MessageQueue>> {
         let config = MessageQueueConfig {
             r#type: MessageQueueType::Rabbitmq,
@@ -81,8 +70,6 @@ impl MessageQueueIntegrationTestSetup {
         let queue = MessageQueueFactory::create(&config).await?;
         Ok(queue)
     }
-
-    /// Create Redis Stream message queue
     pub async fn create_redis_stream_queue(&self) -> Result<Arc<dyn MessageQueue>> {
         let config = MessageQueueConfig {
             r#type: MessageQueueType::RedisStream,
@@ -99,17 +86,12 @@ impl MessageQueueIntegrationTestSetup {
         let queue = MessageQueueFactory::create(&config).await?;
         Ok(queue)
     }
-
-    /// Test message queue functionality
     pub async fn test_message_queue_functionality(
         &self,
         queue: Arc<dyn MessageQueue>,
         queue_name: &str,
     ) -> Result<()> {
-        // Test queue declaration
         queue.create_queue(queue_name, true).await?;
-
-        // Test message publishing
         let task_execution_msg = TaskExecutionMessage {
             task_run_id: 1,
             task_id: 1,
@@ -124,8 +106,6 @@ impl MessageQueueIntegrationTestSetup {
 
         let message = Message::task_execution(task_execution_msg);
         queue.publish_message(queue_name, &message).await?;
-
-        // Test message consumption
         let messages = queue.consume_messages(queue_name).await?;
         assert_eq!(messages.len(), 1);
 
@@ -137,8 +117,6 @@ impl MessageQueueIntegrationTestSetup {
         } else {
             return Err(anyhow::anyhow!("Expected TaskExecution message"));
         }
-
-        // Test status update message
         let status_update_msg = StatusUpdateMessage {
             task_run_id: 1,
             status: TaskRunStatus::Completed,
@@ -167,17 +145,12 @@ impl MessageQueueIntegrationTestSetup {
 
         Ok(())
     }
-
-    /// Test message queue error handling
     pub async fn test_message_queue_error_handling(
         &self,
         queue: Arc<dyn MessageQueue>,
     ) -> Result<()> {
-        // Test consuming from non-existent queue
         let result = queue.consume_messages("non_existent_queue").await;
         assert!(result.is_err());
-
-        // Test publishing to invalid queue (should handle gracefully)
         let message = Message::task_execution(TaskExecutionMessage {
             task_run_id: 1,
             task_id: 1,
@@ -191,13 +164,9 @@ impl MessageQueueIntegrationTestSetup {
         });
 
         let _result = queue.publish_message("invalid/queue/name", &message).await;
-        // This might succeed or fail depending on the message queue implementation
-        // We're mainly testing that it doesn't panic
 
         Ok(())
     }
-
-    /// Test message queue performance
     pub async fn test_message_queue_performance(
         &self,
         queue: Arc<dyn MessageQueue>,
@@ -207,8 +176,6 @@ impl MessageQueueIntegrationTestSetup {
         queue.create_queue(queue_name, true).await?;
 
         let start_time = std::time::Instant::now();
-
-        // Publish multiple messages
         for i in 0..message_count {
             let task_execution_msg = TaskExecutionMessage {
                 task_run_id: i as i64,
@@ -231,8 +198,6 @@ impl MessageQueueIntegrationTestSetup {
             "Published {} messages in {:?}",
             message_count, publish_duration
         );
-
-        // Consume messages
         let consume_start = std::time::Instant::now();
         let mut consumed_count = 0;
 
@@ -243,8 +208,6 @@ impl MessageQueueIntegrationTestSetup {
             if consumed_count >= message_count {
                 break;
             }
-
-            // Small delay to allow for message processing
             sleep(Duration::from_millis(10)).await;
         }
 
@@ -253,24 +216,18 @@ impl MessageQueueIntegrationTestSetup {
             "Consumed {} messages in {:?}",
             message_count, consume_duration
         );
-
-        // Performance assertions
         assert!(consumed_count >= message_count);
         assert!(publish_duration.as_secs() < 30); // Should complete within 30 seconds
         assert!(consume_duration.as_secs() < 30); // Should complete within 30 seconds
 
         Ok(())
     }
-
-    /// Test message queue durability
     pub async fn test_message_queue_durability(
         &self,
         queue: Arc<dyn MessageQueue>,
         queue_name: &str,
     ) -> Result<()> {
         queue.create_queue(queue_name, true).await?;
-
-        // Publish test message
         let message = Message::task_execution(TaskExecutionMessage {
             task_run_id: 1,
             task_id: 1,
@@ -284,11 +241,7 @@ impl MessageQueueIntegrationTestSetup {
         });
 
         queue.publish_message(queue_name, &message).await?;
-
-        // Wait a bit to ensure message is persisted
         sleep(Duration::from_secs(1)).await;
-
-        // Consume message
         let messages = queue.consume_messages(queue_name).await?;
         assert_eq!(messages.len(), 1);
 
@@ -302,8 +255,6 @@ impl MessageQueueIntegrationTestSetup {
 
         Ok(())
     }
-
-    /// Test message queue concurrent operations
     pub async fn test_message_queue_concurrency(
         &self,
         queue: Arc<dyn MessageQueue>,
@@ -314,8 +265,6 @@ impl MessageQueueIntegrationTestSetup {
         let message_count = 100;
         let producer_count = 5;
         let consumer_count = 3;
-
-        // Create producers
         let mut producer_handles = Vec::new();
         for producer_id in 0..producer_count {
             let queue_name = queue_name.to_string();
@@ -356,8 +305,6 @@ impl MessageQueueIntegrationTestSetup {
 
             producer_handles.push(handle);
         }
-
-        // Create consumers
         let mut consumer_handles = Vec::new();
         let consumed_messages = std::sync::Arc::new(tokio::sync::Mutex::new(0));
         for _consumer_id in 0..consumer_count {
@@ -399,33 +346,18 @@ impl MessageQueueIntegrationTestSetup {
 
             consumer_handles.push(handle);
         }
-
-        // Wait for all producers to complete
         for handle in producer_handles {
             handle.await?;
         }
-
-        // Wait for all consumers to complete
         for handle in consumer_handles {
             handle.await?;
         }
-
-        // Verify all messages were consumed
         let final_count = consumed_messages.lock().await;
         assert_eq!(*final_count, message_count * producer_count);
 
         Ok(())
     }
-
-    /// Test message queue cleanup
     pub async fn cleanup_queues(&self, queue: Arc<dyn MessageQueue>) -> Result<()> {
-        // Note: This depends on the message queue implementation
-        // Some queues may not support explicit cleanup
-
-        // For RabbitMQ, we could delete queues if needed
-        // For Redis Streams, we could delete streams
-
-        // For now, we'll just verify the queue is still operational
         let test_queue_name = "cleanup_test";
         queue.create_queue(test_queue_name, true).await?;
 
@@ -458,36 +390,22 @@ mod tests {
     #[tokio::test]
     async fn test_rabbitmq_integration() -> Result<()> {
         let setup = MessageQueueIntegrationTestSetup::new().await?;
-
-        // Test RabbitMQ message queue
         let rabbitmq_queue = setup.create_rabbitmq_queue().await?;
-
-        // Test basic functionality
         setup
             .test_message_queue_functionality(rabbitmq_queue.to_owned(), "test_queue")
             .await?;
-
-        // Test error handling
         setup
             .test_message_queue_error_handling(rabbitmq_queue.to_owned())
             .await?;
-
-        // Test performance with smaller message count
         setup
             .test_message_queue_performance(rabbitmq_queue.to_owned(), "perf_test", 10)
             .await?;
-
-        // Test durability
         setup
             .test_message_queue_durability(rabbitmq_queue.to_owned(), "durability_test")
             .await?;
-
-        // Test concurrency
         setup
             .test_message_queue_concurrency(rabbitmq_queue.to_owned(), "concurrency_test")
             .await?;
-
-        // Cleanup
         setup.cleanup_queues(rabbitmq_queue.to_owned()).await?;
 
         Ok(())
@@ -496,31 +414,19 @@ mod tests {
     #[tokio::test]
     async fn test_redis_stream_integration() -> Result<()> {
         let setup = MessageQueueIntegrationTestSetup::new().await?;
-
-        // Test Redis Stream message queue
         let redis_queue = setup.create_redis_stream_queue().await?;
-
-        // Test basic functionality
         setup
             .test_message_queue_functionality(redis_queue.to_owned(), "redis_test_queue")
             .await?;
-
-        // Test error handling
         setup
             .test_message_queue_error_handling(redis_queue.to_owned())
             .await?;
-
-        // Test performance with smaller message count
         setup
             .test_message_queue_performance(redis_queue.to_owned(), "redis_perf_test", 10)
             .await?;
-
-        // Test durability
         setup
             .test_message_queue_durability(redis_queue.to_owned(), "redis_durability_test")
             .await?;
-
-        // Cleanup
         setup.cleanup_queues(redis_queue.to_owned()).await?;
 
         Ok(())
@@ -529,12 +435,8 @@ mod tests {
     #[tokio::test]
     async fn test_message_queue_switching() -> Result<()> {
         let setup = MessageQueueIntegrationTestSetup::new().await?;
-
-        // Test switching between message queue types
         let rabbitmq_queue = setup.create_rabbitmq_queue().await?;
         let redis_queue = setup.create_redis_stream_queue().await?;
-
-        // Publish message to RabbitMQ
         let rabbitmq_msg = Message::task_execution(TaskExecutionMessage {
             task_run_id: 1,
             task_id: 1,
@@ -550,8 +452,6 @@ mod tests {
         rabbitmq_queue
             .publish_message("switch_test", &rabbitmq_msg)
             .await?;
-
-        // Publish message to Redis Stream
         let redis_msg = Message::task_execution(TaskExecutionMessage {
             task_run_id: 2,
             task_id: 2,
@@ -567,15 +467,11 @@ mod tests {
         redis_queue
             .publish_message("switch_test", &redis_msg)
             .await?;
-
-        // Consume from both queues
         let rabbitmq_messages = rabbitmq_queue.consume_messages("switch_test").await?;
         let redis_messages = redis_queue.consume_messages("switch_test").await?;
 
         assert_eq!(rabbitmq_messages.len(), 1);
         assert_eq!(redis_messages.len(), 1);
-
-        // Verify message content
         if let scheduler_core::models::MessageType::TaskExecution(ref msg) =
             rabbitmq_messages[0].message_type
         {
@@ -596,15 +492,11 @@ mod tests {
         let setup = MessageQueueIntegrationTestSetup::new().await?;
 
         let rabbitmq_queue = setup.create_rabbitmq_queue().await?;
-
-        // Test different routing keys
         let queues = vec!["shell_tasks", "http_tasks", "python_tasks"];
 
         for queue_name in &queues {
             rabbitmq_queue.create_queue(queue_name, true).await?;
         }
-
-        // Publish messages with different routing keys
         let task_types = vec!["shell", "http", "python"];
 
         for (i, task_type) in task_types.iter().enumerate() {
@@ -625,8 +517,6 @@ mod tests {
                 .publish_message(&format!("{}_tasks", task_type), &message)
                 .await?;
         }
-
-        // Consume messages from each queue
         for (i, queue_name) in queues.iter().enumerate() {
             let messages = rabbitmq_queue.consume_messages(queue_name).await?;
             assert_eq!(messages.len(), 1);

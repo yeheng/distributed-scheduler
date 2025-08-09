@@ -19,7 +19,6 @@ use crate::{
     },
 };
 
-/// API应用状态
 #[derive(Clone)]
 pub struct AppState {
     pub task_repo: Arc<dyn scheduler_core::traits::repository::TaskRepository>,
@@ -29,18 +28,14 @@ pub struct AppState {
     pub auth_config: Arc<AuthConfig>,
 }
 
-/// 创建API路由
 pub fn create_routes(state: AppState) -> Router {
     let router = Router::new()
-        // 健康检查（无需认证）
         .route("/health", get(health_check))
         .route("/api/auth/login", post(login))
         .route("/api/auth/validate", get(validate_token))
-        // 认证相关路由
         .route("/api/auth/refresh", post(refresh_token))
         .route("/api/auth/logout", post(logout))
         .route("/api/auth/api-keys", post(create_api_key))
-        // 任务管理API
         .route("/api/tasks", get(list_tasks).post(create_task))
         .route(
             "/api/tasks/{id}",
@@ -49,14 +44,11 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/tasks/{id}/trigger", post(trigger_task))
         .route("/api/tasks/{id}/runs", get(get_task_runs))
         .route("/api/task-runs/{id}", get(get_task_run))
-        // Worker管理API
         .route("/api/workers", get(list_workers))
         .route("/api/workers/{id}", get(get_worker))
         .route("/api/workers/{id}/stats", get(get_worker_stats))
-        // 系统监控API
         .route("/api/system/stats", get(get_system_stats))
         .route("/api/system/health", get(get_system_health))
-        // 任务执行统计API
         .route("/api/tasks/{id}/stats", get(get_task_execution_stats))
         .with_state(state.clone());
 

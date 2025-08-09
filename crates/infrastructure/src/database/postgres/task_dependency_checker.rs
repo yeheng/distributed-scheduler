@@ -1,27 +1,17 @@
-//! Task dependency checker - Handles task dependency validation
-//!
-//! This component is responsible only for checking task dependencies
-//! and validating if tasks can be executed.
 
 use scheduler_core::{errors::SchedulerError, models::Task, SchedulerResult};
 use sqlx::{PgPool, Row};
 use tracing::debug;
 
-/// Task dependency checker - Handles task dependency validation
-/// Follows SRP: Only responsible for dependency checking
 pub struct TaskDependencyChecker {
     pool: PgPool,
 }
 
 impl TaskDependencyChecker {
-    /// Create a new task dependency checker
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-
-    /// Check if all dependencies for a task are satisfied
     pub async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
-        // Get the task first
         let task_row = sqlx::query("SELECT dependencies FROM tasks WHERE id = $1")
             .bind(task_id)
             .fetch_optional(&self.pool)
@@ -43,8 +33,6 @@ impl TaskDependencyChecker {
             dependencies.len(),
             task_id
         );
-
-        // Check all dependency tasks' recent execution status
         for dep_id in &dependencies {
             if !self.check_dependency_success(*dep_id).await? {
                 debug!(
@@ -58,8 +46,6 @@ impl TaskDependencyChecker {
         debug!("All dependencies for task {} are satisfied", task_id);
         Ok(true)
     }
-
-    /// Check if a specific dependency task was successfully executed
     async fn check_dependency_success(&self, dep_id: i64) -> SchedulerResult<bool> {
         let recent_run = sqlx::query(
             "SELECT status FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1",
@@ -85,8 +71,6 @@ impl TaskDependencyChecker {
             }
         }
     }
-
-    /// Get all dependency tasks for a given task
     pub async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         let task_row = sqlx::query("SELECT dependencies FROM tasks WHERE id = $1")
             .bind(task_id)
@@ -112,8 +96,6 @@ impl TaskDependencyChecker {
 
         Ok(dependency_tasks)
     }
-
-    /// Get task by ID (internal helper)
     async fn get_task_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
@@ -128,8 +110,6 @@ impl TaskDependencyChecker {
             None => Ok(None),
         }
     }
-
-    /// Convert database row to Task model (internal helper)
     fn row_to_task(row: &sqlx::postgres::PgRow) -> SchedulerResult<Task> {
         let dependencies: Vec<i64> = row
             .try_get::<Vec<i64>, _>("dependencies")

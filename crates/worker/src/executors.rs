@@ -14,14 +14,11 @@ use tokio::sync::RwLock;
 use tokio::time::sleep;
 use tracing::{error, info, warn};
 
-/// Shell任务执行器
 pub struct ShellExecutor {
-    /// 正在运行的任务进程ID
     running_processes: Arc<RwLock<HashMap<i64, u32>>>,
 }
 
 impl ShellExecutor {
-    /// 创建新的Shell执行器
     pub fn new() -> Self {
         Self {
             running_processes: Arc::new(RwLock::new(HashMap::new())),
@@ -42,12 +39,9 @@ impl TaskExecutor for ShellExecutor {
         context: &TaskExecutionContextTrait,
     ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
-
-        // 从上下文中获取Shell任务参数
         let shell_params: ShellTaskParams = serde_json::from_value(
             context.parameters.get("shell_params").cloned()
                 .unwrap_or_else(|| {
-                    // 兼容旧格式
                     serde_json::json!({
                         "command": context.parameters.get("command").and_then(|v| v.as_str()).unwrap_or("echo"),
                         "args": context.parameters.get("args").and_then(|v| v.as_array()).map(|arr| {
@@ -65,8 +59,6 @@ impl TaskExecutor for ShellExecutor {
             .working_dir
             .or_else(|| context.working_directory.clone());
         let mut env_vars = shell_params.env_vars.unwrap_or_default();
-
-        // 合并上下文中的环境变量
         for (key, value) in &context.environment {
             env_vars.insert(key.clone(), value.clone());
         }
@@ -75,29 +67,19 @@ impl TaskExecutor for ShellExecutor {
             "执行Shell任务: task_run_id={}, command={}, args={:?}",
             context.task_run.id, command, args
         );
-
-        // 创建命令
         let mut cmd = Command::new(&command);
         cmd.args(&args);
         cmd.stdout(Stdio::piped());
         cmd.stderr(Stdio::piped());
-
-        // 设置工作目录
         if let Some(ref dir) = working_dir {
             cmd.current_dir(dir);
         }
-
-        // 设置环境变量
         for (key, value) in env_vars {
             cmd.env(key, value);
         }
-
-        // 启动进程
         let mut child = cmd
             .spawn()
             .map_err(|e| SchedulerError::TaskExecution(format!("启动Shell命令失败: {e}")))?;
-
-        // 读取输出
         let stdout = child
             .stdout
             .take()
@@ -106,8 +88,6 @@ impl TaskExecutor for ShellExecutor {
             .stderr
             .take()
             .ok_or_else(|| SchedulerError::TaskExecution("无法获取stderr".to_string()))?;
-
-        // 保存进程ID以便取消
         if let Some(pid) = child.id() {
             let mut processes = self.running_processes.write().await;
             processes.insert(context.task_run.id, pid);
@@ -117,8 +97,6 @@ impl TaskExecutor for ShellExecutor {
         let mut stderr_reader = BufReader::new(stderr);
         let mut stdout_lines = Vec::new();
         let mut stderr_lines = Vec::new();
-
-        // 异步读取stdout和stderr
         let stdout_task = async {
             let mut line = String::new();
             while stdout_reader.read_line(&mut line).await.unwrap_or(0) > 0 {
@@ -134,17 +112,11 @@ impl TaskExecutor for ShellExecutor {
                 line.clear();
             }
         };
-
-        // 等待输出读取完成
         tokio::join!(stdout_task, stderr_task);
-
-        // 等待进程结束
         let exit_status = child
             .wait()
             .await
             .map_err(|e| SchedulerError::TaskExecution(format!("等待进程结束失败: {e}")))?;
-
-        // 从运行进程列表中移除
         {
             let mut processes = self.running_processes.write().await;
             processes.remove(&context.task_run.id);
@@ -185,7 +157,6 @@ impl TaskExecutor for ShellExecutor {
     }
 
     async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        // 保持向后兼容，委托给新的execute_task方法
         let task_info = task_run
             .result
             .as_ref()
@@ -234,7 +205,6 @@ impl TaskExecutor for ShellExecutor {
     async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut processes = self.running_processes.write().await;
         if let Some(pid) = processes.remove(&task_run_id) {
-            // 使用系统调用终止进程
             #[cfg(unix)]
             {
                 use std::process::Command;
@@ -316,16 +286,12 @@ impl TaskExecutor for ShellExecutor {
     }
 }
 
-/// HTTP任务执行器
 pub struct HttpExecutor {
-    /// HTTP客户端
     client: reqwest::Client,
-    /// 正在运行的任务
     running_tasks: Arc<RwLock<HashMap<i64, tokio::task::JoinHandle<()>>>>,
 }
 
 impl HttpExecutor {
-    /// 创建新的HTTP执行器
     pub fn new() -> Self {
         Self {
             client: reqwest::Client::new(),
@@ -347,12 +313,9 @@ impl TaskExecutor for HttpExecutor {
         context: &TaskExecutionContextTrait,
     ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
-
-        // 从上下文中获取HTTP任务参数
         let http_params: HttpTaskParams = serde_json::from_value(
             context.parameters.get("http_params").cloned()
                 .unwrap_or_else(|| {
-                    // 兼容旧格式
                     serde_json::json!({
                         "url": context.parameters.get("url").and_then(|v| v.as_str()).unwrap_or("http://example.com"),
                         "method": context.parameters.get("method").and_then(|v| v.as_str()).unwrap_or("GET"),
@@ -377,8 +340,6 @@ impl TaskExecutor for HttpExecutor {
             "执行HTTP任务: task_run_id={}, method={}, url={}",
             context.task_run.id, method, url
         );
-
-        // 构建请求
         let mut request_builder = match method.to_uppercase().as_str() {
             "GET" => self.client.get(&url),
             "POST" => self.client.post(&url),
@@ -392,21 +353,13 @@ impl TaskExecutor for HttpExecutor {
                 )));
             }
         };
-
-        // 设置超时
         request_builder = request_builder.timeout(std::time::Duration::from_secs(timeout_seconds));
-
-        // 设置请求头
         for (key, value) in headers {
             request_builder = request_builder.header(&key, &value);
         }
-
-        // 设置请求体
         if let Some(body_content) = body {
             request_builder = request_builder.body(body_content);
         }
-
-        // 发送请求
         let response_result = request_builder.send().await;
 
         let execution_time = start_time.elapsed();
@@ -415,8 +368,6 @@ impl TaskExecutor for HttpExecutor {
             Ok(response) => {
                 let status_code = response.status().as_u16();
                 let success = response.status().is_success();
-
-                // 读取响应体
                 let response_body = response
                     .text()
                     .await
@@ -464,7 +415,6 @@ impl TaskExecutor for HttpExecutor {
     }
 
     async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        // 保持向后兼容，委托给新的execute_task方法
         let task_info = task_run
             .result
             .as_ref()
@@ -531,31 +481,20 @@ impl TaskExecutor for HttpExecutor {
     }
 }
 
-/// Shell任务参数
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShellTaskParams {
-    /// 要执行的命令
     pub command: String,
-    /// 命令参数
     pub args: Option<Vec<String>>,
-    /// 工作目录
     pub working_dir: Option<String>,
-    /// 环境变量
     pub env_vars: Option<HashMap<String, String>>,
 }
 
-/// HTTP任务参数
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct HttpTaskParams {
-    /// 请求URL
     pub url: String,
-    /// HTTP方法
     pub method: Option<String>,
-    /// 请求头
     pub headers: Option<HashMap<String, String>>,
-    /// 请求体
     pub body: Option<String>,
-    /// 超时时间（秒）
     pub timeout_seconds: Option<u64>,
 }
 
@@ -582,7 +521,6 @@ impl TaskExecutor for MockTaskExecutor {
         &self,
         _context: &TaskExecutionContextTrait,
     ) -> SchedulerResult<TaskResult> {
-        // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
         if self.should_succeed {
@@ -605,7 +543,6 @@ impl TaskExecutor for MockTaskExecutor {
     }
 
     async fn execute(&self, _task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        // 模拟执行时间
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
         if self.should_succeed {

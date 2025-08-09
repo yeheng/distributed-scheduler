@@ -15,8 +15,6 @@ mod tests {
     fn create_test_metrics() -> Arc<MetricsCollector> {
         Arc::new(MetricsCollector::new().unwrap())
     }
-
-    // Mock MessageQueue for testing
     #[derive(Debug, Clone)]
     struct MockMessageQueue {
         queues: Arc<Mutex<HashMap<String, Vec<Message>>>>,
@@ -90,8 +88,6 @@ mod tests {
             Ok(())
         }
     }
-
-    // Mock TaskRepository for testing
     #[derive(Debug, Clone)]
     struct MockTaskRepository {
         tasks: Arc<Mutex<HashMap<i64, Task>>>,
@@ -181,8 +177,6 @@ mod tests {
             Ok(())
         }
     }
-
-    // Mock TaskRunRepository for testing
     #[derive(Debug, Clone)]
     struct MockTaskRunRepository {
         task_runs: Arc<Mutex<HashMap<i64, TaskRun>>>,
@@ -350,8 +344,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 测试调度器创建成功
         assert_eq!(scheduler.task_queue_name, "test_queue");
     }
 
@@ -368,8 +360,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建一个每分钟执行的任务
         let task = Task {
             id: 1,
             name: "test_task".to_string(),
@@ -386,13 +376,8 @@ mod tests {
         };
 
         task_repo.add_task(task.clone());
-
-        // 测试活跃任务应该被考虑调度
         let should_schedule = scheduler.should_schedule_task(&task).await.unwrap();
-        // 由于没有历史执行记录，且CRON表达式有效，应该返回true
         assert!(should_schedule);
-
-        // 测试非活跃任务不应该被调度
         let mut inactive_task = task.clone();
         inactive_task.status = TaskStatus::Inactive;
         let should_schedule = scheduler
@@ -415,8 +400,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建没有依赖的任务
         let task_no_deps = Task {
             id: 1,
             name: "no_deps_task".to_string(),
@@ -431,12 +414,8 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
-
-        // 测试没有依赖的任务
         let deps_ok = scheduler.check_dependencies(&task_no_deps).await.unwrap();
         assert!(deps_ok);
-
-        // 创建有依赖的任务
         let task_with_deps = Task {
             id: 2,
             name: "with_deps_task".to_string(),
@@ -451,12 +430,8 @@ mod tests {
             created_at: Utc::now(),
             updated_at: Utc::now(),
         };
-
-        // 测试有依赖但依赖任务未执行的情况
         let deps_ok = scheduler.check_dependencies(&task_with_deps).await.unwrap();
         assert!(!deps_ok); // 依赖任务未执行，应该返回false
-
-        // 创建依赖任务的成功执行记录
         let successful_run = TaskRun {
             id: 1,
             task_id: 1,
@@ -474,8 +449,6 @@ mod tests {
         };
 
         task_run_repo.create(&successful_run).await.unwrap();
-
-        // 现在依赖应该满足
         let deps_ok = scheduler.check_dependencies(&task_with_deps).await.unwrap();
         assert!(deps_ok);
     }
@@ -514,8 +487,6 @@ mod tests {
         assert_eq!(task_run.task_id, task.id);
         assert_eq!(task_run.status, TaskRunStatus::Pending);
         assert_eq!(task_run.retry_count, 0);
-
-        // 验证任务运行实例已保存到仓储
         let saved_run = task_run_repo.get_by_id(task_run.id).await.unwrap();
         assert!(saved_run.is_some());
     }
@@ -568,15 +539,9 @@ mod tests {
         };
 
         let created_run = task_run_repo.create(&task_run).await.unwrap();
-
-        // 分发任务到队列
         scheduler.dispatch_to_queue(&created_run).await.unwrap();
-
-        // 验证消息已发送到队列
         let messages = message_queue.get_queue_messages("test_queue");
         assert_eq!(messages.len(), 1);
-
-        // 验证任务运行状态已更新为已分发
         let updated_run = task_run_repo
             .get_by_id(created_run.id)
             .await
@@ -598,8 +563,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建一个应该被调度的任务
         let task = Task {
             id: 1,
             name: "schedulable_task".to_string(),
@@ -616,15 +579,9 @@ mod tests {
         };
 
         task_repo.add_task(task);
-
-        // 执行调度
         let scheduled_runs = scheduler.scan_and_schedule().await.unwrap();
-
-        // 验证有任务被调度
         assert_eq!(scheduled_runs.len(), 1);
         assert_eq!(scheduled_runs[0].task_id, 1);
-
-        // 验证消息已发送到队列
         let messages = message_queue.get_queue_messages("test_queue");
         assert_eq!(messages.len(), 1);
     }
@@ -642,8 +599,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建一个每分钟执行的任务
         let task = Task {
             id: 1,
             name: "overdue_task".to_string(),
@@ -660,8 +615,6 @@ mod tests {
         };
 
         task_repo.add_task(task);
-
-        // 创建一个很久之前的执行记录
         let old_run = TaskRun {
             id: 1,
             task_id: 1,
@@ -679,11 +632,7 @@ mod tests {
         };
 
         task_run_repo.create(&old_run).await.unwrap();
-
-        // 检测过期任务（宽限期2分钟）
         let overdue_tasks = scheduler.detect_overdue_tasks(2).await.unwrap();
-
-        // 应该检测到过期任务
         assert_eq!(overdue_tasks.len(), 1);
         assert_eq!(overdue_tasks[0].id, 1);
     }
@@ -701,8 +650,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建一个每小时执行的任务
         let task = Task {
             id: 1,
             name: "hourly_task".to_string(),
@@ -719,8 +666,6 @@ mod tests {
         };
 
         task_repo.add_task(task);
-
-        // 获取下次执行时间
         let next_time = scheduler.get_next_execution_time(1).await.unwrap();
 
         assert!(next_time.is_some());
@@ -742,8 +687,6 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-
-        // 创建一个有效CRON表达式的任务
         let valid_task = Task {
             id: 1,
             name: "valid_task".to_string(),
@@ -760,8 +703,6 @@ mod tests {
         };
 
         task_repo.add_task(valid_task);
-
-        // 创建一个无效CRON表达式的任务
         let invalid_task = Task {
             id: 2,
             name: "invalid_task".to_string(),
@@ -778,12 +719,8 @@ mod tests {
         };
 
         task_repo.add_task(invalid_task);
-
-        // 验证有效任务
         let is_valid = scheduler.validate_task_schedule(1).await.unwrap();
         assert!(is_valid);
-
-        // 验证无效任务
         let is_invalid = scheduler.validate_task_schedule(2).await.unwrap();
         assert!(!is_invalid);
     }

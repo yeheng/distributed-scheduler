@@ -6,7 +6,6 @@ use axum::{
 use scheduler_core::errors::SchedulerError;
 use serde_json::json;
 
-/// API错误类型
 #[derive(Debug, thiserror::Error)]
 pub enum ApiError {
     #[error("调度器错误: {0}")]
@@ -86,5 +85,4 @@ impl IntoResponse for ApiError {
     }
 }
 
-/// API结果类型
 pub type ApiResult<T> = Result<T, ApiError>;

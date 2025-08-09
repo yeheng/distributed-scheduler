@@ -13,16 +13,11 @@ use scheduler_core::{
 
 use crate::retry_service::RetryService;
 
-/// Worker失效检测配置
 #[derive(Debug, Clone)]
 pub struct WorkerFailureDetectorConfig {
-    /// 心跳超时时间（秒）
     pub heartbeat_timeout_seconds: i64,
-    /// 检测间隔（秒）
     pub detection_interval_seconds: u64,
-    /// 是否启用自动清理离线Worker
     pub auto_cleanup_offline_workers: bool,
-    /// 离线Worker清理阈值（秒）
     pub offline_cleanup_threshold_seconds: i64,
 }
 
@@ -37,26 +32,15 @@ impl Default for WorkerFailureDetectorConfig {
     }
 }
 
-/// Worker失效检测服务接口
 #[async_trait]
 pub trait WorkerFailureDetectorService: Send + Sync {
-    /// 启动失效检测
     async fn start_detection(&self) -> SchedulerResult<()>;
-
-    /// 停止失效检测
     async fn stop_detection(&self) -> SchedulerResult<()>;
-
-    /// 检测失效的Worker
     async fn detect_failed_workers(&self) -> SchedulerResult<Vec<WorkerInfo>>;
-
-    /// 处理失效的Worker
     async fn handle_failed_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()>;
-
-    /// 清理离线的Worker
     async fn cleanup_offline_workers(&self) -> SchedulerResult<u64>;
 }
 
-/// Worker失效检测服务实现
 pub struct WorkerFailureDetector {
     worker_repo: Arc<dyn WorkerRepository>,
     retry_service: Arc<dyn RetryService>,
@@ -65,7 +49,6 @@ pub struct WorkerFailureDetector {
 }
 
 impl WorkerFailureDetector {
-    /// 创建新的Worker失效检测器
     pub fn new(
         worker_repo: Arc<dyn WorkerRepository>,
         retry_service: Arc<dyn RetryService>,
@@ -78,8 +61,6 @@ impl WorkerFailureDetector {
             running: Arc::new(tokio::sync::RwLock::new(false)),
         }
     }
-
-    /// 检查Worker是否失效
     fn is_worker_failed(&self, worker: &WorkerInfo, now: DateTime<Utc>) -> bool {
         if worker.status != WorkerStatus::Alive {
             return false; // 已经标记为Down的Worker不需要重复处理
@@ -88,8 +69,6 @@ impl WorkerFailureDetector {
         let time_since_heartbeat = now - worker.last_heartbeat;
         time_since_heartbeat.num_seconds() > self.config.heartbeat_timeout_seconds
     }
-
-    /// 检查Worker是否应该被清理
     fn should_cleanup_worker(&self, worker: &WorkerInfo, now: DateTime<Utc>) -> bool {
         if worker.status != WorkerStatus::Down {
             return false; // 只清理已经标记为Down的Worker
@@ -98,21 +77,16 @@ impl WorkerFailureDetector {
         let time_since_heartbeat = now - worker.last_heartbeat;
         time_since_heartbeat.num_seconds() > self.config.offline_cleanup_threshold_seconds
     }
-
-    /// 执行检测循环
     async fn detection_loop(&self) -> SchedulerResult<()> {
         info!("启动Worker失效检测循环");
 
         let interval_duration = Duration::from_secs(self.config.detection_interval_seconds);
 
         loop {
-            // 检查是否应该停止运行
             if !*self.running.read().await {
                 info!("收到停止信号，退出Worker失效检测循环");
                 break;
             }
-
-            // 执行失效检测
             match self.detect_failed_workers().await {
                 Ok(failed_workers) => {
                     if !failed_workers.is_empty() {
@@ -129,8 +103,6 @@ impl WorkerFailureDetector {
                     error!("Worker失效检测时出错: {}", e);
                 }
             }
-
-            // 清理离线Worker
             if self.config.auto_cleanup_offline_workers {
                 match self.cleanup_offline_workers().await {
                     Ok(cleaned_count) => {
@@ -143,8 +115,6 @@ impl WorkerFailureDetector {
                     }
                 }
             }
-
-            // 等待下次检测
             tokio::time::sleep(interval_duration).await;
         }
 
@@ -154,21 +124,14 @@ impl WorkerFailureDetector {
 
 #[async_trait]
 impl WorkerFailureDetectorService for WorkerFailureDetector {
-    /// 启动失效检测
     async fn start_detection(&self) -> SchedulerResult<()> {
         info!("启动Worker失效检测服务");
-
-        // 设置运行状态
         {
             let mut running = self.running.write().await;
             *running = true;
         }
-
-        // 启动检测循环
         self.detection_loop().await
     }
-
-    /// 停止失效检测
     async fn stop_detection(&self) -> SchedulerResult<()> {
         info!("停止Worker失效检测服务");
 
@@ -177,8 +140,6 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
 
         Ok(())
     }
-
-    /// 检测失效的Worker
     async fn detect_failed_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         debug!("开始检测失效的Worker");
 
@@ -203,12 +164,8 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
 
         Ok(failed_workers)
     }
-
-    /// 处理失效的Worker
     async fn handle_failed_worker(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         info!("处理失效Worker: {}", worker.id);
-
-        // 1. 更新Worker状态为Down
         if let Err(e) = self
             .worker_repo
             .update_status(&worker.id, WorkerStatus::Down)
@@ -219,8 +176,6 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
         }
 
         info!("已将Worker {} 标记为Down状态", worker.id);
-
-        // 2. 处理该Worker上的任务重新分配
         match self.retry_service.handle_worker_failure(&worker.id).await {
             Ok(reassigned_tasks) => {
                 if !reassigned_tasks.is_empty() {
@@ -235,15 +190,12 @@ impl WorkerFailureDetectorService for WorkerFailureDetector {
             }
             Err(e) => {
                 error!("重新分配失效Worker {} 上的任务失败: {}", worker.id, e);
-                // 不返回错误，因为Worker状态已经更新，任务重新分配失败不应该阻止其他处理
             }
         }
 
         info!("完成失效Worker {} 的处理", worker.id);
         Ok(())
     }
-
-    /// 清理离线的Worker
     async fn cleanup_offline_workers(&self) -> SchedulerResult<u64> {
         debug!("开始清理离线Worker");
 
@@ -296,8 +248,6 @@ mod tests {
         };
 
         let now = Utc::now();
-
-        // 正常Worker
         let normal_worker = WorkerInfo {
             id: "worker-1".to_string(),
             hostname: "host1".to_string(),
@@ -311,8 +261,6 @@ mod tests {
         };
 
         assert!(!detector.is_worker_failed(&normal_worker, now));
-
-        // 失效Worker
         let failed_worker = WorkerInfo {
             id: "worker-2".to_string(),
             hostname: "host2".to_string(),
@@ -326,8 +274,6 @@ mod tests {
         };
 
         assert!(detector.is_worker_failed(&failed_worker, now));
-
-        // 已经标记为Down的Worker
         let down_worker = WorkerInfo {
             id: "worker-3".to_string(),
             hostname: "host3".to_string(),
@@ -354,8 +300,6 @@ mod tests {
         };
 
         let now = Utc::now();
-
-        // 刚标记为Down的Worker，不应该清理
         let recent_down_worker = WorkerInfo {
             id: "worker-1".to_string(),
             hostname: "host1".to_string(),
@@ -369,8 +313,6 @@ mod tests {
         };
 
         assert!(!detector.should_cleanup_worker(&recent_down_worker, now));
-
-        // 长时间离线的Worker，应该清理
         let old_down_worker = WorkerInfo {
             id: "worker-2".to_string(),
             hostname: "host2".to_string(),
@@ -384,8 +326,6 @@ mod tests {
         };
 
         assert!(detector.should_cleanup_worker(&old_down_worker, now));
-
-        // 活跃Worker，不应该清理
         let alive_worker = WorkerInfo {
             id: "worker-3".to_string(),
             hostname: "host3".to_string(),

@@ -14,8 +14,6 @@ async fn test_create_task_success() {
         "timeout_seconds": 300,
         "max_retries": 3
     });
-
-    // First test if the server is responding at all
     let client = reqwest::Client::new();
     let health_response = client
         .get(&format!("{}/health", app.address))
@@ -103,8 +101,6 @@ async fn test_create_task_duplicate_name() {
     });
 
     let client = reqwest::Client::new();
-
-    // Create first task
     let response1 = client
         .post(&format!("{}/api/tasks", app.address))
         .json(&task_data)
@@ -112,8 +108,6 @@ async fn test_create_task_duplicate_name() {
         .await
         .expect("Failed to execute request");
     assert_eq!(response1.status(), 201);
-
-    // Try to create second task with same name
     let response2 = client
         .post(&format!("{}/api/tasks", app.address))
         .json(&task_data)
@@ -134,8 +128,6 @@ async fn test_create_task_duplicate_name() {
 #[tokio::test]
 async fn test_list_tasks() {
     let app = TestApp::spawn().await;
-
-    // Create test tasks
     let client = reqwest::Client::new();
     for i in 1..=3 {
         let task_data = json!({
@@ -153,8 +145,6 @@ async fn test_list_tasks() {
             .expect("Failed to execute request");
         assert_eq!(response.status(), 201);
     }
-
-    // List all tasks
     let response = client
         .get(&format!("{}/api/tasks", app.address))
         .send()
@@ -178,8 +168,6 @@ async fn test_list_tasks_with_filters() {
     let app = TestApp::spawn().await;
 
     let client = reqwest::Client::new();
-
-    // Create tasks with different types
     let shell_task = json!({
         "name": "shell-task",
         "task_type": "shell",
@@ -206,8 +194,6 @@ async fn test_list_tasks_with_filters() {
         .send()
         .await
         .unwrap();
-
-    // Filter by task type
     let response = client
         .get(&format!("{}/api/tasks?task_type=shell", app.address))
         .send()
@@ -227,8 +213,6 @@ async fn test_list_tasks_with_filters() {
 #[tokio::test]
 async fn test_get_task() {
     let app = TestApp::spawn().await;
-
-    // Create a task first
     let task_data = json!({
         "name": "get-test-task",
         "task_type": "shell",
@@ -249,8 +233,6 @@ async fn test_get_task() {
         .await
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
-
-    // Get the task
     let response = client
         .get(&format!("{}/api/tasks/{}", app.address, task_id))
         .send()
@@ -298,8 +280,6 @@ async fn test_get_task_not_found() {
 #[tokio::test]
 async fn test_update_task() {
     let app = TestApp::spawn().await;
-
-    // Create a task first
     let task_data = json!({
         "name": "update-test-task",
         "task_type": "shell",
@@ -320,8 +300,6 @@ async fn test_update_task() {
         .await
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
-
-    // Update the task
     let update_data = json!({
         "name": "updated-task-name",
         "schedule": "0 0 1 * * *",
@@ -360,8 +338,6 @@ async fn test_update_task() {
 #[tokio::test]
 async fn test_delete_task() {
     let app = TestApp::spawn().await;
-
-    // Create a task first
     let task_data = json!({
         "name": "delete-test-task",
         "task_type": "shell",
@@ -382,8 +358,6 @@ async fn test_delete_task() {
         .await
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
-
-    // Delete the task
     let response = client
         .delete(&format!("{}/api/tasks/{}", app.address, task_id))
         .send()
@@ -397,8 +371,6 @@ async fn test_delete_task() {
         .as_str()
         .unwrap()
         .contains("删除"));
-
-    // Verify task is set to inactive
     let get_response = client
         .get(&format!("{}/api/tasks/{}", app.address, task_id))
         .send()
@@ -414,8 +386,6 @@ async fn test_delete_task() {
 #[tokio::test]
 async fn test_trigger_task() {
     let app = TestApp::spawn().await;
-
-    // Create a task first
     let task_data = json!({
         "name": "trigger-test-task",
         "task_type": "shell",
@@ -436,8 +406,6 @@ async fn test_trigger_task() {
         .await
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
-
-    // Trigger the task
     let response = client
         .post(&format!("{}/api/tasks/{}/trigger", app.address, task_id))
         .send()
@@ -459,8 +427,6 @@ async fn test_trigger_task() {
 #[tokio::test]
 async fn test_get_task_runs() {
     let app = TestApp::spawn().await;
-
-    // Create a task first
     let task_data = json!({
         "name": "runs-test-task",
         "task_type": "shell",
@@ -481,8 +447,6 @@ async fn test_get_task_runs() {
         .await
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
-
-    // Get task runs (should be empty initially)
     let response = client
         .get(&format!("{}/api/tasks/{}/runs", app.address, task_id))
         .send()
@@ -504,9 +468,6 @@ async fn test_get_task_runs() {
 #[tokio::test]
 async fn test_get_task_run() {
     let app = TestApp::spawn().await;
-
-    // This test would require creating a task run first
-    // For now, test the not found case
     let client = reqwest::Client::new();
     let response = client
         .get(&format!("{}/api/task-runs/999", app.address))
@@ -522,8 +483,6 @@ async fn test_get_task_run() {
 #[tokio::test]
 async fn test_pagination() {
     let app = TestApp::spawn().await;
-
-    // Create multiple tasks
     let client = reqwest::Client::new();
     for i in 1..=25 {
         let task_data = json!({
@@ -540,8 +499,6 @@ async fn test_pagination() {
             .await
             .unwrap();
     }
-
-    // Test first page
     let response = client
         .get(&format!("{}/api/tasks?page=1&page_size=10", app.address))
         .send()
@@ -557,8 +514,6 @@ async fn test_pagination() {
     assert_eq!(data["page_size"], 10);
     assert_eq!(data["total_pages"], 3);
     assert_eq!(data["items"].as_array().unwrap().len(), 10);
-
-    // Test second page
     let response = client
         .get(&format!("{}/api/tasks?page=2&page_size=10", app.address))
         .send()

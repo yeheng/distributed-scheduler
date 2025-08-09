@@ -6,20 +6,12 @@ use serde_json::json;
 use std::time::Duration;
 use tokio::time::sleep;
 
-/// Demonstrates Redis Stream message publishing functionality
-///
-/// To run this example:
-/// 1. Start a Redis server on localhost:6379
-/// 2. Run: cargo run --example redis_stream_publish_demo
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
     tracing_subscriber::fmt::init();
 
     println!("🚀 Redis Stream Message Publishing Demo");
     println!("========================================");
-
-    // Create Redis Stream configuration
     let config = RedisStreamConfig {
         host: "127.0.0.1".to_string(),
         port: 6379,
@@ -36,8 +28,6 @@ async fn main() -> Result<()> {
     };
 
     println!("📡 Connecting to Redis at {}:{}", config.host, config.port);
-
-    // Create message queue instance
     let queue = match RedisStreamMessageQueue::new(config).await {
         Ok(q) => {
             println!("✅ Successfully created Redis Stream message queue");
@@ -49,8 +39,6 @@ async fn main() -> Result<()> {
             return Err(e.into());
         }
     };
-
-    // Demo 1: Publish a simple task execution message
     println!("\n📝 Demo 1: Publishing a simple task execution message");
     let task_execution = TaskExecutionMessage {
         task_run_id: 1001,
@@ -83,11 +71,8 @@ async fn main() -> Result<()> {
             return Err(e.into());
         }
     }
-
-    // Demo 2: Publish multiple messages with different types
     println!("\n📝 Demo 2: Publishing multiple messages");
     let messages = vec![
-        // Data processing task
         {
             let task_execution = TaskExecutionMessage {
                 task_run_id: 1002,
@@ -107,7 +92,6 @@ async fn main() -> Result<()> {
             Message::task_execution(task_execution)
                 .with_correlation_id("demo-processing-001".to_string())
         },
-        // Email notification task
         {
             let task_execution = TaskExecutionMessage {
                 task_run_id: 1003,
@@ -134,7 +118,6 @@ async fn main() -> Result<()> {
             Message::task_execution(task_execution)
                 .with_correlation_id("demo-notification-001".to_string())
         },
-        // Database cleanup task
         {
             let task_execution = TaskExecutionMessage {
                 task_run_id: 1004,
@@ -167,12 +150,8 @@ async fn main() -> Result<()> {
                 eprintln!("❌ Failed to publish message to '{}': {}", queue_name, e);
             }
         }
-
-        // Small delay between messages
         sleep(Duration::from_millis(100)).await;
     }
-
-    // Demo 3: Check queue sizes
     println!("\n📊 Demo 3: Checking queue sizes");
     let queues = vec!["demo_tasks", "demo_queue_1", "demo_queue_2", "demo_queue_3"];
 
@@ -186,8 +165,6 @@ async fn main() -> Result<()> {
             }
         }
     }
-
-    // Demo 4: Test retry mechanism with invalid queue name
     println!("\n🔄 Demo 4: Testing error handling and retry mechanism");
     let invalid_message = Message::task_execution(TaskExecutionMessage {
         task_run_id: 9999,
@@ -200,8 +177,6 @@ async fn main() -> Result<()> {
         shard_index: None,
         shard_total: None,
     });
-
-    // This should fail due to invalid queue name
     match queue
         .publish_message("invalid queue name", &invalid_message)
         .await
@@ -213,8 +188,6 @@ async fn main() -> Result<()> {
             println!("✅ Correctly rejected invalid queue name: {}", e);
         }
     }
-
-    // Demo 5: Cleanup - purge test queues
     println!("\n🧹 Demo 5: Cleaning up test queues");
     for queue_name in &queues {
         match queue.purge_queue(queue_name).await {

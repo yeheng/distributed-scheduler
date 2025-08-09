@@ -1,7 +1,3 @@
-//! 配置验证示例
-//!
-//! 此示例展示了如何使用配置验证框架来确保配置的正确性和完整性。
-//! 它演示了自定义验证器、类型检查、必需字段验证等功能。
 
 use scheduler_core::config::validation::{
     BasicConfigValidator, ConfigValidationError, ConfigValidator, SchemaValidator,
@@ -9,7 +5,6 @@ use scheduler_core::config::validation::{
 };
 use serde_json::Value;
 
-/// 自定义数据库验证器
 struct DatabaseValidator {
     name: String,
 }
@@ -20,8 +15,6 @@ impl DatabaseValidator {
             name: "DatabaseValidator".to_string(),
         }
     }
-
-    /// 验证数据库URL格式
     fn validate_database_url(&self, url: &str) -> Result<(), ConfigValidationError> {
         if !url.starts_with("postgresql://") && !url.starts_with("postgres://") {
             return Err(ConfigValidationError::ValidationFailed {
@@ -39,8 +32,6 @@ impl DatabaseValidator {
 
         Ok(())
     }
-
-    /// 验证连接池配置
     fn validate_pool_config(
         &self,
         pool_size: u32,
@@ -65,8 +56,6 @@ impl DatabaseValidator {
 
         Ok(())
     }
-
-    /// 验证超时配置
     fn validate_timeout_config(&self, timeout_seconds: u64) -> Result<(), ConfigValidationError> {
         if timeout_seconds < 5 {
             return Err(ConfigValidationError::ValidationFailed {
@@ -88,15 +77,12 @@ impl DatabaseValidator {
 
 impl ConfigValidator for DatabaseValidator {
     fn validate(&self, config: &Value) -> Result<(), ConfigValidationError> {
-        // 验证数据库配置部分存在
         let database =
             config
                 .get("database")
                 .ok_or_else(|| ConfigValidationError::RequiredFieldMissing {
                     field: "database".to_string(),
                 })?;
-
-        // 验证数据库URL
         if let Some(url_value) = database.get("url") {
             if let Some(url) = url_value.as_str() {
                 self.validate_database_url(url)?;
@@ -112,8 +98,6 @@ impl ConfigValidator for DatabaseValidator {
                 field: "database.url".to_string(),
             });
         }
-
-        // 验证连接池配置
         let pool_size = database
             .get("pool_size")
             .and_then(|v| v.as_u64())
@@ -127,8 +111,6 @@ impl ConfigValidator for DatabaseValidator {
             .unwrap_or(pool_size * 2); // 默认值为pool_size的2倍
 
         self.validate_pool_config(pool_size as u32, max_connections as u32)?;
-
-        // 验证超时配置
         if let Some(timeout_value) = database.get("timeout_seconds") {
             if let Some(timeout) = timeout_value.as_u64() {
                 self.validate_timeout_config(timeout)?;
@@ -149,7 +131,6 @@ impl ConfigValidator for DatabaseValidator {
     }
 }
 
-/// 服务器配置验证器
 struct ServerValidator {
     name: String,
 }
@@ -160,8 +141,6 @@ impl ServerValidator {
             name: "ServerValidator".to_string(),
         }
     }
-
-    /// 验证端口号
     fn validate_port(&self, port: u16) -> Result<(), ConfigValidationError> {
         if port < 1024 {
             return Err(ConfigValidationError::ValidationFailed {
@@ -179,8 +158,6 @@ impl ServerValidator {
 
         Ok(())
     }
-
-    /// 验证主机地址
     fn validate_host(&self, host: &str) -> Result<(), ConfigValidationError> {
         if host.is_empty() {
             return Err(ConfigValidationError::ValidationFailed {
@@ -195,8 +172,6 @@ impl ServerValidator {
                 message: "主机地址长度不能超过253个字符".to_string(),
             });
         }
-
-        // 简单的主机名格式验证
         if !host
             .chars()
             .all(|c| c.is_alphanumeric() || c == '.' || c == '-' || c == ':')
@@ -213,15 +188,12 @@ impl ServerValidator {
 
 impl ConfigValidator for ServerValidator {
     fn validate(&self, config: &Value) -> Result<(), ConfigValidationError> {
-        // 验证服务器配置部分存在
         let server =
             config
                 .get("server")
                 .ok_or_else(|| ConfigValidationError::RequiredFieldMissing {
                     field: "server".to_string(),
                 })?;
-
-        // 验证主机地址
         if let Some(host_value) = server.get("host") {
             if let Some(host) = host_value.as_str() {
                 self.validate_host(host)?;
@@ -237,8 +209,6 @@ impl ConfigValidator for ServerValidator {
                 field: "server.host".to_string(),
             });
         }
-
-        // 验证端口号
         if let Some(port_value) = server.get("port") {
             if let Some(port) = port_value.as_u64() {
                 self.validate_port(port as u16)?;
@@ -263,7 +233,6 @@ impl ConfigValidator for ServerValidator {
     }
 }
 
-/// 应用配置验证器
 struct AppValidator {
     name: String,
 }
@@ -274,8 +243,6 @@ impl AppValidator {
             name: "AppValidator".to_string(),
         }
     }
-
-    /// 验证应用名称
     fn validate_app_name(&self, name: &str) -> Result<(), ConfigValidationError> {
         if name.is_empty() {
             return Err(ConfigValidationError::ValidationFailed {
@@ -290,8 +257,6 @@ impl AppValidator {
                 message: "应用名称长度不能超过100个字符".to_string(),
             });
         }
-
-        // 应用名称只能包含字母、数字、连字符和下划线
         if !name
             .chars()
             .all(|c| c.is_alphanumeric() || c == '-' || c == '_')
@@ -304,8 +269,6 @@ impl AppValidator {
 
         Ok(())
     }
-
-    /// 验证版本号格式
     fn validate_version(&self, version: &str) -> Result<(), ConfigValidationError> {
         if version.is_empty() {
             return Err(ConfigValidationError::ValidationFailed {
@@ -313,8 +276,6 @@ impl AppValidator {
                 message: "版本号不能为空".to_string(),
             });
         }
-
-        // 简单的语义版本验证
         let parts: Vec<&str> = version.split('.').collect();
         if parts.len() != 3 {
             return Err(ConfigValidationError::ValidationFailed {
@@ -338,14 +299,11 @@ impl AppValidator {
 
 impl ConfigValidator for AppValidator {
     fn validate(&self, config: &Value) -> Result<(), ConfigValidationError> {
-        // 验证应用配置部分存在
         let app = config
             .get("app")
             .ok_or_else(|| ConfigValidationError::RequiredFieldMissing {
                 field: "app".to_string(),
             })?;
-
-        // 验证应用名称
         if let Some(name_value) = app.get("name") {
             if let Some(name) = name_value.as_str() {
                 self.validate_app_name(name)?;
@@ -361,8 +319,6 @@ impl ConfigValidator for AppValidator {
                 field: "app.name".to_string(),
             });
         }
-
-        // 验证版本号
         if let Some(version_value) = app.get("version") {
             if let Some(version) = version_value.as_str() {
                 self.validate_version(version)?;
@@ -390,8 +346,6 @@ impl ConfigValidator for AppValidator {
 #[tokio::main]
 async fn main() -> anyhow::Result<()> {
     println!("=== 配置验证示例 ===\n");
-
-    // 1. 创建有效的配置
     println!("1. 创建有效配置:");
     let valid_config = serde_json::json!({
         "app": {
@@ -417,8 +371,6 @@ async fn main() -> anyhow::Result<()> {
             "tracing": false
         }
     });
-
-    // 2. 创建无效的配置
     println!("\n2. 创建无效配置:");
     let invalid_config = serde_json::json!({
         "app": {
@@ -436,8 +388,6 @@ async fn main() -> anyhow::Result<()> {
             "timeout_seconds": 2  // 超时时间太短
         }
     });
-
-    // 3. 创建基本验证器
     println!("\n3. 创建基本验证器:");
 
     let basic_validator = BasicConfigValidator::new("BasicValidator".to_string())
@@ -464,8 +414,6 @@ async fn main() -> anyhow::Result<()> {
             }
             Ok(())
         });
-
-    // 4. 创建自定义验证器
     println!("\n4. 创建自定义验证器:");
 
     let database_validator = Box::new(DatabaseValidator::new());
@@ -475,8 +423,6 @@ async fn main() -> anyhow::Result<()> {
     println!("   ✓ 数据库验证器已创建");
     println!("   ✓ 服务器验证器已创建");
     println!("   ✓ 应用验证器已创建");
-
-    // 5. 创建验证器注册表
     println!("\n5. 创建验证器注册表:");
 
     let validator_registry = ValidatorRegistry::new()
@@ -490,15 +436,11 @@ async fn main() -> anyhow::Result<()> {
         "   包含的验证器: {:?}",
         validator_registry.validator_names()
     );
-
-    // 6. 测试有效配置
     println!("\n6. 测试有效配置:");
 
     match validator_registry.validate(&valid_config) {
         Ok(_) => {
             println!("   ✓ 有效配置验证通过");
-
-            // 显示配置内容
             if let Some(app) = valid_config.get("app") {
                 println!("   应用名称: {}", app.get("name").unwrap());
                 println!("   版本: {}", app.get("version").unwrap());
@@ -516,8 +458,6 @@ async fn main() -> anyhow::Result<()> {
             println!("   ✗ 有效配置验证失败: {}", e);
         }
     }
-
-    // 7. 测试无效配置
     println!("\n7. 测试无效配置:");
 
     match validator_registry.validate(&invalid_config) {
@@ -529,19 +469,14 @@ async fn main() -> anyhow::Result<()> {
             println!("   错误信息: {}", e);
         }
     }
-
-    // 9. 测试各种验证错误
     println!("\n9. 测试各种验证错误:");
 
     let test_cases = vec![
-        // 缺失必需字段
         serde_json::json!({
             "app": {
                 "name": "Test"
-                // 缺少 version
             }
         }),
-        // 类型不匹配
         serde_json::json!({
             "app": {
                 "name": "Test",
@@ -552,7 +487,6 @@ async fn main() -> anyhow::Result<()> {
                 "port": "8080"  // 应该是数字
             }
         }),
-        // 无效值
         serde_json::json!({
             "app": {
                 "name": "Test App",
@@ -582,8 +516,6 @@ async fn main() -> anyhow::Result<()> {
         }
         println!();
     }
-
-    // 10. 创建Schema验证器
     println!("10. 创建Schema验证器:");
 
     let schema = serde_json::json!({
@@ -610,8 +542,6 @@ async fn main() -> anyhow::Result<()> {
     });
 
     let schema_validator = SchemaValidator::new("SchemaValidator".to_string(), schema);
-
-    // 测试Schema验证
     println!("   测试Schema验证:");
     match schema_validator.validate(&valid_config) {
         Ok(_) => println!("   ✓ Schema验证通过"),
@@ -622,8 +552,6 @@ async fn main() -> anyhow::Result<()> {
         Ok(_) => println!("   ✗ 无效配置意外通过了Schema验证"),
         Err(e) => println!("   ✓ 无效配置被Schema验证拒绝: {}", e),
     }
-
-    // 11. 创建部分有效的配置用于演示
     println!("\n11. 部分有效配置演示:");
 
     let partial_valid_config = serde_json::json!({
@@ -635,10 +563,7 @@ async fn main() -> anyhow::Result<()> {
             "host": "localhost",
             "port": 9000
         }
-        // 缺少数据库配置
     });
-
-    // 只使用基本验证器（不检查数据库）
     let basic_only_registry = ValidatorRegistry::new().add_validator(Box::new(
         BasicConfigValidator::new("BasicOnly".to_string())
             .required_field("app.name".to_string(), "string".to_string())
@@ -651,8 +576,6 @@ async fn main() -> anyhow::Result<()> {
         Ok(_) => println!("   ✓ 部分配置通过基本验证"),
         Err(e) => println!("   ✗ 部分配置验证失败: {}", e),
     }
-
-    // 使用完整验证器
     match validator_registry.validate(&partial_valid_config) {
         Ok(_) => println!("   ✗ 部分配置意外通过了完整验证"),
         Err(e) => println!("   ✓ 部分配置被完整验证器正确拒绝: {}", e),

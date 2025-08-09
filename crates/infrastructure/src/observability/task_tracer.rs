@@ -1,15 +1,9 @@
-//! Tracing utilities for task lifecycle tracking
-//!
-//! This module provides comprehensive tracing capabilities for tracking
-//! task lifecycle events and operations in the distributed scheduler system.
 
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-/// Tracing utilities for task lifecycle tracking
 pub struct TaskTracer;
 
 impl TaskTracer {
-    /// Create a span for task scheduling
     pub fn schedule_task_span(task_id: i64, task_name: &str, task_type: &str) -> tracing::Span {
         let span = tracing::info_span!(
             "schedule_task",
@@ -18,16 +12,12 @@ impl TaskTracer {
             task.type = task_type,
             otel.kind = "internal"
         );
-
-        // Add OpenTelemetry attributes
         span.set_attribute("scheduler.task.id", task_id);
         span.set_attribute("scheduler.task.name", task_name.to_string());
         span.set_attribute("scheduler.task.type", task_type.to_string());
 
         span
     }
-
-    /// Create a span for task execution
     pub fn execute_task_span(
         task_run_id: i64,
         task_id: i64,
@@ -44,8 +34,6 @@ impl TaskTracer {
             worker.id = worker_id,
             otel.kind = "internal"
         );
-
-        // Add OpenTelemetry attributes
         span.set_attribute("scheduler.task_run.id", task_run_id);
         span.set_attribute("scheduler.task.id", task_id);
         span.set_attribute("scheduler.task.name", task_name.to_string());
@@ -54,8 +42,6 @@ impl TaskTracer {
 
         span
     }
-
-    /// Create a span for dependency checking
     pub fn dependency_check_span(task_id: i64, task_name: &str) -> tracing::Span {
         let span = tracing::info_span!(
             "check_dependencies",
@@ -69,8 +55,6 @@ impl TaskTracer {
 
         span
     }
-
-    /// Create a span for message queue operations
     pub fn message_queue_span(operation: &str, queue_name: &str) -> tracing::Span {
         let span = tracing::info_span!(
             "message_queue_operation",
@@ -85,8 +69,6 @@ impl TaskTracer {
 
         span
     }
-
-    /// Create a span for database operations
     pub fn database_span(operation: &str, table: &str) -> tracing::Span {
         let span = tracing::info_span!(
             "database_operation",
@@ -101,16 +83,12 @@ impl TaskTracer {
 
         span
     }
-
-    /// Add error information to current span
     pub fn record_error(error: &dyn std::error::Error) {
         let span = tracing::Span::current();
         span.set_attribute("error", true);
         span.set_attribute("error.message", error.to_string());
         span.set_attribute("error.type", std::any::type_name_of_val(error));
     }
-
-    /// Add task execution result to span
     pub fn record_task_result(success: bool, execution_time_ms: u64, error_message: Option<&str>) {
         let span = tracing::Span::current();
         span.set_attribute("task.success", success);
@@ -120,8 +98,6 @@ impl TaskTracer {
             span.set_attribute("task.error_message", error.to_string());
         }
     }
-
-    /// Add retry information to span
     pub fn record_retry(retry_count: u32, max_retries: u32) {
         let span = tracing::Span::current();
         span.set_attribute("task.retry_count", retry_count as i64);

@@ -11,20 +11,13 @@ use scheduler_core::{
     SchedulerError, SchedulerResult,
 };
 
-/// 恢复服务配置
 #[derive(Debug, Clone)]
 pub struct RecoveryConfig {
-    /// 数据库重连最大尝试次数
     pub db_max_retry_attempts: u32,
-    /// 数据库重连间隔（秒）
     pub db_retry_interval_seconds: u64,
-    /// 消息队列重连最大尝试次数
     pub mq_max_retry_attempts: u32,
-    /// 消息队列重连间隔（秒）
     pub mq_retry_interval_seconds: u64,
-    /// 系统启动时的任务状态恢复超时时间（秒）
     pub startup_recovery_timeout_seconds: u64,
-    /// Worker心跳超时时间（秒）
     pub worker_heartbeat_timeout_seconds: i64,
 }
 
@@ -41,29 +34,16 @@ impl Default for RecoveryConfig {
     }
 }
 
-/// 恢复服务接口
 #[async_trait]
 pub trait RecoveryService: Send + Sync {
-    /// 系统启动时恢复任务状态
     async fn recover_system_state(&self) -> SchedulerResult<RecoveryReport>;
-
-    /// 恢复中断的任务
     async fn recover_interrupted_tasks(&self) -> SchedulerResult<Vec<TaskRun>>;
-
-    /// 恢复失效的Worker状态
     async fn recover_worker_states(&self) -> SchedulerResult<Vec<String>>;
-
-    /// 数据库连接重连
     async fn reconnect_database(&self) -> SchedulerResult<()>;
-
-    /// 消息队列连接重连
     async fn reconnect_message_queue(&self) -> SchedulerResult<()>;
-
-    /// 检查系统健康状态
     async fn check_system_health(&self) -> SchedulerResult<SystemHealthStatus>;
 }
 
-/// 恢复报告
 #[derive(Debug, Clone)]
 pub struct RecoveryReport {
     pub recovered_tasks: Vec<TaskRun>,
@@ -72,7 +52,6 @@ pub struct RecoveryReport {
     pub errors: Vec<String>,
 }
 
-/// 系统健康状态
 #[derive(Debug, Clone)]
 pub struct SystemHealthStatus {
     pub database_healthy: bool,
@@ -83,7 +62,6 @@ pub struct SystemHealthStatus {
     pub last_check_time: DateTime<Utc>,
 }
 
-/// 恢复服务实现
 pub struct SystemRecoveryService {
     task_run_repo: Arc<dyn TaskRunRepository>,
     worker_repo: Arc<dyn WorkerRepository>,
@@ -92,7 +70,6 @@ pub struct SystemRecoveryService {
 }
 
 impl SystemRecoveryService {
-    /// 创建新的恢复服务
     pub fn new(
         task_run_repo: Arc<dyn TaskRunRepository>,
         worker_repo: Arc<dyn WorkerRepository>,
@@ -106,8 +83,6 @@ impl SystemRecoveryService {
             config: config.unwrap_or_default(),
         }
     }
-
-    /// 恢复运行中的任务状态
     async fn recover_running_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复运行中的任务状态");
 
@@ -115,11 +90,9 @@ impl SystemRecoveryService {
         let mut recovered_tasks = Vec::new();
 
         for task_run in running_tasks {
-            // 检查任务是否真的还在运行
             if let Some(worker_id) = &task_run.worker_id {
                 match self.worker_repo.get_by_id(worker_id).await? {
                     Some(worker) => {
-                        // 检查Worker是否还活着
                         if worker.status == WorkerStatus::Alive {
                             let now = Utc::now();
                             let time_since_heartbeat = now - worker.last_heartbeat;
@@ -127,7 +100,6 @@ impl SystemRecoveryService {
                             if time_since_heartbeat.num_seconds()
                                 > self.config.worker_heartbeat_timeout_seconds
                             {
-                                // Worker心跳超时，将任务标记为失败
                                 warn!(
                                     "任务运行 {} 的Worker {} 心跳超时，将任务标记为失败",
                                     task_run.id, worker_id
@@ -153,7 +125,6 @@ impl SystemRecoveryService {
                                 );
                             }
                         } else {
-                            // Worker已经标记为Down，将任务标记为失败
                             warn!(
                                 "任务运行 {} 的Worker {} 已离线，将任务标记为失败",
                                 task_run.id, worker_id
@@ -175,7 +146,6 @@ impl SystemRecoveryService {
                         }
                     }
                     None => {
-                        // Worker不存在，将任务标记为失败
                         warn!(
                             "任务运行 {} 的Worker {} 不存在，将任务标记为失败",
                             task_run.id, worker_id
@@ -193,7 +163,6 @@ impl SystemRecoveryService {
                     }
                 }
             } else {
-                // 没有Worker ID的运行任务，标记为失败
                 warn!(
                     "任务运行 {} 没有Worker ID但状态为运行中，将标记为失败",
                     task_run.id
@@ -217,8 +186,6 @@ impl SystemRecoveryService {
         );
         Ok(recovered_tasks)
     }
-
-    /// 恢复已分发但未开始的任务
     async fn recover_dispatched_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复已分发但未开始的任务");
 
@@ -229,7 +196,6 @@ impl SystemRecoveryService {
         let mut recovered_tasks = Vec::new();
 
         for task_run in dispatched_tasks {
-            // 检查任务分发时间，如果超过一定时间仍未开始，重新分发或标记失败
             let now = Utc::now();
             let time_since_created = now - task_run.created_at;
 
@@ -240,8 +206,6 @@ impl SystemRecoveryService {
                     "任务运行 {} 已分发超过 {} 秒但未开始执行，将重新设置为待调度状态",
                     task_run.id, self.config.startup_recovery_timeout_seconds
                 );
-
-                // 重新设置为Pending状态，让调度器重新处理
                 self.task_run_repo
                     .update_status(task_run.id, TaskRunStatus::Pending, None)
                     .await?;
@@ -258,8 +222,6 @@ impl SystemRecoveryService {
         );
         Ok(recovered_tasks)
     }
-
-    /// 数据库重连逻辑
     async fn attempt_database_reconnection(&self) -> SchedulerResult<()> {
         info!("开始尝试数据库重连");
 
@@ -268,8 +230,6 @@ impl SystemRecoveryService {
                 "数据库重连尝试 {}/{}",
                 attempt, self.config.db_max_retry_attempts
             );
-
-            // 尝试执行一个简单的数据库查询来测试连接
             match self.task_run_repo.get_pending_runs(Some(1)).await {
                 Ok(_) => {
                     info!("数据库重连成功");
@@ -293,8 +253,6 @@ impl SystemRecoveryService {
             "数据库重连失败，已达到最大重试次数".to_string(),
         ))
     }
-
-    /// 消息队列重连逻辑
     async fn attempt_message_queue_reconnection(&self) -> SchedulerResult<()> {
         info!("开始尝试消息队列重连");
 
@@ -303,8 +261,6 @@ impl SystemRecoveryService {
                 "消息队列重连尝试 {}/{}",
                 attempt, self.config.mq_max_retry_attempts
             );
-
-            // 尝试获取队列大小来测试连接
             match self.message_queue.get_queue_size("test_connection").await {
                 Ok(_) => {
                     info!("消息队列重连成功");
@@ -332,14 +288,11 @@ impl SystemRecoveryService {
 
 #[async_trait]
 impl RecoveryService for SystemRecoveryService {
-    /// 系统启动时恢复任务状态
     async fn recover_system_state(&self) -> SchedulerResult<RecoveryReport> {
         info!("开始系统状态恢复");
         let start_time = std::time::Instant::now();
         let mut errors = Vec::new();
         let mut all_recovered_tasks = Vec::new();
-
-        // 1. 恢复运行中的任务
         match self.recover_running_tasks().await {
             Ok(mut tasks) => {
                 all_recovered_tasks.append(&mut tasks);
@@ -350,8 +303,6 @@ impl RecoveryService for SystemRecoveryService {
                 errors.push(error_msg);
             }
         }
-
-        // 2. 恢复已分发的任务
         match self.recover_dispatched_tasks().await {
             Ok(mut tasks) => {
                 all_recovered_tasks.append(&mut tasks);
@@ -362,8 +313,6 @@ impl RecoveryService for SystemRecoveryService {
                 errors.push(error_msg);
             }
         }
-
-        // 3. 恢复Worker状态
         let failed_workers = match self.recover_worker_states().await {
             Ok(workers) => workers,
             Err(e) => {
@@ -391,18 +340,12 @@ impl RecoveryService for SystemRecoveryService {
 
         Ok(report)
     }
-
-    /// 恢复中断的任务
     async fn recover_interrupted_tasks(&self) -> SchedulerResult<Vec<TaskRun>> {
         info!("开始恢复中断的任务");
 
         let mut interrupted_tasks = Vec::new();
-
-        // 恢复运行中的任务
         let mut running_tasks = self.recover_running_tasks().await?;
         interrupted_tasks.append(&mut running_tasks);
-
-        // 恢复已分发的任务
         let mut dispatched_tasks = self.recover_dispatched_tasks().await?;
         interrupted_tasks.append(&mut dispatched_tasks);
 
@@ -412,8 +355,6 @@ impl RecoveryService for SystemRecoveryService {
         );
         Ok(interrupted_tasks)
     }
-
-    /// 恢复失效的Worker状态
     async fn recover_worker_states(&self) -> SchedulerResult<Vec<String>> {
         info!("开始恢复Worker状态");
 
@@ -422,7 +363,6 @@ impl RecoveryService for SystemRecoveryService {
         let now = Utc::now();
 
         for worker in all_workers {
-            // 检查Worker心跳是否超时
             let time_since_heartbeat = now - worker.last_heartbeat;
 
             if time_since_heartbeat.num_seconds() > self.config.worker_heartbeat_timeout_seconds {
@@ -432,8 +372,6 @@ impl RecoveryService for SystemRecoveryService {
                         worker.id,
                         time_since_heartbeat.num_seconds()
                     );
-
-                    // 更新Worker状态为Down
                     if let Err(e) = self
                         .worker_repo
                         .update_status(&worker.id, WorkerStatus::Down)
@@ -445,7 +383,6 @@ impl RecoveryService for SystemRecoveryService {
                     }
                 }
             } else if worker.status == WorkerStatus::Down {
-                // 如果Worker最近有心跳但状态是Down，可能是误标记，需要人工检查
                 debug!(
                     "Worker {} 状态为Down但最近有心跳，可能需要人工检查",
                     worker.id
@@ -459,18 +396,12 @@ impl RecoveryService for SystemRecoveryService {
         );
         Ok(failed_workers)
     }
-
-    /// 数据库连接重连
     async fn reconnect_database(&self) -> SchedulerResult<()> {
         self.attempt_database_reconnection().await
     }
-
-    /// 消息队列连接重连
     async fn reconnect_message_queue(&self) -> SchedulerResult<()> {
         self.attempt_message_queue_reconnection().await
     }
-
-    /// 检查系统健康状态
     async fn check_system_health(&self) -> SchedulerResult<SystemHealthStatus> {
         debug!("检查系统健康状态");
 
@@ -483,8 +414,6 @@ impl RecoveryService for SystemRecoveryService {
             running_tasks: 0,
             last_check_time: now,
         };
-
-        // 检查数据库健康状态
         match self.task_run_repo.get_pending_runs(Some(1)).await {
             Ok(_) => {
                 status.database_healthy = true;
@@ -494,8 +423,6 @@ impl RecoveryService for SystemRecoveryService {
                 warn!("数据库连接异常: {}", e);
             }
         }
-
-        // 检查消息队列健康状态
         match self.message_queue.get_queue_size("health_check").await {
             Ok(_) => {
                 status.message_queue_healthy = true;
@@ -505,8 +432,6 @@ impl RecoveryService for SystemRecoveryService {
                 warn!("消息队列连接异常: {}", e);
             }
         }
-
-        // 获取活跃Worker数量
         match self.worker_repo.get_alive_workers().await {
             Ok(workers) => {
                 status.active_workers = workers.len() as u32;
@@ -516,8 +441,6 @@ impl RecoveryService for SystemRecoveryService {
                 warn!("获取活跃Worker数量失败: {}", e);
             }
         }
-
-        // 获取待处理任务数量
         match self.task_run_repo.get_pending_runs(None).await {
             Ok(tasks) => {
                 status.pending_tasks = tasks.len() as u32;
@@ -527,8 +450,6 @@ impl RecoveryService for SystemRecoveryService {
                 warn!("获取待处理任务数量失败: {}", e);
             }
         }
-
-        // 获取运行中任务数量
         match self.task_run_repo.get_running_runs().await {
             Ok(tasks) => {
                 status.running_tasks = tasks.len() as u32;

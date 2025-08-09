@@ -3,8 +3,6 @@ use scheduler_core::{models::WorkerInfo, SchedulerError, SchedulerResult};
 use serde_json::json;
 use tracing::{debug, error, info, warn};
 
-/// Dispatcher client - Handles communication with dispatcher service
-/// Follows SRP: Only responsible for HTTP communication with dispatcher
 pub struct DispatcherClient {
     dispatcher_url: Option<String>,
     worker_id: String,
@@ -28,8 +26,6 @@ impl DispatcherClient {
             http_client: reqwest::Client::new(),
         }
     }
-
-    /// Register worker with dispatcher
     pub async fn register(&self, supported_task_types: Vec<String>) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping registration");
@@ -75,8 +71,6 @@ impl DispatcherClient {
             }
         }
     }
-
-    /// Send heartbeat to dispatcher
     pub async fn send_heartbeat(&self, current_task_count: i32) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping heartbeat");
@@ -122,8 +116,6 @@ impl DispatcherClient {
             }
         }
     }
-
-    /// Unregister worker from dispatcher
     pub async fn unregister(&self) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping unregistration");
@@ -143,24 +135,18 @@ impl DispatcherClient {
                 } else {
                     let status = response.status();
                     warn!("Failed to unregister worker: HTTP {}", status);
-                    // Don't treat unregistration failure as critical error
                     Ok(())
                 }
             }
             Err(e) => {
                 warn!("Failed to unregister worker: {}", e);
-                // Don't treat unregistration failure as critical error
                 Ok(())
             }
         }
     }
-
-    /// Check if dispatcher is configured
     pub fn is_configured(&self) -> bool {
         self.dispatcher_url.is_some()
     }
-
-    /// Get dispatcher URL
     pub fn get_dispatcher_url(&self) -> &Option<String> {
         &self.dispatcher_url
     }

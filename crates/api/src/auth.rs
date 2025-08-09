@@ -346,8 +346,6 @@ mod tests {
         );
 
         let api_service = ApiKeyService::new(keys);
-        // This test would need to be adjusted based on actual hashing implementation
-        // assert!(api_service.validate_api_key("test-api-key").is_err());
     }
 
     #[test]

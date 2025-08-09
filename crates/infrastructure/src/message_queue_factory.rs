@@ -11,11 +11,9 @@ use scheduler_core::{
 
 use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};
 
-/// 消息队列工厂，根据配置创建相应的消息队列实现
 pub struct MessageQueueFactory;
 
 impl MessageQueueFactory {
-    /// 根据配置创建消息队列实例
     pub async fn create(
         config: &MessageQueueConfig,
     ) -> SchedulerResult<Arc<dyn MessageQueue + Send + Sync>> {
@@ -35,10 +33,7 @@ impl MessageQueueFactory {
             }
         }
     }
-
-    /// 从消息队列配置构建Redis配置
     fn build_redis_config(config: &MessageQueueConfig) -> SchedulerResult<RedisStreamConfig> {
-        // 如果有专门的Redis配置，使用它
         if let Some(redis_config) = &config.redis {
             return Ok(RedisStreamConfig {
                 host: redis_config.host.clone(),
@@ -55,8 +50,6 @@ impl MessageQueueFactory {
                 pool_timeout_seconds: 30,
             });
         }
-
-        // 如果没有专门的Redis配置，尝试从URL解析
         if !config.url.is_empty()
             && (config.url.starts_with("redis://") || config.url.starts_with("rediss://"))
         {
@@ -67,13 +60,10 @@ impl MessageQueueFactory {
             ))
         }
     }
-
-    /// 从Redis URL解析配置
     pub fn parse_redis_url(
         url: &str,
         config: &MessageQueueConfig,
     ) -> SchedulerResult<RedisStreamConfig> {
-        // 简单的URL解析，实际项目中可能需要更复杂的解析逻辑
         let url = url::Url::parse(url)
             .map_err(|e| SchedulerError::Configuration(format!("无效的Redis URL: {e}")))?;
 
@@ -105,8 +95,6 @@ impl MessageQueueFactory {
             pool_timeout_seconds: 30,
         })
     }
-
-    /// 验证消息队列配置
     pub fn validate_config(config: &MessageQueueConfig) -> SchedulerResult<()> {
         match config.r#type {
             MessageQueueType::Rabbitmq => {
@@ -122,7 +110,6 @@ impl MessageQueueFactory {
                 }
             }
             MessageQueueType::RedisStream => {
-                // 检查是否有Redis配置或有效的Redis URL
                 if config.redis.is_none()
                     && (config.url.is_empty()
                         || (!config.url.starts_with("redis://")
@@ -136,16 +123,12 @@ impl MessageQueueFactory {
         }
         Ok(())
     }
-
-    /// 获取消息队列类型的字符串表示
     pub fn get_type_string(queue_type: &MessageQueueType) -> &'static str {
         match queue_type {
             MessageQueueType::Rabbitmq => "rabbitmq",
             MessageQueueType::RedisStream => "redis_stream",
         }
     }
-
-    /// 从字符串解析消息队列类型
     pub fn parse_type_string(type_str: &str) -> SchedulerResult<MessageQueueType> {
         match type_str.to_lowercase().as_str() {
             "rabbitmq" => Ok(MessageQueueType::Rabbitmq),
@@ -157,14 +140,12 @@ impl MessageQueueFactory {
     }
 }
 
-/// 消息队列管理器，支持运行时切换
 pub struct MessageQueueManager {
     current_queue: Arc<dyn MessageQueue + Send + Sync>,
     current_config: MessageQueueConfig,
 }
 
 impl MessageQueueManager {
-    /// 创建新的消息队列管理器
     pub async fn new(config: MessageQueueConfig) -> SchedulerResult<Self> {
         MessageQueueFactory::validate_config(&config)?;
         let queue = MessageQueueFactory::create(&config).await?;
@@ -174,49 +155,31 @@ impl MessageQueueManager {
             current_config: config,
         })
     }
-
-    /// 获取当前消息队列实例
     pub fn get_queue(&self) -> Arc<dyn MessageQueue + Send + Sync> {
         self.current_queue.clone()
     }
-
-    /// 获取当前配置
     pub fn get_config(&self) -> &MessageQueueConfig {
         &self.current_config
     }
-
-    /// 切换到新的消息队列配置
     pub async fn switch_to(&mut self, new_config: MessageQueueConfig) -> SchedulerResult<()> {
         info!(
             "Switching message queue from {:?} to {:?}",
             self.current_config.r#type, new_config.r#type
         );
-
-        // 验证新配置
         MessageQueueFactory::validate_config(&new_config)?;
-
-        // 创建新的消息队列实例
         let new_queue = MessageQueueFactory::create(&new_config).await?;
-
-        // 更新当前实例和配置
         self.current_queue = new_queue;
         self.current_config = new_config;
 
         info!("Successfully switched to new message queue configuration");
         Ok(())
     }
-
-    /// 检查当前消息队列类型
     pub fn is_rabbitmq(&self) -> bool {
         matches!(self.current_config.r#type, MessageQueueType::Rabbitmq)
     }
-
-    /// 检查当前消息队列类型
     pub fn is_redis_stream(&self) -> bool {
         matches!(self.current_config.r#type, MessageQueueType::RedisStream)
     }
-
-    /// 获取当前消息队列类型的字符串表示
     pub fn get_current_type_string(&self) -> &'static str {
         MessageQueueFactory::get_type_string(&self.current_config.r#type)
     }

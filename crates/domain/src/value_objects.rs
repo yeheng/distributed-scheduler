@@ -1,10 +1,6 @@
-//! 值对象
-//!
-//! 领域值对象定义
 
 use serde::{Deserialize, Serialize};
 
-/// 任务优先级
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, PartialOrd, Ord)]
 pub enum TaskPriority {
     Low = 1,
@@ -12,7 +8,6 @@ pub enum TaskPriority {
     High = 10,
 }
 
-/// 任务配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskConfig {
     pub timeout_seconds: Option<u32>,
@@ -32,7 +27,6 @@ impl Default for TaskConfig {
     }
 }
 
-/// Worker容量
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerCapacity {
     pub max_concurrent_tasks: u32,

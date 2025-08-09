@@ -9,18 +9,14 @@ use scheduler_core::{
 use sqlx::{PgPool, Row};
 use tracing::debug;
 
-/// PostgreSQL任务执行实例仓储实现
 pub struct PostgresTaskRunRepository {
     pool: PgPool,
 }
 
 impl PostgresTaskRunRepository {
-    /// 创建新的PostgreSQL任务执行实例仓储
     pub fn new(pool: PgPool) -> Self {
         Self { pool }
     }
-
-    /// 将数据库行转换为TaskRun模型
     fn row_to_task_run(row: &sqlx::postgres::PgRow) -> SchedulerResult<TaskRun> {
         Ok(TaskRun {
             id: row.try_get("id")?,
@@ -42,7 +38,6 @@ impl PostgresTaskRunRepository {
 
 #[async_trait]
 impl TaskRunRepository for PostgresTaskRunRepository {
-    /// 创建新的任务执行实例
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
         let row = sqlx::query(
             r#"
@@ -70,8 +65,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("创建任务执行实例成功: ID {}", created_run.id);
         Ok(created_run)
     }
-
-    /// 根据ID获取任务执行实例
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
         let row = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE id = $1"
@@ -86,8 +79,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             None => Ok(None),
         }
     }
-
-    /// 更新任务执行实例
     async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
         let result = sqlx::query(
             r#"
@@ -119,8 +110,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("更新任务执行实例成功: ID {}", task_run.id);
         Ok(())
     }
-
-    /// 删除任务执行实例
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM task_runs WHERE id = $1")
             .bind(id)
@@ -135,8 +124,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("删除任务执行实例成功: ID {}", id);
         Ok(())
     }
-
-    /// 根据任务ID获取执行实例列表
     async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC"
@@ -150,8 +137,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 根据Worker ID获取执行实例列表
     async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE worker_id = $1 ORDER BY created_at DESC"
@@ -165,8 +150,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 获取指定状态的任务执行实例
     async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE status = $1 ORDER BY created_at DESC"
@@ -180,8 +163,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 获取待调度的任务执行实例
     async fn get_pending_runs(&self, limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
         let mut query = "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE status = $1 ORDER BY scheduled_at ASC".to_string();
 
@@ -199,13 +180,9 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 获取正在运行的任务执行实例
     async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
         self.get_by_status(TaskRunStatus::Running).await
     }
-
-    /// 获取超时的任务执行实例
     async fn get_timeout_runs(&self, timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             r#"
@@ -227,8 +204,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 更新任务执行状态
     async fn update_status(
         &self,
         id: i64,
@@ -242,8 +217,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             param_count += 1;
             query.push_str(&format!(", worker_id = ${param_count}"));
         }
-
-        // 根据状态更新时间戳
         match status {
             TaskRunStatus::Running => {
                 param_count += 1;
@@ -289,8 +262,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("更新任务执行状态成功: ID {} -> {:?}", id, status);
         Ok(())
     }
-
-    /// 更新任务执行结果
     async fn update_result(
         &self,
         id: i64,
@@ -313,8 +284,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("更新任务执行结果成功: ID {}", id);
         Ok(())
     }
-
-    /// 获取任务的最近执行记录
     async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
         let rows = sqlx::query(
             "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT $2"
@@ -329,8 +298,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             rows.iter().map(Self::row_to_task_run).collect();
         task_runs
     }
-
-    /// 获取任务执行统计信息
     async fn get_execution_stats(
         &self,
         task_id: i64,
@@ -380,8 +347,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             last_execution,
         })
     }
-
-    /// 清理过期的任务执行记录
     async fn cleanup_old_runs(&self, days: i32) -> SchedulerResult<u64> {
         let result =
             sqlx::query("DELETE FROM task_runs WHERE created_at < NOW() - INTERVAL '%d days'")
@@ -394,8 +359,6 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         debug!("清理了 {} 条过期执行记录", deleted_count);
         Ok(deleted_count)
     }
-
-    /// 批量更新任务执行状态
     async fn batch_update_status(
         &self,
         run_ids: &[i64],

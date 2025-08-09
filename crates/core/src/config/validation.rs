@@ -3,7 +3,6 @@ use std::collections::HashMap;
 use serde_json::Value;
 use thiserror::Error;
 
-/// Configuration validation error
 #[derive(Debug, Error)]
 pub enum ConfigValidationError {
     #[error("Required field missing: {field}")]
@@ -30,20 +29,14 @@ pub enum ConfigValidationError {
     SchemaError { message: String },
 }
 
-/// Type alias for custom validator function to reduce type complexity
 pub type CustomValidator =
     Box<dyn Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync>;
 
-/// Configuration validation trait
 pub trait ConfigValidator: Send + Sync {
-    /// Validate configuration
     fn validate(&self, config: &Value) -> std::result::Result<(), ConfigValidationError>;
-
-    /// Get validator name
     fn name(&self) -> &str;
 }
 
-/// Basic configuration validator
 pub struct BasicConfigValidator {
     name: String,
     required_fields: Vec<String>,
@@ -52,7 +45,6 @@ pub struct BasicConfigValidator {
 }
 
 impl BasicConfigValidator {
-    /// Create new basic validator
     pub fn new(name: String) -> Self {
         Self {
             name,
@@ -61,15 +53,11 @@ impl BasicConfigValidator {
             custom_validators: HashMap::new(),
         }
     }
-
-    /// Add required field
     pub fn required_field(mut self, field: String, field_type: String) -> Self {
         self.required_fields.push(field.clone());
         self.field_types.insert(field, field_type);
         self
     }
-
-    /// Add custom validator
     pub fn custom_validator<F>(mut self, field: String, validator: F) -> Self
     where
         F: Fn(&Value) -> std::result::Result<(), ConfigValidationError> + Send + Sync + 'static,
@@ -77,8 +65,6 @@ impl BasicConfigValidator {
         self.custom_validators.insert(field, Box::new(validator));
         self
     }
-
-    /// Get nested value from configuration using dot notation
     fn get_nested_value<'a>(&self, config: &'a Value, key: &str) -> Option<&'a Value> {
         let keys: Vec<&str> = key.split('.').collect();
         let mut current = config;
@@ -102,7 +88,6 @@ impl BasicConfigValidator {
 
 impl ConfigValidator for BasicConfigValidator {
     fn validate(&self, config: &Value) -> std::result::Result<(), ConfigValidationError> {
-        // Check required fields
         for field in &self.required_fields {
             if self.get_nested_value(config, field).is_none() {
                 return Err(ConfigValidationError::RequiredFieldMissing {
@@ -110,8 +95,6 @@ impl ConfigValidator for BasicConfigValidator {
                 });
             }
         }
-
-        // Check field types
         for (field, expected_type) in &self.field_types {
             if let Some(value) = self.get_nested_value(config, field) {
                 let actual_type = match value {
@@ -132,8 +115,6 @@ impl ConfigValidator for BasicConfigValidator {
                 }
             }
         }
-
-        // Run custom validators
         for (field, validator) in &self.custom_validators {
             if let Some(value) = self.get_nested_value(config, field) {
                 validator(value)?;
@@ -148,7 +129,6 @@ impl ConfigValidator for BasicConfigValidator {
     }
 }
 
-/// Schema-based validator using JSON Schema
 pub struct SchemaValidator {
     name: String,
     schema: Value,
@@ -162,7 +142,6 @@ impl SchemaValidator {
 
 impl ConfigValidator for SchemaValidator {
     fn validate(&self, config: &Value) -> std::result::Result<(), ConfigValidationError> {
-        // Basic schema validation - in production, use a proper JSON Schema library
         if let Some(schema_obj) = self.schema.as_object() {
             if let Some(required) = schema_obj.get("required").and_then(|r| r.as_array()) {
                 for field in required {
@@ -184,7 +163,6 @@ impl ConfigValidator for SchemaValidator {
     }
 }
 
-/// Validator registry for managing multiple validators
 pub struct ValidatorRegistry {
     validators: Vec<Box<dyn ConfigValidator>>,
 }

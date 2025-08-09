@@ -9,18 +9,14 @@ use scheduler_core::{
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
-/// SQLite Worker仓储实现
 pub struct SqliteWorkerRepository {
     pool: SqlitePool,
 }
 
 impl SqliteWorkerRepository {
-    /// 创建新的SQLite Worker仓储
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
-
-    /// 将数据库行转换为WorkerInfo模型
     fn row_to_worker_info(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<WorkerInfo> {
         let supported_task_types_json: Option<String> = row.try_get("supported_task_types")?;
         let supported_task_types = if let Some(json_str) = supported_task_types_json {
@@ -45,7 +41,6 @@ impl SqliteWorkerRepository {
 
 #[async_trait]
 impl WorkerRepository for SqliteWorkerRepository {
-    /// 注册新的Worker
     async fn register(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         let supported_task_types_json = serde_json::to_string(&worker.supported_task_types)
             .map_err(|e| SchedulerError::Serialization(format!("序列化任务类型列表失败: {e}")))?;
@@ -78,8 +73,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         debug!("注册Worker成功: {}", worker.id);
         Ok(())
     }
-
-    /// 注销Worker
     async fn unregister(&self, worker_id: &str) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM workers WHERE id = $1")
             .bind(worker_id)
@@ -96,8 +89,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         debug!("注销Worker成功: {}", worker_id);
         Ok(())
     }
-
-    /// 根据ID获取Worker信息
     async fn get_by_id(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
         let row = sqlx::query(
             "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE id = $1"
@@ -110,8 +101,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         match row {
             Some(row) => {
                 let mut worker = Self::row_to_worker_info(&row)?;
-
-                // 计算当前任务数量
                 let task_count_row = sqlx::query(
                     "SELECT COUNT(*) as count FROM task_runs WHERE worker_id = $1 AND status IN ('DISPATCHED', 'RUNNING')"
                 )
@@ -126,8 +115,6 @@ impl WorkerRepository for SqliteWorkerRepository {
             None => Ok(None),
         }
     }
-
-    /// 更新Worker信息
     async fn update(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
         let supported_task_types_json = serde_json::to_string(&worker.supported_task_types)
             .map_err(|e| SchedulerError::Serialization(format!("序列化任务类型列表失败: {e}")))?;
@@ -160,8 +147,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         debug!("更新Worker成功: {}", worker.id);
         Ok(())
     }
-
-    /// 获取所有Worker列表
     async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers ORDER BY registered_at DESC"
@@ -173,8 +158,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         let mut workers = Vec::new();
         for row in rows {
             let mut worker = Self::row_to_worker_info(&row)?;
-
-            // 计算当前任务数量
             let task_count_row = sqlx::query(
                 "SELECT COUNT(*) as count FROM task_runs WHERE worker_id = $1 AND status IN ('DISPATCHED', 'RUNNING')"
             )
@@ -189,8 +172,6 @@ impl WorkerRepository for SqliteWorkerRepository {
 
         Ok(workers)
     }
-
-    /// 获取活跃的Worker列表
     async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = $1 ORDER BY last_heartbeat DESC"
@@ -203,8 +184,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         let mut workers = Vec::new();
         for row in rows {
             let mut worker = Self::row_to_worker_info(&row)?;
-
-            // 计算当前任务数量
             let task_count_row = sqlx::query(
                 "SELECT COUNT(*) as count FROM task_runs WHERE worker_id = $1 AND status IN ('DISPATCHED', 'RUNNING')"
             )
@@ -219,8 +198,6 @@ impl WorkerRepository for SqliteWorkerRepository {
 
         Ok(workers)
     }
-
-    /// 获取支持指定任务类型的Worker列表
     async fn get_workers_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address, supported_task_types, max_concurrent_tasks, status, last_heartbeat, registered_at FROM workers WHERE status = $1 AND supported_task_types LIKE $2 ORDER BY last_heartbeat DESC"
@@ -234,8 +211,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         let mut workers = Vec::new();
         for row in rows {
             let mut worker = Self::row_to_worker_info(&row)?;
-
-            // 计算当前任务数量
             let task_count_row = sqlx::query(
                 "SELECT COUNT(*) as count FROM task_runs WHERE worker_id = $1 AND status IN ('DISPATCHED', 'RUNNING')"
             )
@@ -250,8 +225,6 @@ impl WorkerRepository for SqliteWorkerRepository {
 
         Ok(workers)
     }
-
-    /// 更新Worker心跳
     async fn update_heartbeat(
         &self,
         worker_id: &str,
@@ -279,8 +252,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         );
         Ok(())
     }
-
-    /// 更新Worker状态
     async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()> {
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = $2")
             .bind(status)
@@ -298,8 +269,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         debug!("更新Worker状态成功: {} -> {:?}", worker_id, status);
         Ok(())
     }
-
-    /// 获取超时的Worker列表
     async fn get_timeout_workers(&self, timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
         let threshold = chrono::Utc::now() - chrono::Duration::seconds(timeout_seconds);
 
@@ -315,8 +284,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         let mut workers = Vec::new();
         for row in rows {
             let mut worker = Self::row_to_worker_info(&row)?;
-
-            // 计算当前任务数量
             let task_count_row = sqlx::query(
                 "SELECT COUNT(*) as count FROM task_runs WHERE worker_id = $1 AND status IN ('DISPATCHED', 'RUNNING')"
             )
@@ -331,8 +298,6 @@ impl WorkerRepository for SqliteWorkerRepository {
 
         Ok(workers)
     }
-
-    /// 清理离线Worker
     async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> SchedulerResult<u64> {
         let threshold = chrono::Utc::now() - chrono::Duration::seconds(timeout_seconds);
 
@@ -349,8 +314,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         debug!("标记 {} 个Worker为离线状态", updated_count);
         Ok(updated_count)
     }
-
-    /// 获取Worker负载统计
     async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
         let rows = sqlx::query(
             r#"
@@ -434,8 +397,6 @@ impl WorkerRepository for SqliteWorkerRepository {
 
         Ok(stats)
     }
-
-    /// 批量更新Worker状态
     async fn batch_update_status(
         &self,
         worker_ids: &[String],
@@ -444,8 +405,6 @@ impl WorkerRepository for SqliteWorkerRepository {
         if worker_ids.is_empty() {
             return Ok(());
         }
-
-        // SQLite doesn't support ANY() operator, use IN clause instead
         let placeholders: Vec<String> = (0..worker_ids.len())
             .map(|i| format!("${}", i + 2))
             .collect();
@@ -482,8 +441,6 @@ mod tests {
 
     async fn setup_test_db() -> SqlitePool {
         let pool = SqlitePool::connect(":memory:").await.unwrap();
-
-        // Create test table
         sqlx::query(
             r#"
             CREATE TABLE workers (
@@ -501,8 +458,6 @@ mod tests {
         .execute(&pool)
         .await
         .unwrap();
-
-        // Create task_runs table for testing current_task_count
         sqlx::query(
             r#"
             CREATE TABLE task_runs (
@@ -558,11 +513,7 @@ mod tests {
         let pool = setup_test_db().await;
         let repo = SqliteWorkerRepository::new(pool);
         let worker = create_test_worker();
-
-        // Register first
         repo.register(&worker).await.unwrap();
-
-        // Then get by id
         let result = repo.get_by_id(&worker.id).await.unwrap();
         assert!(result.is_some());
         let retrieved_worker = result.unwrap();
@@ -575,15 +526,9 @@ mod tests {
         let pool = setup_test_db().await;
         let repo = SqliteWorkerRepository::new(pool);
         let worker = create_test_worker();
-
-        // Register first
         repo.register(&worker).await.unwrap();
-
-        // Update status
         let result = repo.update_status(&worker.id, WorkerStatus::Down).await;
         assert!(result.is_ok());
-
-        // Verify status was updated
         let updated_worker = repo.get_by_id(&worker.id).await.unwrap().unwrap();
         assert_eq!(updated_worker.status, WorkerStatus::Down);
     }
@@ -595,12 +540,8 @@ mod tests {
         let worker1 = create_test_worker();
         let mut worker2 = create_test_worker();
         worker2.id = "test-worker-2".to_string();
-
-        // Register both workers
         repo.register(&worker1).await.unwrap();
         repo.register(&worker2).await.unwrap();
-
-        // List all workers
         let workers = repo.list().await.unwrap();
         assert_eq!(workers.len(), 2);
     }
@@ -610,15 +551,9 @@ mod tests {
         let pool = setup_test_db().await;
         let repo = SqliteWorkerRepository::new(pool);
         let worker = create_test_worker();
-
-        // Register first
         repo.register(&worker).await.unwrap();
-
-        // Unregister
         let result = repo.unregister(&worker.id).await;
         assert!(result.is_ok());
-
-        // Verify worker is gone
         let retrieved = repo.get_by_id(&worker.id).await.unwrap();
         assert!(retrieved.is_none());
     }

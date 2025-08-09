@@ -8,7 +8,6 @@ use crate::components::{
     DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
 };
 
-/// Configuration for WorkerService
 #[derive(Debug, Clone)]
 pub struct WorkerConfig {
     pub worker_id: String,
@@ -32,7 +31,6 @@ impl WorkerConfig {
     }
 }
 
-/// Builder for WorkerConfig
 pub struct WorkerConfigBuilder {
     config: WorkerConfig,
 }
@@ -92,13 +90,6 @@ impl WorkerConfigBuilder {
     }
 }
 
-/// Simplified WorkerService that composes focused components
-/// Follows SOLID principles:
-/// - SRP: Each component has a single responsibility  
-/// - OCP: Components can be extended without modifying others
-/// - LSP: Components are substitutable through traits
-/// - ISP: Each component has focused interfaces
-/// - DIP: Depends on abstractions (traits) not concretions
 pub struct WorkerService {
     task_execution_manager: Arc<TaskExecutionManager>,
     dispatcher_client: Arc<DispatcherClient>,
@@ -107,13 +98,11 @@ pub struct WorkerService {
 }
 
 impl WorkerService {
-    /// Create a new WorkerService with composed components
     pub fn new(
         config: WorkerConfig,
         service_locator: Arc<ServiceLocator>,
         executor_registry: Arc<dyn ExecutorRegistry>,
     ) -> Self {
-        // Create focused components
         let task_execution_manager = Arc::new(TaskExecutionManager::new(
             config.worker_id.clone(),
             executor_registry,
@@ -152,8 +141,6 @@ impl WorkerService {
             worker_lifecycle,
         }
     }
-
-    /// Create builder for WorkerService
     pub fn builder(
         worker_id: String,
         service_locator: Arc<ServiceLocator>,
@@ -175,8 +162,6 @@ impl WorkerServiceTrait for WorkerService {
     }
 
     async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
-        // This functionality is now handled by WorkerLifecycle internally
-        // Keep this method for backward compatibility but it's not the primary way
         Ok(())
     }
 
@@ -197,14 +182,10 @@ impl WorkerServiceTrait for WorkerService {
     }
 
     async fn get_running_tasks(&self) -> Vec<scheduler_core::TaskRun> {
-        // This would need to be implemented in TaskExecutionManager
-        // For now, return empty vec
         Vec::new()
     }
 
     async fn is_task_running(&self, _task_run_id: i64) -> bool {
-        // This would need to be implemented in TaskExecutionManager
-        // For now, return false
         false
     }
 
@@ -213,39 +194,26 @@ impl WorkerServiceTrait for WorkerService {
         self.dispatcher_client.send_heartbeat(current_count).await
     }
 }
-
-// Additional methods for compatibility (not part of WorkerServiceTrait)
 impl WorkerService {
-    /// Get supported task types
     pub async fn get_supported_task_types(&self) -> Vec<String> {
         self.task_execution_manager.get_supported_task_types().await
     }
-
-    /// Register with dispatcher
     pub async fn register_with_dispatcher(&self) -> SchedulerResult<()> {
         let supported_types = self.task_execution_manager.get_supported_task_types().await;
         self.dispatcher_client.register(supported_types).await
     }
-
-    /// Send heartbeat to dispatcher
     pub async fn send_heartbeat_to_dispatcher(&self) -> SchedulerResult<()> {
         let current_count = self.get_current_task_count().await;
         self.dispatcher_client.send_heartbeat(current_count).await
     }
-
-    /// Unregister from dispatcher
     pub async fn unregister_from_dispatcher(&self) -> SchedulerResult<()> {
         self.dispatcher_client.unregister().await
     }
-
-    /// Manual poll and execute tasks (for backward compatibility)
     pub async fn poll_and_execute_tasks(&self) -> SchedulerResult<()> {
-        // This functionality is now handled by WorkerLifecycle internally
         Ok(())
     }
 }
 
-/// Builder for WorkerService with fluent interface
 pub struct WorkerServiceBuilder {
     config: WorkerConfig,
     service_locator: Arc<ServiceLocator>,

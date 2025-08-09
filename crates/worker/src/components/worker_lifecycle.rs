@@ -11,8 +11,6 @@ use tracing::{error, info, warn};
 
 use super::{DispatcherClient, HeartbeatManager, TaskExecutionManager};
 
-/// Worker lifecycle manager - Handles service start/stop and task polling
-/// Follows SRP: Only responsible for service lifecycle management
 pub struct WorkerLifecycle {
     worker_id: String,
     service_locator: Arc<ServiceLocator>,
@@ -20,8 +18,6 @@ pub struct WorkerLifecycle {
     poll_interval_ms: u64,
     shutdown_tx: Arc<RwLock<Option<broadcast::Sender<()>>>>,
     is_running: Arc<RwLock<bool>>,
-
-    // Component dependencies
     task_execution_manager: Arc<TaskExecutionManager>,
     dispatcher_client: Arc<DispatcherClient>,
     heartbeat_manager: Arc<HeartbeatManager>,
@@ -49,8 +45,6 @@ impl WorkerLifecycle {
             heartbeat_manager,
         }
     }
-
-    /// Start the worker service
     pub async fn start(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if *is_running {
@@ -60,8 +54,6 @@ impl WorkerLifecycle {
         }
 
         info!("Starting worker service: {}", self.worker_id);
-
-        // Register with dispatcher
         let supported_types = self.task_execution_manager.get_supported_task_types().await;
         if let Err(e) = self.dispatcher_client.register(supported_types).await {
             warn!(
@@ -69,8 +61,6 @@ impl WorkerLifecycle {
                 e
             );
         }
-
-        // Create shutdown channel
         let (shutdown_tx, shutdown_rx1) = broadcast::channel(1);
         let shutdown_rx2 = shutdown_tx.subscribe();
 
@@ -78,8 +68,6 @@ impl WorkerLifecycle {
             let mut tx = self.shutdown_tx.write().await;
             *tx = Some(shutdown_tx);
         }
-
-        // Start heartbeat task
         let task_execution_manager = Arc::clone(&self.task_execution_manager);
         let get_task_count: Box<
             dyn Fn() -> std::pin::Pin<Box<dyn std::future::Future<Output = i32> + Send>>
@@ -98,8 +86,6 @@ impl WorkerLifecycle {
             error!("Failed to start heartbeat task: {}", e);
             return Err(e);
         }
-
-        // Start task polling
         if let Err(e) = self.start_task_polling(shutdown_rx2).await {
             error!("Failed to start task polling: {}", e);
             return Err(e);
@@ -109,8 +95,6 @@ impl WorkerLifecycle {
         info!("Worker service {} started successfully", self.worker_id);
         Ok(())
     }
-
-    /// Stop the worker service
     pub async fn stop(&self) -> SchedulerResult<()> {
         let mut is_running = self.is_running.write().await;
         if !*is_running {
@@ -118,13 +102,9 @@ impl WorkerLifecycle {
         }
 
         info!("Stopping worker service: {}", self.worker_id);
-
-        // Send shutdown signal
         if let Some(tx) = self.shutdown_tx.read().await.as_ref() {
             let _ = tx.send(());
         }
-
-        // Unregister from dispatcher
         if let Err(e) = self.dispatcher_client.unregister().await {
             warn!("Failed to unregister from dispatcher: {}", e);
         }
@@ -133,8 +113,6 @@ impl WorkerLifecycle {
         info!("Worker service {} stopped", self.worker_id);
         Ok(())
     }
-
-    /// Start task polling loop
     async fn start_task_polling(
         &self,
         mut shutdown_rx: broadcast::Receiver<()>,
@@ -168,8 +146,6 @@ impl WorkerLifecycle {
 
         Ok(())
     }
-
-    /// Poll for tasks and execute them
     async fn poll_and_execute_tasks(
         service_locator: &ServiceLocator,
         task_queue: &str,
@@ -184,8 +160,6 @@ impl WorkerLifecycle {
                 scheduler_domain::entities::MessageType::TaskExecution(task_execution) => {
                     let task_execution = task_execution.clone();
                     let heartbeat_mgr = Arc::clone(heartbeat_manager);
-
-                    // Create callback for status updates
                     let status_callback = move |task_run_id, status, result, error_message| {
                         let heartbeat_manager = Arc::clone(&heartbeat_mgr);
                         async move {
@@ -222,8 +196,6 @@ impl WorkerLifecycle {
                     );
                 }
             }
-
-            // Acknowledge message
             if let Err(e) = message_queue.ack_message(&message.id).await {
                 error!("Failed to acknowledge message {}: {}", message.id, e);
             }
@@ -231,8 +203,6 @@ impl WorkerLifecycle {
 
         Ok(())
     }
-
-    /// Handle task control messages
     async fn handle_task_control(
         task_execution_manager: &TaskExecutionManager,
         control_message: &TaskControlMessage,
@@ -244,7 +214,6 @@ impl WorkerLifecycle {
                     .await?;
             }
             scheduler_domain::entities::TaskControlAction::Restart => {
-                // In a full implementation, this would restart the task
                 info!(
                     "Restart action not yet implemented for task {}",
                     control_message.task_run_id
@@ -265,8 +234,6 @@ impl WorkerLifecycle {
         }
         Ok(())
     }
-
-    /// Check if service is running
     pub async fn is_running(&self) -> bool {
         *self.is_running.read().await
     }

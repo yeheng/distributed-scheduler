@@ -10,8 +10,6 @@ mod dependency_checker_tests {
     use std::sync::{Arc, Mutex};
 
     use scheduler_dispatcher::dependency_checker::*;
-
-    // Mock TaskRepository for testing
     #[derive(Debug, Clone)]
     struct MockTaskRepository {
         tasks: Arc<Mutex<HashMap<i64, Task>>>,
@@ -101,8 +99,6 @@ mod dependency_checker_tests {
             Ok(())
         }
     }
-
-    // Mock TaskRunRepository for testing
     #[derive(Debug, Clone)]
     struct MockTaskRunRepository {
         task_runs: Arc<Mutex<HashMap<i64, Vec<TaskRun>>>>,
@@ -290,8 +286,6 @@ mod dependency_checker_tests {
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
 
         let checker = DependencyChecker::new(task_repo, task_run_repo);
-
-        // 测试创建成功
         assert!(std::ptr::addr_of!(checker).is_aligned());
     }
 
@@ -327,8 +321,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
-
-        // 创建依赖任务的成功执行记录
         let successful_run = TaskRun {
             id: 1,
             task_id: 1,
@@ -373,8 +365,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
-
-        // 创建依赖任务的失败执行记录
         let failed_run = TaskRun {
             id: 1,
             task_id: 1,
@@ -419,8 +409,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo, task_run_repo);
-
-        // 测试自依赖
         let result = checker.validate_dependencies(1, &[1]).await;
         assert!(result.is_err());
         assert!(matches!(
@@ -434,8 +422,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo, task_run_repo);
-
-        // 测试依赖不存在的任务
         let result = checker.validate_dependencies(1, &[999]).await;
         assert!(result.is_err());
         assert!(matches!(
@@ -449,8 +435,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo.clone(), task_run_repo);
-
-        // 创建任务形成循环依赖: 1 -> 2 -> 3 -> 1
         let task1 = Task {
             id: 1,
             name: "task1".to_string(),
@@ -499,12 +483,8 @@ mod dependency_checker_tests {
         task_repo.add_task(task1);
         task_repo.add_task(task2);
         task_repo.add_task(task3);
-
-        // 测试添加会形成循环的依赖
         let has_cycle = checker.detect_circular_dependency(3, &[2]).await.unwrap();
         assert!(has_cycle);
-
-        // 测试不会形成循环的依赖
         let has_cycle = checker.detect_circular_dependency(3, &[]).await.unwrap();
         assert!(!has_cycle);
     }
@@ -514,8 +494,6 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo.clone(), task_run_repo);
-
-        // 创建任务依赖链: 4 -> 3 -> 2 -> 1
         let task1 = Task {
             id: 1,
             name: "task1".to_string(),
@@ -582,8 +560,6 @@ mod dependency_checker_tests {
         task_repo.add_task(task4);
 
         let transitive_deps = checker.get_transitive_dependencies(4).await.unwrap();
-
-        // 任务4的传递依赖应该包含3, 2, 1
         assert_eq!(transitive_deps.len(), 3);
         assert!(transitive_deps.contains(&3));
         assert!(transitive_deps.contains(&2));

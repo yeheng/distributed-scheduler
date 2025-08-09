@@ -1,15 +1,9 @@
-//! Redis Stream消息队列模块
-//!
-//! 这个模块提供了基于Redis Stream的轻量级消息队列实现，
-//! 按照单一职责原则分解为多个子模块。
 
 pub mod config;
 pub mod connection_manager;
 pub mod message_handler;
 pub mod metrics_collector;
 pub mod stream_operations;
-
-// 重新导出公共接口
 pub use config::RedisStreamConfig;
 pub use connection_manager::RedisConnectionManager;
 pub use message_handler::RedisMessageHandler;
@@ -21,16 +15,12 @@ use scheduler_domain::entities::Message;
 use scheduler_core::{traits::MessageQueue, SchedulerResult};
 use std::sync::Arc;
 
-/// 健康状态
 #[derive(Debug, Clone)]
 pub struct HealthStatus {
     pub healthy: bool,
     pub error_message: Option<String>,
 }
 
-/// Redis Stream消息队列主要实现
-///
-/// 协调各个子组件提供完整的消息队列功能
 pub struct RedisStreamMessageQueue {
     connection_manager: Arc<RedisConnectionManager>,
     message_handler: Arc<RedisMessageHandler>,
@@ -39,7 +29,6 @@ pub struct RedisStreamMessageQueue {
 }
 
 impl RedisStreamMessageQueue {
-    /// 创建新的Redis Stream消息队列实例
     pub async fn new(config: RedisStreamConfig) -> SchedulerResult<Self> {
         let metrics = Arc::new(RedisStreamMetrics::default());
         let connection_manager = Arc::new(RedisConnectionManager::new(config.clone()).await?);
@@ -61,15 +50,10 @@ impl RedisStreamMessageQueue {
             metrics,
         })
     }
-
-    /// 获取性能指标
     pub fn metrics(&self) -> Arc<RedisStreamMetrics> {
         self.metrics.clone()
     }
-
-    /// 健康检查
     pub async fn health_check(&self) -> SchedulerResult<HealthStatus> {
-        // 尝试ping Redis连接
         let ping_result = self.connection_manager.ping().await;
 
         match ping_result {

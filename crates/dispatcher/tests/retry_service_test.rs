@@ -13,8 +13,6 @@ use scheduler_core::{
 
 use scheduler_dispatcher::retry_service::{RetryConfig, RetryService, TaskRetryService};
 
-// Mock implementations for testing
-
 #[derive(Debug, Clone)]
 pub struct MockTaskRepository {
     tasks: Arc<Mutex<HashMap<i64, Task>>>,
@@ -443,8 +441,6 @@ impl MessageQueue for MockMessageQueue {
     }
 }
 
-// Helper functions for creating test data
-
 fn create_test_task(id: i64, max_retries: i32) -> Task {
     Task {
         id,
@@ -496,15 +492,11 @@ fn create_test_worker(id: &str, status: WorkerStatus) -> WorkerInfo {
     }
 }
 
-// Test cases
-
 #[tokio::test]
 async fn test_handle_failed_task_with_retries_available() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let task = create_test_task(1, 3); // max_retries = 3
     task_repo.add_task(task).await;
 
@@ -518,13 +510,9 @@ async fn test_handle_failed_task_with_retries_available() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test retry handling
     let result = retry_service.handle_failed_task(1).await;
     assert!(result.is_ok());
     assert!(result.unwrap()); // Should return true indicating retry was scheduled
-
-    // Verify retry task was created
     let pending_runs = task_run_repo.get_pending_runs(None).await.unwrap();
     assert_eq!(pending_runs.len(), 1);
     assert_eq!(pending_runs[0].retry_count, 2); // Should be incremented
@@ -536,8 +524,6 @@ async fn test_handle_failed_task_max_retries_exceeded() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let task = create_test_task(1, 2); // max_retries = 2
     task_repo.add_task(task).await;
 
@@ -551,13 +537,9 @@ async fn test_handle_failed_task_max_retries_exceeded() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test retry handling
     let result = retry_service.handle_failed_task(1).await;
     assert!(result.is_ok());
     assert!(!result.unwrap()); // Should return false indicating no retry
-
-    // Verify no retry task was created
     let pending_runs = task_run_repo.get_pending_runs(None).await.unwrap();
     assert_eq!(pending_runs.len(), 0);
 }
@@ -567,8 +549,6 @@ async fn test_handle_failed_task_inactive_task() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let mut task = create_test_task(1, 3);
     task.status = TaskStatus::Inactive; // Task is inactive
     task_repo.add_task(task).await;
@@ -583,13 +563,9 @@ async fn test_handle_failed_task_inactive_task() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test retry handling
     let result = retry_service.handle_failed_task(1).await;
     assert!(result.is_ok());
     assert!(!result.unwrap()); // Should return false for inactive task
-
-    // Verify no retry task was created
     let pending_runs = task_run_repo.get_pending_runs(None).await.unwrap();
     assert_eq!(pending_runs.len(), 0);
 }
@@ -599,8 +575,6 @@ async fn test_handle_timeout_task() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let task = create_test_task(1, 3);
     task_repo.add_task(task).await;
 
@@ -614,13 +588,9 @@ async fn test_handle_timeout_task() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test timeout handling
     let result = retry_service.handle_timeout_task(1).await;
     assert!(result.is_ok());
     assert!(result.unwrap()); // Should return true indicating retry was scheduled
-
-    // Verify retry task was created
     let pending_runs = task_run_repo.get_pending_runs(None).await.unwrap();
     assert_eq!(pending_runs.len(), 1);
     assert_eq!(pending_runs[0].retry_count, 1);
@@ -632,15 +602,11 @@ async fn test_handle_worker_failure() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let task = create_test_task(1, 3);
     task_repo.add_task(task).await;
 
     let worker = create_test_worker("worker-1", WorkerStatus::Alive);
     worker_repo.add_worker(worker).await;
-
-    // Create running task on the worker
     let mut task_run = create_test_task_run(1, 1, 0, TaskRunStatus::Running);
     task_run.worker_id = Some("worker-1".to_string());
     task_run_repo.add_task_run(task_run).await;
@@ -652,20 +618,14 @@ async fn test_handle_worker_failure() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test worker failure handling
     let result = retry_service.handle_worker_failure("worker-1").await;
     assert!(result.is_ok());
 
     let reassigned_tasks = result.unwrap();
     assert_eq!(reassigned_tasks.len(), 1);
     assert_eq!(reassigned_tasks[0].retry_count, 1);
-
-    // Verify original task was marked as failed
     let original_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(original_task.status, TaskRunStatus::Failed);
-
-    // Verify message was sent to queue
     let messages = message_queue.get_messages().await;
     assert_eq!(messages.len(), 1);
 }
@@ -675,18 +635,12 @@ async fn test_scan_retry_tasks() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let task = create_test_task(1, 3);
     task_repo.add_task(task).await;
-
-    // Create a retry task that's ready to execute
     let past_time = Utc::now() - Duration::minutes(5);
     let mut retry_task_run = create_test_task_run(2, 1, 1, TaskRunStatus::Pending);
     retry_task_run.scheduled_at = past_time;
     task_run_repo.add_task_run(retry_task_run).await;
-
-    // Create a retry task that's not ready yet
     let future_time = Utc::now() + Duration::minutes(5);
     let mut future_retry_task_run = create_test_task_run(3, 1, 1, TaskRunStatus::Pending);
     future_retry_task_run.scheduled_at = future_time;
@@ -699,19 +653,13 @@ async fn test_scan_retry_tasks() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test scanning for retry tasks
     let result = retry_service.scan_retry_tasks().await;
     assert!(result.is_ok());
 
     let retry_tasks = result.unwrap();
     assert_eq!(retry_tasks.len(), 1); // Only the ready task should be returned
-
-    // Verify message was sent to queue
     let messages = message_queue.get_messages().await;
     assert_eq!(messages.len(), 1);
-
-    // Verify task status was updated to dispatched
     let dispatched_task = task_run_repo.get_by_id(2).await.unwrap().unwrap();
     assert_eq!(dispatched_task.status, TaskRunStatus::Dispatched);
 }
@@ -738,20 +686,14 @@ async fn test_calculate_next_retry_time() {
     );
 
     let now = Utc::now();
-
-    // Test first retry (retry_count = 1)
     let retry_1_time = retry_service.calculate_next_retry_time(1);
     let diff_1 = retry_1_time - now;
     assert!(diff_1.num_seconds() >= 60); // Should be at least base interval
     assert!(diff_1.num_seconds() <= 120); // Should be around base * multiplier
-
-    // Test second retry (retry_count = 2)
     let retry_2_time = retry_service.calculate_next_retry_time(2);
     let diff_2 = retry_2_time - now;
     assert!(diff_2.num_seconds() >= 240); // Should be around base * multiplier^2
     assert!(diff_2.num_seconds() <= 300);
-
-    // Test that later retries don't exceed max interval
     let retry_10_time = retry_service.calculate_next_retry_time(10);
     let diff_10 = retry_10_time - now;
     assert!(diff_10.num_seconds() <= 3600); // Should not exceed max interval
@@ -771,8 +713,6 @@ async fn test_task_not_found_error() {
     let task_repo = Arc::new(MockTaskRepository::new());
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Create task run without corresponding task
     let task_run = create_test_task_run(1, 999, 1, TaskRunStatus::Failed); // task_id = 999 doesn't exist
     task_run_repo.add_task_run(task_run).await;
 
@@ -783,8 +723,6 @@ async fn test_task_not_found_error() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test should return error for non-existent task
     let result = retry_service.handle_failed_task(1).await;
     assert!(result.is_err());
 
@@ -808,8 +746,6 @@ async fn test_task_run_not_found_error() {
         "test_queue".to_string(),
         None,
     );
-
-    // Test should return error for non-existent task run
     let result = retry_service.handle_failed_task(999).await;
     assert!(result.is_err());
 

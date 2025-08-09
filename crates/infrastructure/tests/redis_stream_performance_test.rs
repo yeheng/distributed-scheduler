@@ -9,7 +9,6 @@ use std::time::{Duration, Instant};
 use tokio::sync::Barrier;
 use tokio::time::timeout;
 
-/// 性能测试：并发消息发布
 #[tokio::test]
 #[ignore] // 需要Redis服务器运行
 async fn test_concurrent_message_publishing() -> Result<()> {
@@ -30,11 +29,7 @@ async fn test_concurrent_message_publishing() -> Result<()> {
 
     let queue = Arc::new(RedisStreamMessageQueue::new(config).await?);
     let test_queue = "performance_test_queue";
-
-    // 清理测试队列
     let _ = queue.purge_queue(test_queue).await;
-
-    // 测试参数
     const NUM_WORKERS: usize = 10;
     const MESSAGES_PER_WORKER: usize = 100;
     const TOTAL_MESSAGES: usize = NUM_WORKERS * MESSAGES_PER_WORKER;
@@ -42,8 +37,6 @@ async fn test_concurrent_message_publishing() -> Result<()> {
     let barrier = Arc::new(Barrier::new(NUM_WORKERS));
     let published_count = Arc::new(AtomicU64::new(0));
     let start_time = Instant::now();
-
-    // 创建并发发布任务
     let mut handles = Vec::new();
     for worker_id in 0..NUM_WORKERS {
         let queue_clone = queue.clone();
@@ -52,7 +45,6 @@ async fn test_concurrent_message_publishing() -> Result<()> {
         let test_queue_clone = test_queue.to_string();
 
         let handle = tokio::spawn(async move {
-            // 等待所有worker准备就绪
             barrier_clone.wait().await;
 
             for msg_id in 0..MESSAGES_PER_WORKER {
@@ -95,16 +87,12 @@ async fn test_concurrent_message_publishing() -> Result<()> {
 
         handles.push(handle);
     }
-
-    // 等待所有任务完成
     for handle in handles {
         handle.await?;
     }
 
     let duration = start_time.elapsed();
     let final_count = published_count.load(Ordering::Relaxed);
-
-    // 验证结果
     println!("Performance Test Results:");
     println!("  Total messages: {}", TOTAL_MESSAGES);
     println!("  Successfully published: {}", final_count);
@@ -113,12 +101,8 @@ async fn test_concurrent_message_publishing() -> Result<()> {
         "  Messages per second: {:.2}",
         final_count as f64 / duration.as_secs_f64()
     );
-
-    // 验证队列大小
     let queue_size = queue.get_queue_size(test_queue).await?;
     println!("  Final queue size: {}", queue_size);
-
-    // 获取性能指标
     let metrics = queue.metrics();
     println!(
         "  Metrics - Published: {}, Errors: {}",
@@ -129,11 +113,7 @@ async fn test_concurrent_message_publishing() -> Result<()> {
             .connection_errors
             .load(std::sync::atomic::Ordering::Relaxed)
     );
-
-    // 清理
     queue.purge_queue(test_queue).await?;
-
-    // 断言
     assert!(
         final_count > 0,
         "Should have published at least some messages"
@@ -146,7 +126,6 @@ async fn test_concurrent_message_publishing() -> Result<()> {
     Ok(())
 }
 
-/// 性能测试：消息消费和确认
 #[tokio::test]
 #[ignore] // 需要Redis服务器运行
 async fn test_message_consumption_performance() -> Result<()> {
@@ -167,11 +146,7 @@ async fn test_message_consumption_performance() -> Result<()> {
 
     let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "consumption_performance_test_queue";
-
-    // 清理测试队列
     let _ = queue.purge_queue(test_queue).await;
-
-    // 预先发布测试消息
     const NUM_MESSAGES: usize = 500;
     println!("Publishing {} test messages...", NUM_MESSAGES);
 
@@ -202,16 +177,10 @@ async fn test_message_consumption_performance() -> Result<()> {
         publish_duration,
         NUM_MESSAGES as f64 / publish_duration.as_secs_f64()
     );
-
-    // 等待消息可用
     tokio::time::sleep(Duration::from_millis(100)).await;
-
-    // 测试消费性能
     let consume_start = Instant::now();
     let mut total_consumed = 0;
     let mut total_acked = 0;
-
-    // 分批消费消息
     while total_consumed < NUM_MESSAGES {
         let messages =
             timeout(Duration::from_secs(5), queue.consume_messages(test_queue)).await??;
@@ -226,8 +195,6 @@ async fn test_message_consumption_performance() -> Result<()> {
             messages.len(),
             total_consumed
         );
-
-        // 确认所有消息
         let ack_start = Instant::now();
         for message in messages {
             match timeout(Duration::from_secs(2), queue.ack_message(&message.id)).await {
@@ -244,16 +211,12 @@ async fn test_message_consumption_performance() -> Result<()> {
         }
         let ack_duration = ack_start.elapsed();
         println!("Acked batch in {:?}", ack_duration);
-
-        // 避免过于频繁的轮询
         if total_consumed < NUM_MESSAGES {
             tokio::time::sleep(Duration::from_millis(10)).await;
         }
     }
 
     let consume_duration = consume_start.elapsed();
-
-    // 输出结果
     println!("Consumption Performance Results:");
     println!("  Total consumed: {}", total_consumed);
     println!("  Total acked: {}", total_acked);
@@ -262,8 +225,6 @@ async fn test_message_consumption_performance() -> Result<()> {
         "  Consumption rate: {:.2} msg/s",
         total_consumed as f64 / consume_duration.as_secs_f64()
     );
-
-    // 获取最终指标
     let metrics = queue.metrics();
     println!("  Final metrics:");
     println!(
@@ -290,15 +251,9 @@ async fn test_message_consumption_performance() -> Result<()> {
             .connection_errors
             .load(std::sync::atomic::Ordering::Relaxed)
     );
-
-    // 验证队列为空
     let final_queue_size = queue.get_queue_size(test_queue).await?;
     println!("  Final queue size: {}", final_queue_size);
-
-    // 清理
     queue.purge_queue(test_queue).await?;
-
-    // 断言
     assert!(total_consumed > 0, "Should have consumed some messages");
     assert!(total_acked > 0, "Should have acked some messages");
     assert_eq!(
@@ -309,7 +264,6 @@ async fn test_message_consumption_performance() -> Result<()> {
     Ok(())
 }
 
-/// 性能测试：连接池效率
 #[tokio::test]
 #[ignore] // 需要Redis服务器运行
 async fn test_connection_pool_efficiency() -> Result<()> {
@@ -330,11 +284,7 @@ async fn test_connection_pool_efficiency() -> Result<()> {
 
     let queue = RedisStreamMessageQueue::new(config).await?;
     let test_queue = "connection_pool_test_queue";
-
-    // 清理测试队列
     let _ = queue.purge_queue(test_queue).await;
-
-    // 测试健康检查性能
     println!("Testing health check performance...");
     let health_start = Instant::now();
     const NUM_HEALTH_CHECKS: usize = 100;
@@ -353,22 +303,14 @@ async fn test_connection_pool_efficiency() -> Result<()> {
         health_duration,
         NUM_HEALTH_CHECKS as f64 / health_duration.as_secs_f64()
     );
-
-    // 测试队列操作性能
     println!("Testing queue operations performance...");
     let ops_start = Instant::now();
     const NUM_OPERATIONS: usize = 50;
 
     for i in 0..NUM_OPERATIONS {
         let queue_name = format!("temp_queue_{}", i);
-
-        // 创建队列
         queue.create_queue(&queue_name, true).await?;
-
-        // 获取队列大小
         let _size = queue.get_queue_size(&queue_name).await?;
-
-        // 删除队列
         queue.delete_queue(&queue_name).await?;
     }
 
@@ -379,8 +321,6 @@ async fn test_connection_pool_efficiency() -> Result<()> {
         ops_duration,
         (NUM_OPERATIONS * 3) as f64 / ops_duration.as_secs_f64()
     );
-
-    // 获取最终指标
     let metrics = queue.metrics();
     println!("Connection pool efficiency metrics:");
     println!(
@@ -395,14 +335,11 @@ async fn test_connection_pool_efficiency() -> Result<()> {
             .connection_errors
             .load(std::sync::atomic::Ordering::Relaxed)
     );
-
-    // 清理
     queue.purge_queue(test_queue).await?;
 
     Ok(())
 }
 
-/// 压力测试：高负载场景
 #[tokio::test]
 #[ignore] // 需要Redis服务器运行，且耗时较长
 async fn test_high_load_stress() -> Result<()> {
@@ -423,13 +360,9 @@ async fn test_high_load_stress() -> Result<()> {
 
     let queue = Arc::new(RedisStreamMessageQueue::new(config).await?);
     let test_queue = "stress_test_queue";
-
-    // 清理测试队列
     let _ = queue.purge_queue(test_queue).await;
 
     println!("Starting high load stress test...");
-
-    // 测试参数
     const NUM_PUBLISHERS: usize = 20;
     const NUM_CONSUMERS: usize = 10;
     const MESSAGES_PER_PUBLISHER: usize = 200;
@@ -439,8 +372,6 @@ async fn test_high_load_stress() -> Result<()> {
     let published_count = Arc::new(AtomicU64::new(0));
     let consumed_count = Arc::new(AtomicU64::new(0));
     let acked_count = Arc::new(AtomicU64::new(0));
-
-    // 启动发布者
     let mut publisher_handles = Vec::new();
     for publisher_id in 0..NUM_PUBLISHERS {
         let queue_clone = queue.clone();
@@ -487,16 +418,12 @@ async fn test_high_load_stress() -> Result<()> {
                         eprintln!("Publisher {} message {} timed out", publisher_id, msg_id);
                     }
                 }
-
-                // 小延迟避免过度压力
                 tokio::time::sleep(Duration::from_millis(1)).await;
             }
         });
 
         publisher_handles.push(handle);
     }
-
-    // 启动消费者
     let mut consumer_handles = Vec::new();
     for _consumer_id in 0..NUM_CONSUMERS {
         let queue_clone = queue.clone();
@@ -528,14 +455,12 @@ async fn test_high_load_stress() -> Result<()> {
                                         acked_count_clone.fetch_add(1, Ordering::Relaxed);
                                     }
                                     Ok(Err(_)) | Err(_) => {
-                                        // 忽略ACK错误，继续处理
                                     }
                                 }
                             }
                         }
                     }
                     Ok(Err(_)) | Err(_) => {
-                        // 忽略消费错误，继续尝试
                     }
                 }
 
@@ -545,11 +470,7 @@ async fn test_high_load_stress() -> Result<()> {
 
         consumer_handles.push(handle);
     }
-
-    // 等待测试完成
     tokio::time::sleep(Duration::from_secs(TEST_DURATION_SECS)).await;
-
-    // 等待所有任务完成
     for handle in publisher_handles {
         let _ = handle.await;
     }
@@ -561,8 +482,6 @@ async fn test_high_load_stress() -> Result<()> {
     let final_published = published_count.load(Ordering::Relaxed);
     let final_consumed = consumed_count.load(Ordering::Relaxed);
     let final_acked = acked_count.load(Ordering::Relaxed);
-
-    // 输出结果
     println!("Stress Test Results:");
     println!("  Test duration: {:?}", total_duration);
     println!("  Messages published: {}", final_published);
@@ -576,8 +495,6 @@ async fn test_high_load_stress() -> Result<()> {
         "  Consume rate: {:.2} msg/s",
         final_consumed as f64 / total_duration.as_secs_f64()
     );
-
-    // 获取最终指标
     let metrics = queue.metrics();
     println!("  Final metrics:");
     println!(
@@ -616,11 +533,7 @@ async fn test_high_load_stress() -> Result<()> {
             .active_connections
             .load(std::sync::atomic::Ordering::Relaxed)
     );
-
-    // 清理
     queue.purge_queue(test_queue).await?;
-
-    // 基本断言
     assert!(final_published > 0, "Should have published some messages");
     assert!(final_consumed > 0, "Should have consumed some messages");
 

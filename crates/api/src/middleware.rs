@@ -5,7 +5,6 @@ use tower_http::{
 };
 use tracing::info;
 
-/// 请求日志中间件
 pub async fn request_logging(request: Request, next: Next) -> Response {
     let method = request.method().clone();
     let uri = request.uri().clone();
@@ -27,7 +26,6 @@ pub async fn request_logging(request: Request, next: Next) -> Response {
     response
 }
 
-/// 创建CORS中间件
 pub fn cors_layer() -> CorsLayer {
     CorsLayer::new()
         .allow_origin(Any)
@@ -35,14 +33,12 @@ pub fn cors_layer() -> CorsLayer {
         .allow_headers(Any)
 }
 
-/// 创建追踪中间件
 pub fn trace_layer(
 ) -> TraceLayer<tower_http::classify::SharedClassifier<tower_http::classify::ServerErrorsAsFailures>>
 {
     TraceLayer::new_for_http()
 }
 
-/// 健康检查中间件 - 为健康检查端点提供快速响应
 pub async fn health_check_middleware(request: Request, next: Next) -> Response {
     if request.uri().path() == "/health" {
         return axum::response::Response::builder()

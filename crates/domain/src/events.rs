@@ -1,12 +1,8 @@
-//! 领域事件
-//!
-//! 领域事件定义，用于系统间解耦
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
-/// 领域事件基础trait
 pub trait DomainEvent: Send + Sync {
     fn event_id(&self) -> Uuid;
     fn event_type(&self) -> &str;
@@ -14,7 +10,6 @@ pub trait DomainEvent: Send + Sync {
     fn aggregate_id(&self) -> String;
 }
 
-/// 任务相关事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum TaskEvent {
     TaskCreated {
@@ -85,7 +80,6 @@ impl DomainEvent for TaskEvent {
     }
 }
 
-/// Worker相关事件
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub enum WorkerEvent {
     WorkerRegistered {

@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Dispatcher configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatcherConfig {
     pub enabled: bool,
@@ -11,7 +10,6 @@ pub struct DispatcherConfig {
 }
 
 impl DispatcherConfig {
-    /// Validate dispatcher configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.schedule_interval_seconds == 0 {
             return Err(anyhow::anyhow!("调度间隔必须大于0"));
@@ -38,7 +36,6 @@ impl DispatcherConfig {
     }
 }
 
-/// Worker configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerConfig {
     pub enabled: bool,
@@ -52,7 +49,6 @@ pub struct WorkerConfig {
 }
 
 impl WorkerConfig {
-    /// Validate worker configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.worker_id.is_empty() {
             return Err(anyhow::anyhow!("Worker ID不能为空"));
@@ -65,8 +61,6 @@ impl WorkerConfig {
         if self.ip_address.is_empty() {
             return Err(anyhow::anyhow!("IP地址不能为空"));
         }
-
-        // Simple IP address format validation
         if !self
             .ip_address
             .chars()

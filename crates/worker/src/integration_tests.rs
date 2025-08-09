@@ -13,7 +13,6 @@ use serde_json::json;
 use tokio::sync::{Mutex, RwLock};
 use tokio::time::sleep;
 
-/// 集成测试用的内存消息队列
 #[derive(Debug)]
 struct InMemoryMessageQueue {
     queues: Arc<RwLock<HashMap<String, Vec<Message>>>>,
@@ -54,8 +53,6 @@ impl MessageQueue for InMemoryMessageQueue {
     async fn consume_messages(&self, queue: &str) -> Result<Vec<Message>> {
         let mut queues = self.queues.write().await;
         let queue_messages = queues.entry(queue.to_string()).or_default();
-
-        // 只返回一个消息，模拟真实的消息队列行为
         if let Some(message) = queue_messages.pop() {
             Ok(vec![message])
         } else {
@@ -96,7 +93,6 @@ impl MessageQueue for InMemoryMessageQueue {
     }
 }
 
-/// 测试用的任务执行器
 #[derive(Debug)]
 struct TestTaskExecutor {
     name: String,
@@ -143,17 +139,11 @@ impl TestTaskExecutor {
 impl TaskExecutor for TestTaskExecutor {
     async fn execute(&self, task_run: &TaskRun) -> Result<TaskResult> {
         let start_time = std::time::Instant::now();
-
-        // 标记任务为运行中
         {
             let mut running_tasks = self.running_tasks.write().await;
             running_tasks.insert(task_run.id, true);
         }
-
-        // 模拟执行延迟
         sleep(Duration::from_millis(self.execution_delay_ms)).await;
-
-        // 检查任务是否被取消
         {
             let running_tasks = self.running_tasks.read().await;
             if !running_tasks.get(&task_run.id).unwrap_or(&true) {
@@ -185,7 +175,6 @@ impl TaskExecutor for TestTaskExecutor {
                 execution_time_ms: execution_time,
             },
             TestExecutionBehavior::Timeout => {
-                // 对于超时测试，我们让任务运行很长时间
                 sleep(Duration::from_secs(10)).await;
                 TaskResult {
                     success: true,
@@ -196,8 +185,6 @@ impl TaskExecutor for TestTaskExecutor {
                 }
             }
         };
-
-        // 移除运行标记
         {
             let mut running_tasks = self.running_tasks.write().await;
             running_tasks.remove(&task_run.id);
@@ -226,7 +213,6 @@ impl TaskExecutor for TestTaskExecutor {
     }
 }
 
-/// 创建测试用的Worker服务
 async fn create_test_worker_service(
     worker_id: &str,
     message_queue: Arc<dyn MessageQueue>,
@@ -249,7 +235,6 @@ async fn create_test_worker_service(
     .build()
 }
 
-/// 创建测试任务执行消息
 fn create_test_task_execution_message(
     task_run_id: i64,
     task_id: i64,
@@ -271,30 +256,17 @@ fn create_test_task_execution_message(
 
 #[tokio::test]
 async fn test_worker_service_task_execution_integration() {
-    // 创建消息队列和Worker服务
     let message_queue = Arc::new(InMemoryMessageQueue::new());
     let worker_service = create_test_worker_service("test-worker", message_queue.clone(), 5).await;
-
-    // 创建任务执行消息
     let task_message = create_test_task_execution_message(1, 100, "shell", 30);
     let message = Message::task_execution(task_message);
-
-    // 将消息添加到任务队列
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待任务执行完成
     sleep(Duration::from_millis(300)).await;
-
-    // 检查状态更新消息
     let status_messages = message_queue.get_queue_messages("status_queue").await;
     assert!(!status_messages.is_empty());
-
-    // 验证状态更新消息
     let mut running_found = false;
     let mut completed_found = false;
 
@@ -317,18 +289,13 @@ async fn test_worker_service_task_execution_integration() {
 
     assert!(running_found, "应该有运行状态更新");
     assert!(completed_found, "应该有完成状态更新");
-
-    // 验证任务不再在运行列表中
     assert_eq!(worker_service.get_current_task_count().await, 0);
 }
 
 #[tokio::test]
 async fn test_worker_service_concurrent_task_execution() {
-    // 创建消息队列和Worker服务（限制2个并发任务）
     let message_queue = Arc::new(InMemoryMessageQueue::new());
     let worker_service = create_test_worker_service("test-worker", message_queue.clone(), 2).await;
-
-    // 创建3个慢任务（每个需要500ms）
     for i in 1..=3 {
         let task_message = create_test_task_execution_message(i, 100 + i, "shell", 30);
         let message = Message::task_execution(task_message);
@@ -336,32 +303,22 @@ async fn test_worker_service_concurrent_task_execution() {
             .add_message_to_queue("task_queue", message)
             .await;
     }
-
-    // 多次轮询以确保所有任务都被处理
     for _ in 0..5 {
         assert!(worker_service.poll_and_execute_tasks().await.is_ok());
         sleep(Duration::from_millis(50)).await;
-
-        // 检查运行任务数量（应该不超过2个）
         let current_count = worker_service.get_current_task_count().await;
         assert!(
             current_count <= 2,
             "并发任务数不应超过限制: {}",
             current_count
         );
-
-        // 如果没有运行中的任务，说明都处理完了
         if current_count == 0 {
             break;
         }
 
         sleep(Duration::from_millis(100)).await;
     }
-
-    // 最终所有任务都应该完成
     assert_eq!(worker_service.get_current_task_count().await, 0);
-
-    // 检查状态更新消息（应该有3个任务的完成状态）
     let status_messages = message_queue.get_queue_messages("status_queue").await;
 
     let completed_count = status_messages
@@ -384,10 +341,7 @@ async fn test_worker_service_concurrent_task_execution() {
 
 #[tokio::test]
 async fn test_worker_service_task_timeout_handling() {
-    // 创建消息队列和Worker服务
     let message_queue = Arc::new(InMemoryMessageQueue::new());
-
-    // 创建一个会超时的执行器
     let timeout_executor = Arc::new(TestTaskExecutor::timeout("shell".to_string()));
 
     let worker_service = WorkerService::builder(
@@ -399,21 +353,13 @@ async fn test_worker_service_task_timeout_handling() {
     .max_concurrent_tasks(1)
     .register_executor(timeout_executor)
     .build();
-
-    // 创建一个短超时的任务（1秒超时，但执行器需要5秒）
     let task_message = create_test_task_execution_message(1, 100, "shell", 1);
     let message = Message::task_execution(task_message);
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待超时处理完成
     sleep(Duration::from_millis(1500)).await;
-
-    // 检查状态更新消息
     let status_messages = message_queue.get_queue_messages("status_queue").await;
 
     let timeout_found = status_messages.iter().any(|msg| {
@@ -434,10 +380,7 @@ async fn test_worker_service_task_timeout_handling() {
 
 #[tokio::test]
 async fn test_worker_service_task_failure_handling() {
-    // 创建消息队列和Worker服务
     let message_queue = Arc::new(InMemoryMessageQueue::new());
-
-    // 创建一个会失败的执行器
     let failure_executor = Arc::new(TestTaskExecutor::failure("shell".to_string()));
 
     let worker_service = WorkerService::builder(
@@ -448,21 +391,13 @@ async fn test_worker_service_task_failure_handling() {
     )
     .register_executor(failure_executor)
     .build();
-
-    // 创建任务执行消息
     let task_message = create_test_task_execution_message(1, 100, "shell", 30);
     let message = Message::task_execution(task_message);
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待任务执行完成
     sleep(Duration::from_millis(300)).await;
-
-    // 检查状态更新消息
     let status_messages = message_queue.get_queue_messages("status_queue").await;
 
     let failure_found = status_messages.iter().any(|msg| {
@@ -479,7 +414,6 @@ async fn test_worker_service_task_failure_handling() {
 
 #[tokio::test]
 async fn test_worker_service_unsupported_task_type() {
-    // 创建消息队列和Worker服务（只支持shell任务）
     let message_queue = Arc::new(InMemoryMessageQueue::new());
     let shell_executor = Arc::new(TestTaskExecutor::success("shell".to_string()));
 
@@ -491,21 +425,13 @@ async fn test_worker_service_unsupported_task_type() {
     )
     .register_executor(shell_executor)
     .build();
-
-    // 创建不支持的任务类型消息
     let task_message = create_test_task_execution_message(1, 100, "python", 30);
     let message = Message::task_execution(task_message);
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待处理完成
     sleep(Duration::from_millis(100)).await;
-
-    // 检查状态更新消息
     let status_messages = message_queue.get_queue_messages("status_queue").await;
 
     let unsupported_found = status_messages.iter().any(|msg| {
@@ -525,10 +451,7 @@ async fn test_worker_service_unsupported_task_type() {
 
 #[tokio::test]
 async fn test_worker_service_task_control_cancel() {
-    // 创建消息队列和Worker服务
     let message_queue = Arc::new(InMemoryMessageQueue::new());
-
-    // 创建一个慢执行器（用于测试取消）
     let slow_executor = Arc::new(TestTaskExecutor::slow_success("shell".to_string(), 2000));
 
     let worker_service = WorkerService::builder(
@@ -539,22 +462,14 @@ async fn test_worker_service_task_control_cancel() {
     )
     .register_executor(slow_executor)
     .build();
-
-    // 创建任务执行消息
     let task_message = create_test_task_execution_message(1, 100, "shell", 30);
     let message = Message::task_execution(task_message);
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待任务开始运行
     sleep(Duration::from_millis(100)).await;
     assert_eq!(worker_service.get_current_task_count().await, 1);
-
-    // 发送取消控制消息
     let control_message = TaskControlMessage {
         task_run_id: 1,
         action: TaskControlAction::Cancel,
@@ -565,17 +480,9 @@ async fn test_worker_service_task_control_cancel() {
     message_queue
         .add_message_to_queue("task_queue", control_msg)
         .await;
-
-    // 再次轮询处理控制消息
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待取消处理完成
     sleep(Duration::from_millis(500)).await;
-
-    // 检查任务是否被取消
     assert_eq!(worker_service.get_current_task_count().await, 0);
-
-    // 检查状态更新消息
     let status_messages = message_queue.get_queue_messages("status_queue").await;
 
     let cancel_found = status_messages.iter().any(|msg| {
@@ -595,7 +502,6 @@ async fn test_worker_service_task_control_cancel() {
 
 #[tokio::test]
 async fn test_worker_service_status_update_retry() {
-    // 创建一个会失败的消息队列（用于测试重试）
     #[derive(Debug)]
     struct FailingMessageQueue {
         inner: InMemoryMessageQueue,
@@ -616,10 +522,8 @@ async fn test_worker_service_status_update_retry() {
     #[async_trait]
     impl MessageQueue for FailingMessageQueue {
         async fn publish_message(&self, queue: &str, message: &Message) -> Result<()> {
-            // 只对状态更新消息进行失败模拟，并且只对完成状态的消息失败
             if queue == "status_queue" {
                 if let MessageType::StatusUpdate(status_update) = &message.message_type {
-                    // 只对完成状态的消息进行失败模拟
                     if status_update.status == TaskRunStatus::Completed {
                         let mut count = self.fail_count.lock().await;
                         if *count < self.max_failures {
@@ -661,29 +565,17 @@ async fn test_worker_service_status_update_retry() {
             self.inner.purge_queue(queue).await
         }
     }
-
-    // 创建会失败2次的消息队列
     let message_queue = Arc::new(FailingMessageQueue::new(2));
     let worker_service = create_test_worker_service("test-worker", message_queue.clone(), 1).await;
-
-    // 创建任务执行消息
     let task_message = create_test_task_execution_message(1, 100, "shell", 30);
     let message = Message::task_execution(task_message);
     message_queue
         .inner
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 轮询并执行任务
     assert!(worker_service.poll_and_execute_tasks().await.is_ok());
-
-    // 等待任务执行和重试完成
     sleep(Duration::from_millis(2000)).await;
-
-    // 检查最终是否有状态更新消息（重试成功）
     let status_messages = message_queue.inner.get_queue_messages("status_queue").await;
-
-    // 验证失败计数达到预期（应该失败2次然后成功）
     let fail_count = *message_queue.fail_count.lock().await;
 
     assert!(!status_messages.is_empty(), "重试后应该有状态更新消息");
@@ -692,50 +584,27 @@ async fn test_worker_service_status_update_retry() {
 
 #[tokio::test]
 async fn test_worker_service_start_stop_lifecycle() {
-    // 创建消息队列和Worker服务
     let message_queue = Arc::new(InMemoryMessageQueue::new());
     let worker_service = create_test_worker_service("test-worker", message_queue.clone(), 5).await;
-
-    // 测试启动
     assert!(worker_service.start().await.is_ok());
-
-    // 等待服务启动
     sleep(Duration::from_millis(100)).await;
-
-    // 添加一个任务
     let task_message = create_test_task_execution_message(1, 100, "shell", 30);
     let message = Message::task_execution(task_message);
     message_queue
         .add_message_to_queue("task_queue", message)
         .await;
-
-    // 等待任务被处理
     sleep(Duration::from_millis(500)).await;
-
-    // 检查任务是否被执行
     let status_messages = message_queue.get_queue_messages("status_queue").await;
     assert!(!status_messages.is_empty(), "任务应该被执行");
-
-    // 测试停止
     assert!(worker_service.stop().await.is_ok());
-
-    // 验证服务已停止（不再处理新任务）
     message_queue.clear_queue("status_queue").await;
     let task_message2 = create_test_task_execution_message(2, 101, "shell", 30);
     let message2 = Message::task_execution(task_message2);
     message_queue
         .add_message_to_queue("task_queue", message2)
         .await;
-
-    // 尝试轮询任务（应该不会处理，因为服务已停止）
-    // 注意：poll_and_execute_tasks 方法本身不检查服务状态，
-    // 但在实际使用中，停止的服务不会调用此方法
     sleep(Duration::from_millis(200)).await;
     let _status_messages_after_stop = message_queue.get_queue_messages("status_queue").await;
-
-    // 由于我们的测试实现中，poll_and_execute_tasks 不检查服务状态，
-    // 我们改为检查服务是否真的停止了（通过检查运行状态）
-    // 这里我们简单地验证没有新的任务在运行
     assert_eq!(
         worker_service.get_current_task_count().await,
         0,

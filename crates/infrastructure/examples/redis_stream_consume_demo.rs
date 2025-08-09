@@ -6,27 +6,12 @@ use serde_json::json;
 use std::time::Duration;
 use tokio::time::sleep;
 
-/// Demo showing Redis Stream message consumption functionality
-///
-/// This example demonstrates:
-/// 1. Creating a Redis Stream message queue
-/// 2. Publishing messages to a queue
-/// 3. Consuming messages from the queue
-/// 4. Consumer group management
-/// 5. Handling pending messages
-///
-/// To run this demo:
-/// 1. Start Redis server: `redis-server`
-/// 2. Run: `cargo run --example redis_stream_consume_demo`
 #[tokio::main]
 async fn main() -> Result<()> {
-    // Initialize logging
     tracing_subscriber::fmt::init();
 
     println!("🚀 Redis Stream Message Consumption Demo");
     println!("========================================");
-
-    // Create Redis Stream configuration
     let config = RedisStreamConfig {
         host: "127.0.0.1".to_string(),
         port: 6379,
@@ -41,18 +26,12 @@ async fn main() -> Result<()> {
         pool_max_open: 10,
         pool_timeout_seconds: 30,
     };
-
-    // Create message queue instance
     let queue = RedisStreamMessageQueue::new(config.clone()).await.unwrap();
     let demo_queue = "demo_consume_queue";
 
     println!("✅ Created Redis Stream message queue");
-
-    // Clean up any existing data
     let _ = queue.purge_queue(demo_queue).await;
     println!("🧹 Cleaned up existing queue data");
-
-    // Step 1: Create and publish test messages
     println!("\n📤 Publishing test messages...");
 
     let messages: Vec<Message> = (1..=5)
@@ -81,15 +60,9 @@ async fn main() -> Result<()> {
         queue.publish_message(demo_queue, message).await?;
         println!("  📨 Published message {}: {}", i + 1, message.id);
     }
-
-    // Wait a bit for messages to be available
     sleep(Duration::from_millis(100)).await;
-
-    // Step 2: Check queue size
     let queue_size = queue.get_queue_size(demo_queue).await?;
     println!("\n📊 Queue size: {} messages", queue_size);
-
-    // Step 3: Consume messages
     println!("\n📥 Consuming messages...");
 
     let consumed_messages = queue.consume_messages(demo_queue).await?;
@@ -112,24 +85,16 @@ async fn main() -> Result<()> {
             );
         }
     }
-
-    // Step 4: Try consuming again (should get pending messages)
     println!("\n🔄 Consuming again (should get pending messages)...");
 
     let pending_messages = queue.consume_messages(demo_queue).await?;
     println!("  📋 Found {} pending messages", pending_messages.len());
-
-    // Step 5: Demonstrate consumer group functionality
     println!("\n👥 Demonstrating consumer groups...");
-
-    // Create a second consumer with different ID
     let config2 = RedisStreamConfig {
         consumer_id: "demo_consumer_2".to_string(),
         ..config.clone()
     };
     let queue2 = RedisStreamMessageQueue::new(config2).await.unwrap();
-
-    // Publish more messages
     for i in 6..=8 {
         let task_execution = TaskExecutionMessage {
             task_run_id: 1000 + i,
@@ -152,8 +117,6 @@ async fn main() -> Result<()> {
     }
 
     sleep(Duration::from_millis(100)).await;
-
-    // Both consumers consume from the same group
     let consumer1_messages = queue.consume_messages(demo_queue).await?;
     let consumer2_messages = queue2.consume_messages(demo_queue).await?;
 
@@ -163,8 +126,6 @@ async fn main() -> Result<()> {
         "  📊 Total consumed: {} messages",
         consumer1_messages.len() + consumer2_messages.len()
     );
-
-    // Step 6: Clean up
     println!("\n🧹 Cleaning up...");
     queue.purge_queue(demo_queue).await?;
 

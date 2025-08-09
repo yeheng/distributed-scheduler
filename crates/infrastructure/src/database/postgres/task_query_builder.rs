@@ -1,52 +1,34 @@
-//! Task query builder - Handles dynamic SQL query construction for task filtering
-//!
-//! This component is responsible only for building SQL queries based on filter criteria.
 
 use scheduler_domain::entities::TaskFilter;
 use scheduler_domain::entities::TaskStatus;
 
-/// Task query builder - Handles dynamic SQL query construction for task filtering
-/// Follows SRP: Only responsible for building SQL queries
 pub struct TaskQueryBuilder;
 
 impl TaskQueryBuilder {
-    /// Build SELECT query based on filter criteria
     pub fn build_select_query(filter: &TaskFilter) -> (String, Vec<TaskQueryParam>) {
         let mut query = "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE 1=1".to_string();
         let mut params = Vec::new();
-
-        // Add status filter
         if let Some(status) = filter.status {
             query.push_str(" AND status = $");
             query.push_str(&(params.len() + 1).to_string());
             params.push(TaskQueryParam::Status(status));
         }
-
-        // Add task type filter
         if let Some(task_type) = &filter.task_type {
             query.push_str(" AND task_type = $");
             query.push_str(&(params.len() + 1).to_string());
             params.push(TaskQueryParam::String(task_type.clone()));
         }
-
-        // Add name pattern filter
         if let Some(name_pattern) = &filter.name_pattern {
             query.push_str(" AND name ILIKE $");
             query.push_str(&(params.len() + 1).to_string());
             params.push(TaskQueryParam::String(format!("%{name_pattern}%")));
         }
-
-        // Add ordering
         query.push_str(" ORDER BY created_at DESC");
-
-        // Add limit
         if let Some(limit) = filter.limit {
             query.push_str(" LIMIT $");
             query.push_str(&(params.len() + 1).to_string());
             params.push(TaskQueryParam::Int64(limit));
         }
-
-        // Add offset
         if let Some(offset) = filter.offset {
             query.push_str(" OFFSET $");
             query.push_str(&(params.len() + 1).to_string());
@@ -55,20 +37,15 @@ impl TaskQueryBuilder {
 
         (query, params)
     }
-
-    /// Build batch update query
     pub fn build_batch_update_query() -> String {
         "UPDATE tasks SET status = $1, updated_at = NOW() WHERE id = ANY($2)".to_string()
     }
-
-    /// Build dependency check query
     pub fn build_dependency_check_query() -> String {
         "SELECT status FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1"
             .to_string()
     }
 }
 
-/// Query parameter for task queries
 #[derive(Debug, Clone)]
 pub enum TaskQueryParam {
     String(String),
@@ -78,7 +55,6 @@ pub enum TaskQueryParam {
 }
 
 impl TaskQueryParam {
-    /// Get the SQL type name for the parameter
     pub fn type_name(&self) -> &'static str {
         match self {
             TaskQueryParam::String(_) => "TEXT",

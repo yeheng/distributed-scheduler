@@ -1,7 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// Worker实体
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct Worker {
     pub id: String,
@@ -17,7 +16,6 @@ pub struct Worker {
     pub updated_at: DateTime<Utc>,
 }
 
-/// Worker状态
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub enum WorkerStatus {
     Available,

@@ -1,8 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Redis Stream配置
-///
-/// 包含连接Redis服务器和配置消息队列行为所需的所有参数。
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedisStreamConfig {
     pub host: String,
@@ -14,7 +11,6 @@ pub struct RedisStreamConfig {
     pub retry_delay_seconds: u64,
     pub consumer_group_prefix: String,
     pub consumer_id: String,
-    // 连接池配置
     pub pool_min_idle: u32,
     pub pool_max_open: u32,
     pub pool_timeout_seconds: u64,
@@ -40,7 +36,6 @@ impl Default for RedisStreamConfig {
 }
 
 impl RedisStreamConfig {
-    /// 构建Redis连接URL
     pub fn build_connection_url(&self) -> String {
         if let Some(password) = &self.password {
             format!(

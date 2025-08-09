@@ -55,9 +55,6 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     info!("User login attempt: {}", request.username);
-
-    // 这里应该集成实际的用户认证系统
-    // 现在为演示目的使用简单的硬编码验证
     let (user_id, permissions) = validate_user_credentials(&request.username, &request.password)?;
 
     let jwt_service = JwtService::new(&state.auth_config.jwt_secret, state.auth_config.jwt_expiration_hours);
@@ -109,8 +106,6 @@ pub async fn create_api_key(
     current_user.require_permission(Permission::Admin)?;
 
     info!("Creating API key: {} for user: {}", request.name, current_user.user_id);
-
-    // 解析权限字符串
     let permissions: Result<Vec<Permission>, _> = request
         .permissions
         .iter()
@@ -119,17 +114,12 @@ pub async fn create_api_key(
 
     let permissions = permissions
         .map_err(|_| ApiError::BadRequest("Invalid permissions specified".to_string()))?;
-
-    // 生成API密钥
     let api_key = crate::auth::ApiKeyService::generate_api_key();
 
     let created_at = chrono::Utc::now();
     let expires_at = request.expires_in_days.map(|days| {
         created_at + chrono::Duration::days(days as i64)
     });
-
-    // 在实际应用中，这里应该将API密钥信息保存到数据库
-    // 目前只是返回响应
     
     let response = CreateApiKeyResponse {
         api_key: api_key.clone(),
@@ -150,7 +140,6 @@ pub async fn validate_token(
     let expires_at = match &current_user.auth_type {
         crate::auth::AuthType::Jwt(claims) => claims.exp,
         crate::auth::AuthType::ApiKey(_) => {
-            // API 密钥没有过期时间，返回一个远将来的时间戳
             (chrono::Utc::now() + chrono::Duration::days(365 * 10)).timestamp()
         }
     };
@@ -170,22 +159,9 @@ pub async fn logout(
 ) -> ApiResult<Json<ApiResponse<()>>> {
     info!("User {} logged out", current_user.user_id);
     
-    // 在实际应用中，这里可能需要:
-    // 1. 将JWT令牌加入黑名单
-    // 2. 记录登出事件
-    // 3. 清理相关的会话信息
-    
     Ok(Json(ApiResponse::success(())))
 }
-
-// 辅助函数：验证用户凭据 (演示用途)
 fn validate_user_credentials(username: &str, password: &str) -> ApiResult<(String, Vec<Permission>)> {
-    // 这是一个简化的演示实现
-    // 在生产环境中，应该:
-    // 1. 使用安全的密码散列 (bcrypt, argon2, 等)
-    // 2. 查询用户数据库
-    // 3. 实施账户锁定和速率限制
-    // 4. 记录认证尝试
     
     match username {
         "admin" => {

@@ -5,7 +5,6 @@ use testcontainers::{runners::AsyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, Duration};
 
-/// Database test container setup utility
 pub struct DatabaseTestContainer {
     #[allow(dead_code)]
     container: ContainerAsync<Postgres>,
@@ -13,9 +12,7 @@ pub struct DatabaseTestContainer {
 }
 
 impl DatabaseTestContainer {
-    /// Create a new test database container
     pub async fn new() -> Result<Self> {
-        // Start PostgreSQL container
         let postgres_image = Postgres::default()
             .with_db_name("scheduler_test")
             .with_user("test_user")
@@ -29,8 +26,6 @@ impl DatabaseTestContainer {
             "postgresql://test_user:test_password@localhost:{}/scheduler_test",
             port
         );
-
-        // Wait for database to be ready
         let mut retry_count = 0;
         let pool = loop {
             match PgPool::connect(&database_url).await {
@@ -46,10 +41,7 @@ impl DatabaseTestContainer {
 
         Ok(Self { container, pool })
     }
-
-    /// Run database migrations
     pub async fn run_migrations(&self) -> Result<()> {
-        // Run the migration files manually since we can't access the migrations directory directly
         self.create_tasks_table().await?;
         self.create_task_runs_table().await?;
         self.create_workers_table().await?;
@@ -58,8 +50,6 @@ impl DatabaseTestContainer {
         self.create_indexes().await?;
         Ok(())
     }
-
-    /// Create tasks table
     async fn create_tasks_table(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -87,8 +77,6 @@ impl DatabaseTestContainer {
         .await?;
         Ok(())
     }
-
-    /// Create task_runs table
     async fn create_task_runs_table(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -124,8 +112,6 @@ impl DatabaseTestContainer {
         .await?;
         Ok(())
     }
-
-    /// Create workers table
     async fn create_workers_table(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -149,8 +135,6 @@ impl DatabaseTestContainer {
         .await?;
         Ok(())
     }
-
-    /// Create task dependencies table
     async fn create_task_dependencies_table(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -169,8 +153,6 @@ impl DatabaseTestContainer {
         .await?;
         Ok(())
     }
-
-    /// Create task locks table
     async fn create_task_locks_table(&self) -> Result<()> {
         sqlx::query(
             r#"
@@ -186,8 +168,6 @@ impl DatabaseTestContainer {
         .await?;
         Ok(())
     }
-
-    /// Create database indexes
     async fn create_indexes(&self) -> Result<()> {
         let indexes = vec![
             "CREATE INDEX idx_tasks_schedule_status ON tasks(schedule, status) WHERE status = 'ACTIVE'",
@@ -201,8 +181,6 @@ impl DatabaseTestContainer {
         }
         Ok(())
     }
-
-    /// Clean all tables for test isolation
     pub async fn clean_tables(&self) -> Result<()> {
         let tables = vec!["task_runs", "tasks", "workers"];
 
@@ -216,8 +194,6 @@ impl DatabaseTestContainer {
         }
         Ok(())
     }
-
-    /// Insert test data for tasks
     pub async fn insert_test_task(
         &self,
         name: &str,
@@ -239,8 +215,6 @@ impl DatabaseTestContainer {
 
         Ok(row.get("id"))
     }
-
-    /// Insert test data for task runs
     pub async fn _insert_test_task_run(
         &self,
         task_id: i64,
@@ -262,8 +236,6 @@ impl DatabaseTestContainer {
 
         Ok(row.get("id"))
     }
-
-    /// Insert test data for workers
     pub async fn _insert_test_worker(
         &self,
         worker_id: &str,
@@ -284,8 +256,6 @@ impl DatabaseTestContainer {
 
         Ok(())
     }
-
-    /// Get table row count for testing
     pub async fn get_table_count(&self, table_name: &str) -> Result<i64> {
         let row = sqlx::query(&format!("SELECT COUNT(*) as count FROM {}", table_name))
             .fetch_one(&self.pool)
@@ -293,10 +263,7 @@ impl DatabaseTestContainer {
 
         Ok(row.get("count"))
     }
-
-    /// Verify database connection and schema
     pub async fn verify_setup(&self) -> Result<bool> {
-        // Check if all tables exist
         let tables_query = r#"
             SELECT table_name 
             FROM information_schema.tables 
@@ -339,8 +306,6 @@ mod tests {
             .verify_setup()
             .await
             .expect("Failed to verify setup"));
-
-        // Test basic operations
         let task_id = container
             .insert_test_task("test_task", "shell", "0 0 * * *")
             .await

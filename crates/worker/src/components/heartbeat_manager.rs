@@ -11,8 +11,6 @@ use tracing::{error, info};
 
 use super::DispatcherClient;
 
-/// Heartbeat manager - Handles heartbeat and status reporting
-/// Follows SRP: Only responsible for heartbeat and status management
 pub struct HeartbeatManager {
     worker_id: String,
     service_locator: Arc<ServiceLocator>,
@@ -37,8 +35,6 @@ impl HeartbeatManager {
             dispatcher_client,
         }
     }
-
-    /// Start heartbeat task
     pub async fn start_heartbeat_task(
         &self,
         mut shutdown_rx: broadcast::Receiver<()>,
@@ -57,12 +53,9 @@ impl HeartbeatManager {
             loop {
                 tokio::select! {
                     _ = heartbeat_interval.tick() => {
-                        // Send message queue heartbeat
                         if let Err(e) = Self::send_message_queue_heartbeat(&service_locator, &worker_id).await {
                             error!("Failed to send message queue heartbeat: {}", e);
                         }
-
-                        // Send dispatcher heartbeat
                         let current_task_count = get_task_count().await;
                         if let Err(e) = dispatcher_client.send_heartbeat(current_task_count).await {
                             error!("Failed to send dispatcher heartbeat: {}", e);
@@ -78,12 +71,8 @@ impl HeartbeatManager {
 
         Ok(())
     }
-
-    /// Send status update
     pub async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         let message_queue = self.service_locator.message_queue().await?;
-
-        // Convert TaskStatusUpdate to StatusUpdateMessage
         let status_message = StatusUpdateMessage {
             task_run_id: update.task_run_id,
             status: update.status,
@@ -104,8 +93,6 @@ impl HeartbeatManager {
             .publish_message(&self.status_queue, &message)
             .await
     }
-
-    /// Helper function to send message queue heartbeat
     async fn send_message_queue_heartbeat(
         service_locator: &ServiceLocator,
         worker_id: &str,

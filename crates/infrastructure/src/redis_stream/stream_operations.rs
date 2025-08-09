@@ -7,9 +7,6 @@ use super::config::RedisStreamConfig;
 use super::connection_manager::RedisConnectionManager;
 use super::metrics_collector::RedisStreamMetrics;
 
-/// Redis Stream操作管理器
-///
-/// 负责Stream的创建、删除、查询等基础操作
 pub struct RedisStreamOperations {
     connection_manager: Arc<RedisConnectionManager>,
     config: RedisStreamConfig,
@@ -17,7 +14,6 @@ pub struct RedisStreamOperations {
 }
 
 impl RedisStreamOperations {
-    /// 创建新的Stream操作管理器
     pub fn new(
         connection_manager: Arc<RedisConnectionManager>,
         config: RedisStreamConfig,
@@ -29,16 +25,10 @@ impl RedisStreamOperations {
             metrics,
         }
     }
-
-    /// 创建队列（Stream）
     pub async fn create_queue(&self, queue_name: &str, durable: bool) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Creating queue: {} (durable: {})", queue_name, durable);
-
-        // 确保Stream存在
         self.ensure_stream_exists(queue_name).await?;
-
-        // 创建消费者组
         let group_name = self.get_consumer_group_name(queue_name);
         self.ensure_consumer_group_exists(queue_name, &group_name)
             .await?;
@@ -53,19 +43,13 @@ impl RedisStreamOperations {
         );
         Ok(())
     }
-
-    /// 删除队列（Stream）
     pub async fn delete_queue(&self, queue_name: &str) -> SchedulerResult<()> {
         let start = Instant::now();
         debug!("Deleting queue: {}", queue_name);
-
-        // 删除消费者组
         let group_name = self.get_consumer_group_name(queue_name);
         if let Err(e) = self.delete_consumer_group(queue_name, &group_name).await {
             warn!("Failed to delete consumer group {}: {}", group_name, e);
         }
-
-        // 删除Stream
         let mut cmd = redis::cmd("DEL");
         cmd.arg(queue_name);
         let deleted_count: i64 = self.connection_manager.execute_command(&mut cmd).await?;
@@ -85,8 +69,6 @@ impl RedisStreamOperations {
 
         Ok(())
     }
-
-    /// 获取队列大小
     pub async fn get_queue_size(&self, queue_name: &str) -> SchedulerResult<u64> {
         let start = Instant::now();
         debug!("Getting size of queue: {}", queue_name);
@@ -105,21 +87,13 @@ impl RedisStreamOperations {
         );
         Ok(size)
     }
-
-    /// 清空队列
     pub async fn purge_queue(&self, queue_name: &str) -> SchedulerResult<u64> {
         let start = Instant::now();
         debug!("Purging queue: {}", queue_name);
-
-        // 获取清空前的大小
         let original_size = self.get_queue_size(queue_name).await?;
-
-        // 删除Stream（这会删除所有消息）
         let mut cmd = redis::cmd("DEL");
         cmd.arg(queue_name);
         let _: i64 = self.connection_manager.execute_command(&mut cmd).await?;
-
-        // 重新创建Stream和消费者组
         self.ensure_stream_exists(queue_name).await?;
         let group_name = self.get_consumer_group_name(queue_name);
         self.ensure_consumer_group_exists(queue_name, &group_name)
@@ -135,12 +109,8 @@ impl RedisStreamOperations {
         );
         Ok(original_size)
     }
-
-    /// 确保Stream存在
     pub async fn ensure_stream_exists(&self, stream_name: &str) -> SchedulerResult<()> {
         debug!("Ensuring stream exists: {}", stream_name);
-
-        // 尝试获取Stream信息
         let mut cmd = redis::cmd("XINFO");
         cmd.arg("STREAM").arg(stream_name);
 
@@ -154,14 +124,11 @@ impl RedisStreamOperations {
                 Ok(())
             }
             Err(_) => {
-                // Stream不存在，创建一个空的Stream
                 debug!("Stream {} does not exist, creating it", stream_name);
                 self.create_empty_stream(stream_name).await
             }
         }
     }
-
-    /// 确保消费者组存在
     pub async fn ensure_consumer_group_exists(
         &self,
         stream_name: &str,
@@ -201,19 +168,14 @@ impl RedisStreamOperations {
             }
         }
     }
-
-    // 私有辅助方法
     fn get_consumer_group_name(&self, queue_name: &str) -> String {
         format!("{}_{}", self.config.consumer_group_prefix, queue_name)
     }
 
     async fn create_empty_stream(&self, stream_name: &str) -> SchedulerResult<()> {
-        // 添加一个临时消息然后删除，以创建Stream
         let mut cmd = redis::cmd("XADD");
         cmd.arg(stream_name).arg("*").arg("temp").arg("value");
         let temp_id: String = self.connection_manager.execute_command(&mut cmd).await?;
-
-        // 删除临时消息
         let mut del_cmd = redis::cmd("XDEL");
         del_cmd.arg(stream_name).arg(&temp_id);
         let _: i64 = self

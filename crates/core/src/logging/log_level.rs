@@ -1,17 +1,11 @@
 use std::str::FromStr;
 
-/// Log level
 #[derive(Debug, Clone, Copy, PartialEq, Eq, PartialOrd, Ord, Hash, serde::Serialize, serde::Deserialize)]
 pub enum LogLevel {
-    /// Trace level - Very detailed logging
     Trace = 0,
-    /// Debug level - Debug information
     Debug = 1,
-    /// Info level - General information
     Info = 2,
-    /// Warn level - Warning messages
     Warn = 3,
-    /// Error level - Error messages
     Error = 4,
 }
 
@@ -33,14 +27,11 @@ impl FromStr for LogLevel {
 }
 
 impl LogLevel {
-    /// Get current log level from environment variable
     pub fn from_env() -> Self {
         std::env::var("LOG_LEVEL")
             .map(|s| s.parse().unwrap_or(Self::Info))
             .unwrap_or(Self::Info)
     }
-
-    /// Convert to string
     pub fn as_str(&self) -> &'static str {
         match self {
             LogLevel::Trace => "TRACE",

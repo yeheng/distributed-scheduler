@@ -4,7 +4,6 @@ use uuid::Uuid;
 
 use super::{TaskResult, TaskRunStatus};
 
-/// 消息队列中的统一消息结构
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Message {
     pub id: String,
@@ -15,7 +14,6 @@ pub struct Message {
     pub correlation_id: Option<String>,
 }
 
-/// 消息类型枚举
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type")]
 pub enum MessageType {
@@ -25,7 +23,6 @@ pub enum MessageType {
     TaskControl(TaskControlMessage),
 }
 
-/// 任务执行消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskExecutionMessage {
     pub task_run_id: i64,
@@ -39,7 +36,6 @@ pub struct TaskExecutionMessage {
     pub shard_total: Option<i32>,
 }
 
-/// 状态更新消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct StatusUpdateMessage {
     pub task_run_id: i64,
@@ -50,7 +46,6 @@ pub struct StatusUpdateMessage {
     pub timestamp: DateTime<Utc>,
 }
 
-/// Worker心跳消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct WorkerHeartbeatMessage {
     pub worker_id: String,
@@ -60,7 +55,6 @@ pub struct WorkerHeartbeatMessage {
     pub timestamp: DateTime<Utc>,
 }
 
-/// 任务控制消息
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskControlMessage {
     pub task_run_id: i64,
@@ -69,7 +63,6 @@ pub struct TaskControlMessage {
     pub timestamp: DateTime<Utc>,
 }
 
-/// 任务控制动作
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
 pub enum TaskControlAction {
     Pause,
@@ -79,7 +72,6 @@ pub enum TaskControlAction {
 }
 
 impl Message {
-    /// 创建任务执行消息
     pub fn task_execution(message: TaskExecutionMessage) -> Self {
         let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
@@ -91,8 +83,6 @@ impl Message {
             correlation_id: None,
         }
     }
-
-    /// 创建状态更新消息
     pub fn status_update(message: StatusUpdateMessage) -> Self {
         let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
@@ -104,8 +94,6 @@ impl Message {
             correlation_id: None,
         }
     }
-
-    /// 创建Worker心跳消息
     pub fn worker_heartbeat(message: WorkerHeartbeatMessage) -> Self {
         let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
@@ -117,8 +105,6 @@ impl Message {
             correlation_id: None,
         }
     }
-
-    /// 创建任务控制消息
     pub fn task_control(message: TaskControlMessage) -> Self {
         let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
         Self {
@@ -130,44 +116,28 @@ impl Message {
             correlation_id: None,
         }
     }
-
-    /// 增加重试次数
     pub fn increment_retry(&mut self) {
         self.retry_count += 1;
     }
-
-    /// 设置关联ID
     pub fn with_correlation_id(mut self, correlation_id: String) -> Self {
         self.correlation_id = Some(correlation_id);
         self
     }
-
-    /// 检查是否超过最大重试次数
     pub fn is_retry_exhausted(&self, max_retries: i32) -> bool {
         self.retry_count >= max_retries
     }
-
-    /// 序列化消息为JSON字符串
     pub fn serialize(&self) -> Result<String, serde_json::Error> {
         serde_json::to_string(self)
     }
-
-    /// 从JSON字符串反序列化消息
     pub fn deserialize(json: &str) -> Result<Self, serde_json::Error> {
         serde_json::from_str(json)
     }
-
-    /// 序列化消息为字节数组
     pub fn serialize_bytes(&self) -> Result<Vec<u8>, serde_json::Error> {
         serde_json::to_vec(self)
     }
-
-    /// 从字节数组反序列化消息
     pub fn deserialize_bytes(bytes: &[u8]) -> Result<Self, serde_json::Error> {
         serde_json::from_slice(bytes)
     }
-
-    /// 获取消息类型的字符串表示
     pub fn message_type_str(&self) -> &'static str {
         match &self.message_type {
             MessageType::TaskExecution(_) => "task_execution",
@@ -176,8 +146,6 @@ impl Message {
             MessageType::TaskControl(_) => "task_control",
         }
     }
-
-    /// 获取消息的路由键（用于消息队列路由）
     pub fn routing_key(&self) -> String {
         match &self.message_type {
             MessageType::TaskExecution(msg) => format!("task.execution.{}", msg.task_type),
@@ -315,8 +283,6 @@ mod tests {
         };
 
         let original_message = Message::task_execution(task_execution);
-
-        // Test JSON string serialization
         let json_str = original_message
             .serialize()
             .expect("Failed to serialize to JSON");
@@ -332,8 +298,6 @@ mod tests {
             original_message.message_type_str(),
             deserialized_message.message_type_str()
         );
-
-        // Test bytes serialization
         let bytes = original_message
             .serialize_bytes()
             .expect("Failed to serialize to bytes");
@@ -362,17 +326,11 @@ mod tests {
         };
 
         let mut message = Message::task_execution(task_execution);
-
-        // Test initial retry count
         assert_eq!(message.retry_count, 0);
         assert!(!message.is_retry_exhausted(3));
-
-        // Test increment retry
         message.increment_retry();
         assert_eq!(message.retry_count, 1);
         assert!(!message.is_retry_exhausted(3));
-
-        // Test retry exhaustion
         message.increment_retry();
         message.increment_retry();
         assert_eq!(message.retry_count, 3);
@@ -401,7 +359,6 @@ mod tests {
 
     #[test]
     fn test_message_routing_keys() {
-        // Test TaskExecution routing key
         let task_execution = TaskExecutionMessage {
             task_run_id: 123,
             task_id: 456,
@@ -415,8 +372,6 @@ mod tests {
         };
         let task_message = Message::task_execution(task_execution);
         assert_eq!(task_message.routing_key(), "task.execution.shell");
-
-        // Test StatusUpdate routing key
         let status_update = StatusUpdateMessage {
             task_run_id: 789,
             status: TaskRunStatus::Running,
@@ -427,8 +382,6 @@ mod tests {
         };
         let status_message = Message::status_update(status_update);
         assert_eq!(status_message.routing_key(), "status.update.worker-001");
-
-        // Test WorkerHeartbeat routing key
         let heartbeat = WorkerHeartbeatMessage {
             worker_id: "worker-002".to_string(),
             current_task_count: 5,
@@ -441,8 +394,6 @@ mod tests {
             heartbeat_message.routing_key(),
             "worker.heartbeat.worker-002"
         );
-
-        // Test TaskControl routing key
         let control = TaskControlMessage {
             task_run_id: 999,
             action: TaskControlAction::Pause,
@@ -471,8 +422,6 @@ mod tests {
             };
 
             let message = Message::task_control(control);
-
-            // Verify the action is properly serialized and accessible
             if let MessageType::TaskControl(msg) = &message.message_type {
                 assert_eq!(msg.action, action);
             } else {
@@ -496,8 +445,6 @@ mod tests {
         };
 
         let message = Message::task_execution(task_execution.clone());
-
-        // Verify that payload contains the same data as the message_type
         let expected_payload = serde_json::to_value(&task_execution).unwrap();
         assert_eq!(message.payload, expected_payload);
     }

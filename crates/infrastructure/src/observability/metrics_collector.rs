@@ -1,26 +1,16 @@
-//! Metrics collector for the distributed scheduler system
-//!
-//! This module provides comprehensive metrics collection and reporting
-//! capabilities using OpenTelemetry and the metrics crate.
 
 use anyhow::Result;
 use metrics::{counter, gauge, histogram, Counter, Gauge, Histogram};
 use tracing::{info, warn};
 
-/// Metrics collector for the distributed scheduler system
 pub struct MetricsCollector {
-    // Task execution metrics
     task_executions_total: Counter,
     task_execution_duration: Histogram,
     task_failures_total: Counter,
     task_retries_total: Counter,
-
-    // Worker metrics
     active_workers: Gauge,
     worker_task_capacity: Gauge,
     worker_current_load: Gauge,
-
-    // System performance metrics
     queue_depth: Gauge,
     dispatcher_scheduling_duration: Histogram,
     database_operation_duration: Histogram,
@@ -28,9 +18,7 @@ pub struct MetricsCollector {
 }
 
 impl MetricsCollector {
-    /// Initialize the metrics collector with OpenTelemetry
     pub fn new() -> Result<Self> {
-        // Initialize metrics
         let task_executions_total = counter!("scheduler_task_executions_total");
         let task_execution_duration = histogram!("scheduler_task_execution_duration_seconds");
         let task_failures_total = counter!("scheduler_task_failures_total");
@@ -62,10 +50,6 @@ impl MetricsCollector {
             message_queue_operation_duration,
         })
     }
-
-    // Task execution metrics
-
-    /// Record a task execution completion
     pub fn record_task_execution(&self, task_type: &str, status: &str, duration_seconds: f64) {
         self.task_executions_total.increment(1);
         self.task_execution_duration.record(duration_seconds);
@@ -77,8 +61,6 @@ impl MetricsCollector {
             "Task execution completed"
         );
     }
-
-    /// Record a task failure
     pub fn record_task_failure(&self, task_type: &str, error_type: &str) {
         self.task_failures_total.increment(1);
 
@@ -88,8 +70,6 @@ impl MetricsCollector {
             "Task execution failed"
         );
     }
-
-    /// Record a task retry
     pub fn record_task_retry(&self, task_type: &str, retry_count: u32) {
         self.task_retries_total.increment(1);
 
@@ -99,15 +79,9 @@ impl MetricsCollector {
             "Task retry initiated"
         );
     }
-
-    // Worker metrics
-
-    /// Update the number of active workers
     pub fn update_active_workers(&self, count: f64) {
         self.active_workers.set(count);
     }
-
-    /// Update worker task capacity
     pub fn update_worker_capacity(&self, worker_id: &str, capacity: f64) {
         self.worker_task_capacity.set(capacity);
 
@@ -117,8 +91,6 @@ impl MetricsCollector {
             "Worker capacity updated"
         );
     }
-
-    /// Update worker current load
     pub fn update_worker_load(&self, worker_id: &str, current_load: f64) {
         self.worker_current_load.set(current_load);
 
@@ -128,20 +100,12 @@ impl MetricsCollector {
             "Worker load updated"
         );
     }
-
-    // System performance metrics
-
-    /// Update queue depth
     pub fn update_queue_depth(&self, depth: f64) {
         self.queue_depth.set(depth);
     }
-
-    /// Record dispatcher scheduling operation duration
     pub fn record_scheduling_duration(&self, duration_seconds: f64) {
         self.dispatcher_scheduling_duration.record(duration_seconds);
     }
-
-    /// Record database operation duration
     pub fn record_database_operation(&self, operation: &str, duration_seconds: f64) {
         self.database_operation_duration.record(duration_seconds);
 
@@ -151,8 +115,6 @@ impl MetricsCollector {
             "Database operation completed"
         );
     }
-
-    /// Record message queue operation duration
     pub fn record_message_queue_operation(&self, operation: &str, duration_seconds: f64) {
         self.message_queue_operation_duration
             .record(duration_seconds);

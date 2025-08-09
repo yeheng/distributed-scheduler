@@ -11,15 +11,12 @@ use scheduler_infrastructure::database::postgres::{
 mod database_test_utils;
 use database_test_utils::DatabaseTestContainer;
 
-/// Integration tests for PostgresTaskRepository
 #[tokio::test]
 async fn test_postgres_task_repository_crud() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
 
     let repo = PostgresTaskRepository::new(container.pool.clone());
-
-    // Test create task
     let task = Task {
         id: 0,
         name: "integration_test_task".to_string(),
@@ -39,15 +36,11 @@ async fn test_postgres_task_repository_crud() -> Result<()> {
     assert!(created_task.id > 0);
     assert_eq!(created_task.name, task.name);
     assert_eq!(created_task.task_type, task.task_type);
-
-    // Test get task
     let retrieved_task = repo.get_by_id(created_task.id).await?;
     assert!(retrieved_task.is_some());
     let retrieved_task = retrieved_task.unwrap();
     assert_eq!(retrieved_task.id, created_task.id);
     assert_eq!(retrieved_task.name, created_task.name);
-
-    // Test update task
     let mut updated_task = retrieved_task.clone();
     updated_task.name = "updated_integration_test_task".to_string();
     updated_task.max_retries = 5;
@@ -59,8 +52,6 @@ async fn test_postgres_task_repository_crud() -> Result<()> {
     let retrieved_updated_task = retrieved_updated_task.unwrap();
     assert_eq!(retrieved_updated_task.name, "updated_integration_test_task");
     assert_eq!(retrieved_updated_task.max_retries, 5);
-
-    // Test list tasks
     let filter = TaskFilter {
         status: Some(TaskStatus::Active),
         task_type: Some("shell".to_string()),
@@ -72,28 +63,21 @@ async fn test_postgres_task_repository_crud() -> Result<()> {
     let tasks = repo.list(&filter).await?;
     assert!(!tasks.is_empty());
     assert!(tasks.iter().any(|t| t.id == created_task.id));
-
-    // Test get active tasks
     let active_tasks = repo.get_active_tasks().await?;
     assert!(!active_tasks.is_empty());
 
     Ok(())
 }
 
-/// Integration tests for PostgresTaskRunRepository
 #[tokio::test]
 async fn test_postgres_task_run_repository_crud() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
-
-    // First create a task to reference
     let task_id = container
         .insert_test_task("test_task", "shell", "0 0 * * *")
         .await?;
 
     let repo = PostgresTaskRunRepository::new(container.pool.clone());
-
-    // Test create task run
     let task_run = TaskRun {
         id: 0,
         task_id,
@@ -114,17 +98,11 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
     assert!(created_task_run.id > 0);
     assert_eq!(created_task_run.task_id, task_id);
     assert_eq!(created_task_run.status, TaskRunStatus::Pending);
-
-    // Test update task run status
     repo.update_status(created_task_run.id, TaskRunStatus::Running, None)
         .await?;
-
-    // Verify the status was updated
     let updated_run = repo.get_by_id(created_task_run.id).await?;
     assert!(updated_run.is_some());
     assert_eq!(updated_run.unwrap().status, TaskRunStatus::Running);
-
-    // Test update with result
     repo.update_status(created_task_run.id, TaskRunStatus::Completed, None)
         .await?;
 
@@ -143,8 +121,6 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
         completed_run.result,
         Some("Task completed successfully".to_string())
     );
-
-    // Test get pending task runs
     let pending_task_run = TaskRun {
         id: 0,
         task_id,
@@ -165,8 +141,6 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
     let pending_runs = repo.get_pending_runs(None).await?;
     assert!(!pending_runs.is_empty());
     assert!(pending_runs.iter().any(|tr| tr.id == pending_run.id));
-
-    // Test get running tasks for worker
     repo.update_status(
         pending_run.id,
         TaskRunStatus::Running,
@@ -181,15 +155,12 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
     Ok(())
 }
 
-/// Integration tests for PostgresWorkerRepository  
 #[tokio::test]
 async fn test_postgres_worker_repository_crud() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
 
     let repo = PostgresWorkerRepository::new(container.pool.clone());
-
-    // Test create/register worker
     let worker = WorkerInfo {
         id: "integration_test_worker".to_string(),
         hostname: "test-host".to_string(),
@@ -203,8 +174,6 @@ async fn test_postgres_worker_repository_crud() -> Result<()> {
     };
 
     repo.register(&worker).await?;
-
-    // Test get worker
     let retrieved_worker = repo.get_by_id(&worker.id).await?;
     assert!(retrieved_worker.is_some());
     let retrieved_worker = retrieved_worker.unwrap();
@@ -214,23 +183,16 @@ async fn test_postgres_worker_repository_crud() -> Result<()> {
         retrieved_worker.supported_task_types,
         worker.supported_task_types
     );
-
-    // Test update worker heartbeat
     let new_heartbeat = Utc::now();
     repo.update_heartbeat(&worker.id, new_heartbeat, 2).await?;
 
     let updated_worker = repo.get_by_id(&worker.id).await?;
     assert!(updated_worker.is_some());
     let updated_worker = updated_worker.unwrap();
-    // Note: Due to precision differences, we check if the heartbeat is close
     assert!(updated_worker.last_heartbeat >= new_heartbeat - chrono::Duration::seconds(1));
-
-    // Test list active workers
     let active_workers = repo.get_alive_workers().await?;
     assert!(!active_workers.is_empty());
     assert!(active_workers.iter().any(|w| w.id == worker.id));
-
-    // Test mark worker as down
     repo.update_status(&worker.id, WorkerStatus::Down).await?;
 
     let down_worker = repo.get_by_id(&worker.id).await?;
@@ -240,7 +202,6 @@ async fn test_postgres_worker_repository_crud() -> Result<()> {
     Ok(())
 }
 
-/// Performance test for repository operations
 #[tokio::test]
 async fn test_repository_performance() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
@@ -249,8 +210,6 @@ async fn test_repository_performance() -> Result<()> {
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
 
     let start = std::time::Instant::now();
-
-    // Create multiple tasks concurrently
     let tasks: Vec<Task> = (0..50)
         .map(|i| Task {
             id: 0,
@@ -283,8 +242,6 @@ async fn test_repository_performance() -> Result<()> {
         successful_creates, create_duration
     );
     assert!(successful_creates > 45); // Allow for some failures in concurrent operations
-
-    // Test bulk query performance
     let query_start = std::time::Instant::now();
 
     let filter = TaskFilter {
@@ -305,7 +262,6 @@ async fn test_repository_performance() -> Result<()> {
     Ok(())
 }
 
-/// Test repository error handling
 #[tokio::test]
 async fn test_repository_error_handling() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
@@ -314,20 +270,12 @@ async fn test_repository_error_handling() -> Result<()> {
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
     let task_run_repo = PostgresTaskRunRepository::new(container.pool.clone());
     let worker_repo = PostgresWorkerRepository::new(container.pool.clone());
-
-    // Test get non-existent task
     let non_existent_task = task_repo.get_by_id(99999).await?;
     assert!(non_existent_task.is_none());
-
-    // Test get non-existent task run
     let non_existent_task_run = task_run_repo.get_by_id(99999).await?;
     assert!(non_existent_task_run.is_none());
-
-    // Test get non-existent worker
     let non_existent_worker = worker_repo.get_by_id("non_existent_worker").await?;
     assert!(non_existent_worker.is_none());
-
-    // Test create task run with invalid task_id
     let invalid_task_run = TaskRun {
         id: 0,
         task_id: 99999, // Non-existent task ID
@@ -346,8 +294,6 @@ async fn test_repository_error_handling() -> Result<()> {
 
     let result = task_run_repo.create(&invalid_task_run).await;
     assert!(result.is_err()); // Should fail due to foreign key constraint
-
-    // Test update non-existent task
     let non_existent_task_update = Task {
         id: 99999,
         name: "non_existent".to_string(),
@@ -365,18 +311,12 @@ async fn test_repository_error_handling() -> Result<()> {
 
     let update_result = task_repo.update(&non_existent_task_update).await;
     assert!(update_result.is_err()); // Should fail because task doesn't exist
-
-    // Test delete non-existent task
     let delete_result = task_repo.delete(99999).await;
     assert!(delete_result.is_err()); // Should fail because task doesn't exist
-
-    // Test update status of non-existent task run
     let status_update_result = task_run_repo
         .update_status(99999, TaskRunStatus::Running, Some("worker1"))
         .await;
     assert!(status_update_result.is_err()); // Should fail because task run doesn't exist
-
-    // Test update non-existent worker status
     let worker_status_result = worker_repo
         .update_status("non_existent_worker", WorkerStatus::Down)
         .await;
@@ -385,15 +325,12 @@ async fn test_repository_error_handling() -> Result<()> {
     Ok(())
 }
 
-/// Test task dependencies functionality
 #[tokio::test]
 async fn test_task_dependencies() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
 
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
-
-    // Create parent task
     let parent_task = Task {
         id: 0,
         name: "parent_task".to_string(),
@@ -410,8 +347,6 @@ async fn test_task_dependencies() -> Result<()> {
     };
 
     let created_parent = task_repo.create(&parent_task).await?;
-
-    // Create child task with dependency
     let child_task = Task {
         id: 0,
         name: "child_task".to_string(),
@@ -428,28 +363,21 @@ async fn test_task_dependencies() -> Result<()> {
     };
 
     let created_child = task_repo.create(&child_task).await?;
-
-    // Test get dependencies
     let dependencies = task_repo.get_dependencies(created_child.id).await?;
     assert_eq!(dependencies.len(), 1);
     assert_eq!(dependencies[0].id, created_parent.id);
-
-    // Test check dependencies (should fail initially)
     let deps_satisfied = task_repo.check_dependencies(created_child.id).await?;
     assert!(!deps_satisfied); // No successful runs of parent task yet
 
     Ok(())
 }
 
-/// Test worker load statistics
 #[tokio::test]
 async fn test_worker_load_stats() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
 
     let worker_repo = PostgresWorkerRepository::new(container.pool.clone());
-
-    // Register test worker
     let worker = WorkerInfo {
         id: "load_test_worker".to_string(),
         hostname: "load-test-host".to_string(),
@@ -463,8 +391,6 @@ async fn test_worker_load_stats() -> Result<()> {
     };
 
     worker_repo.register(&worker).await?;
-
-    // Get load statistics
     let stats = worker_repo.get_worker_load_stats().await?;
     let worker_stats = stats.iter().find(|s| s.worker_id == worker.id);
     assert!(worker_stats.is_some());
@@ -473,22 +399,17 @@ async fn test_worker_load_stats() -> Result<()> {
     assert_eq!(worker_stats.max_concurrent_tasks, 10);
     assert_eq!(worker_stats.current_task_count, 0);
     assert_eq!(worker_stats.load_percentage, 0.0);
-
-    // Test cleanup
     worker_repo.unregister(&worker.id).await?;
 
     Ok(())
 }
 
-/// Test task filtering and pagination
 #[tokio::test]
 async fn test_task_filtering_and_pagination() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
     container.run_migrations().await?;
 
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
-
-    // Create multiple tasks with different types and statuses
     let tasks_data = vec![
         ("shell_task_1", "shell", TaskStatus::Active),
         ("shell_task_2", "shell", TaskStatus::Inactive),
@@ -513,8 +434,6 @@ async fn test_task_filtering_and_pagination() -> Result<()> {
         };
         task_repo.create(&task).await?;
     }
-
-    // Test filter by status
     let active_filter = TaskFilter {
         status: Some(TaskStatus::Active),
         task_type: None,
@@ -524,8 +443,6 @@ async fn test_task_filtering_and_pagination() -> Result<()> {
     };
     let active_tasks = task_repo.list(&active_filter).await?;
     assert!(active_tasks.len() >= 3); // At least 3 active tasks
-
-    // Test filter by task type
     let shell_filter = TaskFilter {
         status: None,
         task_type: Some("shell".to_string()),
@@ -535,8 +452,6 @@ async fn test_task_filtering_and_pagination() -> Result<()> {
     };
     let shell_tasks = task_repo.list(&shell_filter).await?;
     assert!(shell_tasks.len() >= 2); // At least 2 shell tasks
-
-    // Test name pattern filter
     let name_filter = TaskFilter {
         status: None,
         task_type: None,
@@ -546,8 +461,6 @@ async fn test_task_filtering_and_pagination() -> Result<()> {
     };
     let name_filtered_tasks = task_repo.list(&name_filter).await?;
     assert!(name_filtered_tasks.len() >= 2); // At least 2 tasks with "shell" in name
-
-    // Test pagination
     let paginated_filter = TaskFilter {
         status: Some(TaskStatus::Active),
         task_type: None,
@@ -561,7 +474,6 @@ async fn test_task_filtering_and_pagination() -> Result<()> {
     Ok(())
 }
 
-/// Test concurrent operations
 #[tokio::test]
 async fn test_concurrent_operations() -> Result<()> {
     let container = DatabaseTestContainer::new().await?;
@@ -569,8 +481,6 @@ async fn test_concurrent_operations() -> Result<()> {
 
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
     let task_run_repo = PostgresTaskRunRepository::new(container.pool.clone());
-
-    // Create a task first
     let task = Task {
         id: 0,
         name: "concurrent_test_task".to_string(),
@@ -587,8 +497,6 @@ async fn test_concurrent_operations() -> Result<()> {
     };
 
     let created_task = task_repo.create(&task).await?;
-
-    // Create multiple task runs concurrently
     let task_runs: Vec<TaskRun> = (0..10)
         .map(|i| TaskRun {
             id: 0,
@@ -614,8 +522,6 @@ async fn test_concurrent_operations() -> Result<()> {
 
     let results = futures::future::join_all(futures).await;
     let successful_creates = results.into_iter().filter(|r| r.is_ok()).count();
-
-    // Should create most or all task runs successfully
     assert!(successful_creates >= 8);
 
     Ok(())

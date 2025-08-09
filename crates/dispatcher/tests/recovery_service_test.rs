@@ -14,8 +14,6 @@ use scheduler_core::{
 use scheduler_dispatcher::recovery_service::{
     RecoveryConfig, RecoveryService, SystemRecoveryService,
 };
-
-// Reuse mock implementations from retry_service_test
 #[derive(Debug, Clone)]
 pub struct MockTaskRepository {
     tasks: Arc<Mutex<HashMap<i64, Task>>>,
@@ -516,8 +514,6 @@ impl MessageQueue for MockMessageQueue {
     }
 }
 
-// Helper functions for creating test data
-
 fn create_test_task_run(
     id: i64,
     task_id: i64,
@@ -557,15 +553,11 @@ fn create_test_worker(id: &str, status: WorkerStatus, last_heartbeat: DateTime<U
     }
 }
 
-// Test cases
-
 #[tokio::test]
 async fn test_recover_running_tasks_with_alive_worker() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let now = Utc::now();
     let worker = create_test_worker("worker-1", WorkerStatus::Alive, now - Duration::seconds(30));
     worker_repo.add_worker(worker).await;
@@ -575,8 +567,6 @@ async fn test_recover_running_tasks_with_alive_worker() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
@@ -589,8 +579,6 @@ async fn test_recover_running_tasks_with_timeout_worker() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data - worker with timeout heartbeat
     let now = Utc::now();
     let worker = create_test_worker(
         "worker-1",
@@ -604,15 +592,11 @@ async fn test_recover_running_tasks_with_timeout_worker() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
     let recovered_tasks = result.unwrap();
     assert_eq!(recovered_tasks.len(), 1); // Task should be marked as failed
-
-    // Verify task was marked as failed
     let updated_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(updated_task.status, TaskRunStatus::Failed);
     assert!(updated_task.error_message.is_some());
@@ -623,8 +607,6 @@ async fn test_recover_running_tasks_with_down_worker() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data - worker marked as down
     let now = Utc::now();
     let worker = create_test_worker("worker-1", WorkerStatus::Down, now - Duration::seconds(60));
     worker_repo.add_worker(worker).await;
@@ -634,15 +616,11 @@ async fn test_recover_running_tasks_with_down_worker() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
     let recovered_tasks = result.unwrap();
     assert_eq!(recovered_tasks.len(), 1); // Task should be marked as failed
-
-    // Verify task was marked as failed
     let updated_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(updated_task.status, TaskRunStatus::Failed);
     assert!(updated_task.error_message.is_some());
@@ -653,8 +631,6 @@ async fn test_recover_running_tasks_with_missing_worker() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data - task with non-existent worker
     let task_run = create_test_task_run(
         1,
         1,
@@ -665,15 +641,11 @@ async fn test_recover_running_tasks_with_missing_worker() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
     let recovered_tasks = result.unwrap();
     assert_eq!(recovered_tasks.len(), 1); // Task should be marked as failed
-
-    // Verify task was marked as failed
     let updated_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(updated_task.status, TaskRunStatus::Failed);
     assert!(updated_task.error_message.is_some());
@@ -684,32 +656,22 @@ async fn test_recover_dispatched_tasks() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data - old dispatched task
     let old_time = Utc::now() - Duration::seconds(400); // 400 seconds ago
     let mut task_run = create_test_task_run(1, 1, TaskRunStatus::Dispatched, None);
     task_run.created_at = old_time;
     task_run_repo.add_task_run(task_run).await;
-
-    // Recent dispatched task
     let recent_task_run = create_test_task_run(2, 1, TaskRunStatus::Dispatched, None);
     task_run_repo.add_task_run(recent_task_run).await;
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
     let recovered_tasks = result.unwrap();
     assert_eq!(recovered_tasks.len(), 1); // Only old task should be recovered
-
-    // Verify old task was reset to pending
     let updated_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(updated_task.status, TaskRunStatus::Pending);
-
-    // Verify recent task remains dispatched
     let recent_task = task_run_repo.get_by_id(2).await.unwrap().unwrap();
     assert_eq!(recent_task.status, TaskRunStatus::Dispatched);
 }
@@ -719,44 +681,30 @@ async fn test_recover_worker_states() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let now = Utc::now();
-
-    // Alive worker with recent heartbeat
     let alive_worker =
         create_test_worker("worker-1", WorkerStatus::Alive, now - Duration::seconds(30));
     worker_repo.add_worker(alive_worker).await;
-
-    // Alive worker with timeout heartbeat
     let timeout_worker = create_test_worker(
         "worker-2",
         WorkerStatus::Alive,
         now - Duration::seconds(120),
     );
     worker_repo.add_worker(timeout_worker).await;
-
-    // Already down worker
     let down_worker =
         create_test_worker("worker-3", WorkerStatus::Down, now - Duration::seconds(200));
     worker_repo.add_worker(down_worker).await;
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo.clone(), message_queue, None);
-
-    // Test recovery
     let result = recovery_service.recover_worker_states().await;
     assert!(result.is_ok());
 
     let failed_workers = result.unwrap();
     assert_eq!(failed_workers.len(), 1); // Only worker-2 should be marked as failed
     assert_eq!(failed_workers[0], "worker-2");
-
-    // Verify worker-2 was marked as down
     let updated_worker = worker_repo.get_by_id("worker-2").await.unwrap().unwrap();
     assert_eq!(updated_worker.status, WorkerStatus::Down);
-
-    // Verify worker-1 remains alive
     let alive_worker = worker_repo.get_by_id("worker-1").await.unwrap().unwrap();
     assert_eq!(alive_worker.status, WorkerStatus::Alive);
 }
@@ -766,24 +714,16 @@ async fn test_recover_system_state() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let now = Utc::now();
-
-    // Timeout worker
     let timeout_worker = create_test_worker(
         "worker-1",
         WorkerStatus::Alive,
         now - Duration::seconds(120),
     );
     worker_repo.add_worker(timeout_worker).await;
-
-    // Running task on timeout worker
     let running_task =
         create_test_task_run(1, 1, TaskRunStatus::Running, Some("worker-1".to_string()));
     task_run_repo.add_task_run(running_task).await;
-
-    // Old dispatched task
     let old_time = Utc::now() - Duration::seconds(400);
     let mut dispatched_task = create_test_task_run(2, 1, TaskRunStatus::Dispatched, None);
     dispatched_task.created_at = old_time;
@@ -795,8 +735,6 @@ async fn test_recover_system_state() {
         message_queue,
         None,
     );
-
-    // Test system recovery
     let result = recovery_service.recover_system_state().await;
     assert!(result.is_ok());
 
@@ -814,8 +752,6 @@ async fn test_database_reconnection_success() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, None);
-
-    // Test successful reconnection
     let result = recovery_service.reconnect_database().await;
     assert!(result.is_ok());
 }
@@ -825,8 +761,6 @@ async fn test_database_reconnection_failure() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Set database to fail
     task_run_repo.set_should_fail(true).await;
 
     let config = RecoveryConfig {
@@ -837,8 +771,6 @@ async fn test_database_reconnection_failure() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, Some(config));
-
-    // Test failed reconnection
     let result = recovery_service.reconnect_database().await;
     assert!(result.is_err());
 
@@ -857,8 +789,6 @@ async fn test_message_queue_reconnection_success() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, None);
-
-    // Test successful reconnection
     let result = recovery_service.reconnect_message_queue().await;
     assert!(result.is_ok());
 }
@@ -868,8 +798,6 @@ async fn test_message_queue_reconnection_failure() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Set message queue to fail
     message_queue.set_should_fail(true).await;
 
     let config = RecoveryConfig {
@@ -880,8 +808,6 @@ async fn test_message_queue_reconnection_failure() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, Some(config));
-
-    // Test failed reconnection
     let result = recovery_service.reconnect_message_queue().await;
     assert!(result.is_err());
 
@@ -897,8 +823,6 @@ async fn test_check_system_health() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Setup test data
     let now = Utc::now();
     let worker = create_test_worker("worker-1", WorkerStatus::Alive, now);
     worker_repo.add_worker(worker).await;
@@ -912,8 +836,6 @@ async fn test_check_system_health() {
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, None);
-
-    // Test health check
     let result = recovery_service.check_system_health().await;
     assert!(result.is_ok());
 
@@ -930,15 +852,11 @@ async fn test_check_system_health_with_failures() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-
-    // Set components to fail
     task_run_repo.set_should_fail(true).await;
     message_queue.set_should_fail(true).await;
 
     let recovery_service =
         SystemRecoveryService::new(task_run_repo, worker_repo, message_queue, None);
-
-    // Test health check with failures
     let result = recovery_service.check_system_health().await;
     assert!(result.is_ok());
 

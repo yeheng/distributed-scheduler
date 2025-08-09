@@ -14,20 +14,12 @@ use super::{
     task_query_builder::{TaskQueryBuilder, TaskQueryParam},
 };
 
-/// Refactored PostgreSQL任务仓储实现
-///
-/// 这个重构版本使用了专门的组件来处理：
-/// - 查询构建 (TaskQueryBuilder)
-/// - 依赖检查 (TaskDependencyChecker)
-///
-/// 这遵循了单一职责原则，每个组件只负责一个特定的功能。
 pub struct PostgresTaskRepository {
     pool: PgPool,
     dependency_checker: TaskDependencyChecker,
 }
 
 impl PostgresTaskRepository {
-    /// 创建新的PostgreSQL任务仓储
     pub fn new(pool: PgPool) -> Self {
         let dependency_checker = TaskDependencyChecker::new(pool.clone());
         Self {
@@ -35,8 +27,6 @@ impl PostgresTaskRepository {
             dependency_checker,
         }
     }
-
-    /// 将数据库行转换为Task模型
     fn row_to_task(row: &sqlx::postgres::PgRow) -> SchedulerResult<Task> {
         let dependencies: Vec<i64> = row
             .try_get::<Vec<i64>, _>("dependencies")
@@ -63,8 +53,6 @@ impl PostgresTaskRepository {
             updated_at: row.try_get("updated_at")?,
         })
     }
-
-    /// 绑定查询参数到SQL查询
     fn bind_query_params<'q>(
         &'q self,
         mut query: sqlx::query::Query<'q, sqlx::Postgres, sqlx::postgres::PgArguments>,
@@ -90,7 +78,6 @@ impl PostgresTaskRepository {
 
 #[async_trait]
 impl TaskRepository for PostgresTaskRepository {
-    /// 创建新任务
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
         let shard_config_json = task
             .shard_config
@@ -126,8 +113,6 @@ impl TaskRepository for PostgresTaskRepository {
         );
         Ok(created_task)
     }
-
-    /// 根据ID获取任务
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
@@ -142,8 +127,6 @@ impl TaskRepository for PostgresTaskRepository {
             None => Ok(None),
         }
     }
-
-    /// 根据名称获取任务
     async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE name = $1"
@@ -158,8 +141,6 @@ impl TaskRepository for PostgresTaskRepository {
             None => Ok(None),
         }
     }
-
-    /// 更新任务
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
         let shard_config_json = task
             .shard_config
@@ -198,8 +179,6 @@ impl TaskRepository for PostgresTaskRepository {
         debug!("更新任务成功: {} (ID: {})", task.name, task.id);
         Ok(())
     }
-
-    /// 删除任务
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
         let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
             .bind(id)
@@ -214,8 +193,6 @@ impl TaskRepository for PostgresTaskRepository {
         debug!("删除任务成功: ID {}", id);
         Ok(())
     }
-
-    /// 根据过滤条件查询任务列表
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
         let (query, params) = TaskQueryBuilder::build_select_query(filter);
 
@@ -230,8 +207,6 @@ impl TaskRepository for PostgresTaskRepository {
         let tasks: SchedulerResult<Vec<Task>> = rows.iter().map(Self::row_to_task).collect();
         tasks
     }
-
-    /// 获取所有活跃任务
     async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
         let filter = TaskFilter {
             status: Some(TaskStatus::Active),
@@ -239,27 +214,18 @@ impl TaskRepository for PostgresTaskRepository {
         };
         self.list(&filter).await
     }
-
-    /// 获取需要调度的任务（活跃且到达调度时间）
     async fn get_schedulable_tasks(
         &self,
         _current_time: DateTime<Utc>,
     ) -> SchedulerResult<Vec<Task>> {
-        // 这里简化实现，实际应该解析cron表达式判断是否到达调度时间
         self.get_active_tasks().await
     }
-
-    /// 检查任务依赖是否满足
     async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
         self.dependency_checker.check_dependencies(task_id).await
     }
-
-    /// 获取任务的依赖列表
     async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         self.dependency_checker.get_dependencies(task_id).await
     }
-
-    /// 批量更新任务状态
     async fn batch_update_status(
         &self,
         task_ids: &[i64],

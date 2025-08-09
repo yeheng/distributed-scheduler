@@ -5,13 +5,11 @@ use tracing::{debug, warn};
 
 use scheduler_core::{SchedulerError, SchedulerResult};
 
-/// CRON表达式解析和调度工具
 pub struct CronScheduler {
     schedule: Schedule,
 }
 
 impl CronScheduler {
-    /// 创建新的CRON调度器
     pub fn new(cron_expr: &str) -> SchedulerResult<Self> {
         let schedule = Schedule::from_str(cron_expr).map_err(|e| SchedulerError::InvalidCron {
             expr: cron_expr.to_string(),
@@ -20,12 +18,9 @@ impl CronScheduler {
 
         Ok(Self { schedule })
     }
-
-    /// 检查给定时间是否应该触发任务
     pub fn should_trigger(&self, last_run: Option<DateTime<Utc>>, now: DateTime<Utc>) -> bool {
         match last_run {
             Some(last) => {
-                // 从上次执行时间之后开始查找下一次执行时间
                 if let Some(next_time) = self.schedule.after(&last).next() {
                     let should_trigger = next_time <= now;
                     if should_trigger {
@@ -46,8 +41,6 @@ impl CronScheduler {
                 }
             }
             None => {
-                // 如果从未执行过，检查当前时间是否匹配CRON表达式
-                // 我们需要检查从一个较早的时间点开始，看是否有执行时间已经到了
                 let check_from = now - Duration::minutes(1);
                 if let Some(next_time) = self.schedule.after(&check_from).next() {
                     let should_trigger = next_time <= now;
@@ -66,18 +59,12 @@ impl CronScheduler {
             }
         }
     }
-
-    /// 获取下一次执行时间
     pub fn next_execution_time(&self, from: DateTime<Utc>) -> Option<DateTime<Utc>> {
         self.schedule.after(&from).next()
     }
-
-    /// 获取从指定时间开始的多个执行时间
     pub fn upcoming_times(&self, from: DateTime<Utc>, count: usize) -> Vec<DateTime<Utc>> {
         self.schedule.after(&from).take(count).collect()
     }
-
-    /// 验证CRON表达式是否有效
     pub fn validate_cron_expression(cron_expr: &str) -> SchedulerResult<()> {
         Schedule::from_str(cron_expr).map_err(|e| SchedulerError::InvalidCron {
             expr: cron_expr.to_string(),
@@ -85,8 +72,6 @@ impl CronScheduler {
         })?;
         Ok(())
     }
-
-    /// 检查任务是否已过期（超过预期执行时间太久）
     pub fn is_task_overdue(
         &self,
         last_run: Option<DateTime<Utc>>,
@@ -104,7 +89,6 @@ impl CronScheduler {
                 }
             }
             None => {
-                // 对于从未执行的任务，检查是否有很久之前就应该执行的时间点
                 let check_from = now - Duration::hours(24); // 检查过去24小时
                 if let Some(expected_time) = self.schedule.after(&check_from).next() {
                     let grace_period = Duration::minutes(grace_period_minutes);
@@ -116,10 +100,7 @@ impl CronScheduler {
             }
         }
     }
-
-    /// 获取任务的执行频率描述
     pub fn get_frequency_description(&self) -> String {
-        // 这是一个简化的实现，实际中可能需要更复杂的逻辑来解析CRON表达式
         let upcoming = self.upcoming_times(Utc::now(), 2);
         if upcoming.len() >= 2 {
             let interval = upcoming[1] - upcoming[0];
@@ -136,13 +117,9 @@ impl CronScheduler {
             "无法确定频率".to_string()
         }
     }
-
-    /// 计算下次执行时间距离现在的时长
     pub fn time_until_next_execution(&self, now: DateTime<Utc>) -> Option<Duration> {
         self.schedule.after(&now).next().map(|next| next - now)
     }
-
-    /// 检查CRON表达式是否会在合理的时间内执行
     pub fn will_execute_within(&self, from: DateTime<Utc>, duration: Duration) -> bool {
         if let Some(next_time) = self.schedule.after(&from).next() {
             next_time <= from + duration

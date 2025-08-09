@@ -13,7 +13,6 @@ use testcontainers_modules::postgres::Postgres;
 use tokio::net::TcpListener;
 use tokio::time::{sleep, Duration};
 
-/// 测试应用状态
 pub struct TestApp {
     pub address: String,
     pub db_pool: PgPool,
@@ -22,9 +21,7 @@ pub struct TestApp {
 }
 
 impl TestApp {
-    /// 启动测试应用
     pub async fn spawn() -> TestApp {
-        // Start PostgreSQL container
         let postgres_image = Postgres::default()
             .with_db_name("scheduler_test")
             .with_user("test_user")
@@ -44,8 +41,6 @@ impl TestApp {
             "postgresql://test_user:test_password@localhost:{}/scheduler_test",
             port
         );
-
-        // Wait for database to be ready
         let mut retry_count = 0;
         let db_pool = loop {
             match PgPool::connect(&database_url).await {
@@ -58,33 +53,23 @@ impl TestApp {
                 Err(e) => panic!("Failed to connect to test database: {}", e),
             }
         };
-
-        // 运行数据库迁移
         sqlx::migrate!("../../migrations")
             .run(&db_pool)
             .await
             .expect("Failed to run migrations");
-
-        // 创建仓储实例
         let task_repo: Arc<dyn TaskRepository> =
             Arc::new(PostgresTaskRepository::new(db_pool.clone()));
         let task_run_repo: Arc<dyn TaskRunRepository> =
             Arc::new(PostgresTaskRunRepository::new(db_pool.clone()));
         let worker_repo: Arc<dyn WorkerRepository> =
             Arc::new(PostgresWorkerRepository::new(db_pool.clone()));
-
-        // 创建模拟的任务控制服务
         let task_controller: Arc<dyn TaskControlService> = Arc::new(MockTaskControlService);
-
-        // 创建默认认证配置
         let auth_config = Arc::new(scheduler_api::auth::AuthConfig {
             enabled: false,
             jwt_secret: "test-secret".to_string(),
             api_keys: std::collections::HashMap::new(),
             jwt_expiration_hours: 24,
         });
-
-        // 创建应用状态
         let app_state = AppState {
             task_repo,
             task_run_repo,
@@ -92,11 +77,7 @@ impl TestApp {
             task_controller,
             auth_config,
         };
-
-        // 创建路由
         let app = create_routes(app_state);
-
-        // 启动测试服务器
         let listener = TcpListener::bind("127.0.0.1:0")
             .await
             .expect("Failed to bind random port");
@@ -114,8 +95,6 @@ impl TestApp {
             container,
         }
     }
-
-    /// 清理测试数据
     pub async fn cleanup(&self) {
         sqlx::query("TRUNCATE TABLE task_runs, tasks, workers RESTART IDENTITY CASCADE")
             .execute(&self.db_pool)
@@ -124,7 +103,6 @@ impl TestApp {
     }
 }
 
-/// 模拟任务控制服务
 struct MockTaskControlService;
 
 #[async_trait::async_trait]

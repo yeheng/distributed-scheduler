@@ -224,8 +224,6 @@ fn test_redis_config_functionality() {
     assert!(redis_config.has_password());
     assert_eq!(redis_config.build_url(), "redis://:secret@localhost:6379/0");
     assert!(redis_config.validate().is_ok());
-
-    // Test without password
     let redis_config_no_password = RedisConfig {
         password: None,
         ..redis_config
@@ -241,14 +239,10 @@ fn test_redis_config_functionality() {
 #[test]
 fn test_message_queue_type_detection() {
     let mut mq_config = MessageQueueConfig::default();
-
-    // Test RabbitMQ detection
     mq_config.r#type = crate::config::models::MessageQueueType::Rabbitmq;
     mq_config.url = "redis://localhost:6379".to_string();
     assert!(mq_config.is_rabbitmq());
     assert!(!mq_config.is_redis_stream());
-
-    // Test Redis Stream detection
     mq_config.r#type = crate::config::models::MessageQueueType::RedisStream;
     mq_config.url = "redis://localhost:6379".to_string();
     assert!(!mq_config.is_rabbitmq());

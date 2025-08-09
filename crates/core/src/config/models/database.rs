@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Database configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DatabaseConfig {
     pub url: String,
@@ -11,7 +10,6 @@ pub struct DatabaseConfig {
 }
 
 impl DatabaseConfig {
-    /// Validate database configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.url.is_empty() {
             return Err(anyhow::anyhow!("数据库URL不能为空"));

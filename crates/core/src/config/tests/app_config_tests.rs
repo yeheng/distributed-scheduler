@@ -4,8 +4,6 @@ use crate::config::models::AppConfig;
 fn test_default_config() {
     let config = AppConfig::default();
     assert!(config.validate().is_ok());
-
-    // 验证默认值
     assert_eq!(config.database.max_connections, 10);
     assert!(config.dispatcher.enabled);
     assert!(!config.worker.enabled);
@@ -84,8 +82,6 @@ log_level = "debug"
 fn test_config_to_toml() {
     let config = AppConfig::default();
     let toml_str = config.to_toml().unwrap();
-
-    // Should be valid TOML that can be parsed back
     let parsed_config = AppConfig::from_toml(&toml_str).unwrap();
     assert_eq!(config.database.url, parsed_config.database.url);
     assert_eq!(config.dispatcher.enabled, parsed_config.dispatcher.enabled);

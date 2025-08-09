@@ -1,7 +1,6 @@
 use axum::{http::StatusCode, response::IntoResponse, Json};
 use serde::{Deserialize, Serialize};
 
-/// 标准API响应结构
 #[derive(Debug, Serialize, Deserialize)]
 pub struct ApiResponse<T> {
     pub success: bool,
@@ -14,7 +13,6 @@ impl<T> ApiResponse<T>
 where
     T: Serialize,
 {
-    /// 创建成功响应
     pub fn success(data: T) -> Self {
         Self {
             success: true,
@@ -23,8 +21,6 @@ where
             timestamp: chrono::Utc::now(),
         }
     }
-
-    /// 创建成功响应带消息
     pub fn success_with_message(data: T, message: String) -> Self {
         Self {
             success: true,
@@ -36,7 +32,6 @@ where
 }
 
 impl ApiResponse<()> {
-    /// 创建无数据的成功响应
     pub fn success_empty() -> Self {
         Self {
             success: true,
@@ -45,8 +40,6 @@ impl ApiResponse<()> {
             timestamp: chrono::Utc::now(),
         }
     }
-
-    /// 创建无数据的成功响应带消息
     pub fn success_empty_with_message(message: String) -> Self {
         Self {
             success: true,
@@ -66,7 +59,6 @@ where
     }
 }
 
-/// 分页响应结构
 #[derive(Debug, Serialize, Deserialize)]
 pub struct PaginatedResponse<T> {
     pub items: Vec<T>,
@@ -94,22 +86,18 @@ impl<T> PaginatedResponse<T> {
     }
 }
 
-/// 创建成功响应的便捷函数
 pub fn success<T: Serialize>(data: T) -> impl IntoResponse {
     (StatusCode::OK, ApiResponse::success(data))
 }
 
-/// 创建创建成功响应的便捷函数
 pub fn created<T: Serialize>(data: T) -> impl IntoResponse {
     (StatusCode::CREATED, ApiResponse::success(data))
 }
 
-/// 创建无内容响应的便捷函数
 pub fn no_content() -> impl IntoResponse {
     StatusCode::NO_CONTENT
 }
 
-/// 创建接受响应的便捷函数
 pub fn accepted() -> impl IntoResponse {
     (StatusCode::ACCEPTED, ApiResponse::success_empty())
 }

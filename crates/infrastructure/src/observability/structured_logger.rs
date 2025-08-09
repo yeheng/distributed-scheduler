@@ -1,11 +1,6 @@
-//! Structured logging utilities
-//!
-//! This module provides comprehensive structured logging capabilities
-//! for various events and operations in the distributed scheduler system.
 
 use tracing::{debug, error, info, warn};
 
-/// Structured logging configuration
 #[derive(Debug, Clone)]
 pub struct LoggingConfig {
     pub level: String,
@@ -43,11 +38,9 @@ impl Default for LoggingConfig {
     }
 }
 
-/// Structured logging utilities
 pub struct StructuredLogger;
 
 impl StructuredLogger {
-    /// Log task scheduling event
     pub fn log_task_scheduled(
         task_id: i64,
         task_name: &str,
@@ -63,8 +56,6 @@ impl StructuredLogger {
             "Task scheduled for execution"
         );
     }
-
-    /// Log task execution start
     pub fn log_task_execution_start(
         task_run_id: i64,
         task_id: i64,
@@ -82,8 +73,6 @@ impl StructuredLogger {
             "Task execution started"
         );
     }
-
-    /// Log task execution completion
     pub fn log_task_execution_complete(
         task_run_id: i64,
         task_name: &str,
@@ -118,8 +107,6 @@ impl StructuredLogger {
             );
         }
     }
-
-    /// Log task retry
     pub fn log_task_retry(
         task_run_id: i64,
         task_name: &str,
@@ -137,8 +124,6 @@ impl StructuredLogger {
             "Task retry initiated"
         );
     }
-
-    /// Log worker registration
     pub fn log_worker_registered(
         worker_id: &str,
         hostname: &str,
@@ -154,8 +139,6 @@ impl StructuredLogger {
             "Worker registered with dispatcher"
         );
     }
-
-    /// Log worker heartbeat
     pub fn log_worker_heartbeat(
         worker_id: &str,
         current_load: i32,
@@ -171,8 +154,6 @@ impl StructuredLogger {
             "Worker heartbeat received"
         );
     }
-
-    /// Log dependency check
     pub fn log_dependency_check(
         task_id: i64,
         task_name: &str,
@@ -196,8 +177,6 @@ impl StructuredLogger {
             );
         }
     }
-
-    /// Log database operation
     pub fn log_database_operation(
         operation: &str,
         table: &str,
@@ -213,8 +192,6 @@ impl StructuredLogger {
             "Database operation completed"
         );
     }
-
-    /// Log message queue operation
     pub fn log_message_queue_operation(
         operation: &str,
         queue: &str,
@@ -230,8 +207,6 @@ impl StructuredLogger {
             "Message queue operation completed"
         );
     }
-
-    /// Log system error
     pub fn log_system_error(component: &str, operation: &str, error: &dyn std::error::Error) {
         error!(
             event = "system_error",
@@ -242,8 +217,6 @@ impl StructuredLogger {
             "System error occurred"
         );
     }
-
-    /// Log configuration change
     pub fn log_config_change(component: &str, setting: &str, old_value: &str, new_value: &str) {
         info!(
             event = "config_change",
@@ -254,8 +227,6 @@ impl StructuredLogger {
             "Configuration changed"
         );
     }
-
-    /// Log performance metrics
     pub fn log_performance_metrics(
         component: &str,
         operation: &str,

@@ -1,47 +1,6 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// 任务定义
-///
-/// 表示系统中可调度执行的任务单元，包含任务的完整配置信息。
-///
-/// # 字段说明
-///
-/// - `id`: 任务的唯一标识符
-/// - `name`: 任务的人类可读名称
-/// - `task_type`: 任务类型，如 "shell"、"http" 等
-/// - `schedule`: cron 表达式，定义任务的执行时间
-/// - `parameters`: 任务执行所需的参数，JSON 格式
-/// - `timeout_seconds`: 任务执行超时时间（秒）
-/// - `max_retries`: 最大重试次数
-/// - `status`: 任务状态（ACTIVE/INACTIVE）
-/// - `dependencies`: 依赖的任务 ID 列表
-/// - `shard_config`: 分片配置，用于任务分片执行
-/// - `created_at`: 任务创建时间
-/// - `updated_at`: 任务最后更新时间
-///
-/// # 使用示例
-///
-/// ```rust
-/// use scheduler_core::models::{Task, TaskStatus};
-/// use chrono::Utc;
-/// use serde_json::json;
-///
-/// let task = Task {
-///     id: 1,
-///     name: "数据备份".to_string(),
-///     task_type: "shell".to_string(),
-///     schedule: "0 2 * * *".to_string(), // 每天凌晨2点
-///     parameters: json!({"command": "backup.sh"}),
-///     timeout_seconds: 3600,
-///     max_retries: 3,
-///     status: TaskStatus::Active,
-///     dependencies: vec![],
-///     shard_config: None,
-///     created_at: Utc::now(),
-///     updated_at: Utc::now(),
-/// };
-/// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Task {
     pub id: i64,
@@ -58,26 +17,6 @@ pub struct Task {
     pub updated_at: DateTime<Utc>,
 }
 
-/// 任务状态
-///
-/// 定义任务的生命周期状态，用于控制任务的调度和执行。
-///
-/// # 变体说明
-///
-/// - `Active`: 任务处于活跃状态，可以正常调度和执行
-/// - `Inactive`: 任务处于非活跃状态，暂停调度和执行
-///
-/// # 使用示例
-///
-/// ```rust
-/// use scheduler_core::models::TaskStatus;
-///
-/// let status = TaskStatus::Active;
-/// match status {
-///     TaskStatus::Active => println!("任务活跃，可以执行"),
-///     TaskStatus::Inactive => println!("任务暂停，无法执行"),
-/// }
-/// ```
 #[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq)]
 pub enum TaskStatus {
     #[serde(rename = "ACTIVE")]
@@ -146,7 +85,6 @@ impl<'q> sqlx::Encode<'q, sqlx::Sqlite> for TaskStatus {
     }
 }
 
-/// 分片配置
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ShardConfig {
     pub enabled: bool,
@@ -154,7 +92,6 @@ pub struct ShardConfig {
     pub shard_key: String,
 }
 
-/// 任务过滤器
 #[derive(Debug, Clone, Default)]
 pub struct TaskFilter {
     pub status: Option<TaskStatus>,
@@ -165,7 +102,6 @@ pub struct TaskFilter {
 }
 
 impl Task {
-    /// 创建新任务
     pub fn new(
         name: String,
         task_type: String,
@@ -188,13 +124,9 @@ impl Task {
             updated_at: now,
         }
     }
-
-    /// 检查任务是否处于活跃状态
     pub fn is_active(&self) -> bool {
         matches!(self.status, TaskStatus::Active)
     }
-
-    /// 检查任务是否有依赖
     pub fn has_dependencies(&self) -> bool {
         !self.dependencies.is_empty()
     }

@@ -10,7 +10,6 @@ use super::{
     message_queue::MessageQueueConfig,
 };
 
-/// System configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {
     pub database: DatabaseConfig,
@@ -70,24 +69,8 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
-    /// Load configuration from config file and environment variables
-    ///
-    /// Load order:
-    /// 1. Default configuration
-    /// 2. Config file (TOML format)
-    /// 3. Environment variable overrides (prefix: SCHEDULER_)
-    ///
-    /// # Arguments
-    ///
-    /// * `config_path` - Config file path, if None use default paths
-    ///
-    /// # Returns
-    ///
-    /// Returns loaded and validated configuration
     pub fn load(config_path: Option<&str>) -> Result<Self> {
         let mut builder = ConfigBuilder::builder();
-
-        // 1. Load config file if provided
         if let Some(path) = config_path {
             if Path::new(path).exists() {
                 builder = builder.add_source(File::new(path, FileFormat::Toml));
@@ -95,7 +78,6 @@ impl AppConfig {
                 return Err(anyhow::anyhow!("配置文件不存在: {}", path));
             }
         } else {
-            // Try to load default config files
             let default_paths = [
                 "config/scheduler.toml",
                 "scheduler.toml",
@@ -110,10 +92,7 @@ impl AppConfig {
                     break;
                 }
             }
-
-            // If no config file found, set minimal defaults for structure
             if !config_file_found {
-                // Set minimal structure defaults
                 builder = builder
                     .set_default("database.url", "postgresql://localhost/scheduler")?
                     .set_default("database.max_connections", 10)?
@@ -156,62 +135,39 @@ impl AppConfig {
                     .set_default("observability.log_level", "info")?;
             }
         }
-
-        // 2. Environment variable overrides (prefix: SCHEDULER_) - highest priority
         builder = builder.add_source(
             Environment::with_prefix("SCHEDULER")
                 .separator("_")
                 .try_parsing(true),
         );
-
-        // Build configuration
         let config: AppConfig = builder
             .build()
             .context("构建配置失败")?
             .try_deserialize()
             .context("反序列化配置失败")?;
-
-        // Validate configuration
         config.validate()?;
 
         Ok(config)
     }
-
-    /// Load configuration from TOML string
     pub fn from_toml(toml_str: &str) -> Result<Self> {
         let config: AppConfig = toml::from_str(toml_str).context("解析TOML配置失败")?;
 
         config.validate()?;
         Ok(config)
     }
-
-    /// Serialize configuration to TOML string
     pub fn to_toml(&self) -> Result<String> {
         toml::to_string_pretty(self).context("序列化配置为TOML失败")
     }
-
-    /// Validate configuration effectiveness
     pub fn validate(&self) -> Result<()> {
-        // Validate database configuration
         self.database.validate().context("数据库配置验证失败")?;
-
-        // Validate message queue configuration
         self.message_queue
             .validate()
             .context("消息队列配置验证失败")?;
-
-        // Validate dispatcher configuration
         self.dispatcher
             .validate()
             .context("Dispatcher配置验证失败")?;
-
-        // Validate worker configuration
         self.worker.validate().context("Worker配置验证失败")?;
-
-        // Validate API configuration
         self.api.validate().context("API配置验证失败")?;
-
-        // Validate observability configuration
         self.observability
             .validate()
             .context("可观测性配置验证失败")?;

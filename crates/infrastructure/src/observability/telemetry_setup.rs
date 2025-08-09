@@ -1,13 +1,8 @@
-//! Telemetry setup and configuration
-//!
-//! This module provides comprehensive telemetry initialization including
-//! structured logging, tracing, and metrics setup.
 
 use anyhow::Result;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-/// Structured logging configuration
 #[derive(Debug, Clone)]
 pub struct LoggingConfig {
     pub level: String,
@@ -45,7 +40,6 @@ impl Default for LoggingConfig {
     }
 }
 
-/// Initialize structured logging with tracing
 pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
     use tracing_subscriber::fmt::format::FmtSpan;
 
@@ -103,10 +97,7 @@ pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
     Ok(())
 }
 
-/// Initialize OpenTelemetry tracing
 pub fn init_tracing() -> Result<()> {
-    // For now, we'll initialize a basic tracing setup without OpenTelemetry
-    // due to API compatibility issues. Can be enhanced later with proper OpenTelemetry integration.
 
     tracing_subscriber::registry()
         .with(
@@ -119,15 +110,12 @@ pub fn init_tracing() -> Result<()> {
     Ok(())
 }
 
-/// Initialize both structured logging and OpenTelemetry tracing
 pub fn init_logging_and_tracing(logging_config: LoggingConfig) -> Result<()> {
     let level = logging_config.level.clone();
     let env_filter = tracing_subscriber::EnvFilter::try_from_default_env()
         .unwrap_or_else(|_| logging_config.level.clone().into());
 
     let registry = tracing_subscriber::registry().with(env_filter);
-
-    // Add structured logging layer
     match logging_config.format {
         LogFormat::Json => {
             let fmt_layer = tracing_subscriber::fmt::layer()
@@ -173,15 +161,11 @@ pub fn init_logging_and_tracing(logging_config: LoggingConfig) -> Result<()> {
     Ok(())
 }
 
-/// Initialize OpenTelemetry metrics provider
 pub fn init_metrics() -> Result<()> {
-    // Create a meter provider with Prometheus exporter
     let (recorder, _handle) = metrics_exporter_prometheus::PrometheusBuilder::new()
         .with_http_listener(([0, 0, 0, 0], 9090))
         .build()
         .map_err(|e| anyhow::anyhow!("Failed to create Prometheus exporter: {}", e))?;
-
-    // Install the exporter
     metrics::set_global_recorder(recorder)
         .map_err(|e| anyhow::anyhow!("Failed to install metrics recorder: {}", e))?;
 
@@ -189,7 +173,6 @@ pub fn init_metrics() -> Result<()> {
     Ok(())
 }
 
-/// Initialize complete observability stack (logging, tracing, metrics)
 pub fn init_observability(logging_config: Option<LoggingConfig>) -> Result<()> {
     let config = logging_config.unwrap_or_default();
     init_logging_and_tracing(config)?;
@@ -198,9 +181,6 @@ pub fn init_observability(logging_config: Option<LoggingConfig>) -> Result<()> {
     Ok(())
 }
 
-/// Shutdown OpenTelemetry metrics and tracing
 pub fn shutdown_observability() {
-    // Note: shutdown_tracer_provider is no longer available in OpenTelemetry 0.30+
-    // The tracer provider is automatically cleaned up when dropped
     info!("OpenTelemetry observability shutdown completed");
 }

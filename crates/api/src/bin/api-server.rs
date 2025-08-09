@@ -2,8 +2,6 @@ use scheduler_api::create_app;
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
-
-// Mock implementations for testing
 struct MockTaskRepository;
 struct MockTaskRunRepository;
 struct MockWorkerRepository;
@@ -323,10 +321,7 @@ impl scheduler_core::traits::scheduler::TaskControlService for MockTaskControlle
 
 #[tokio::main]
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
-    // 初始化日志
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
-
-    // 创建mock依赖
     let task_repo =
         Arc::new(MockTaskRepository) as Arc<dyn scheduler_core::traits::repository::TaskRepository>;
     let task_run_repo = Arc::new(MockTaskRunRepository)
@@ -335,8 +330,6 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         as Arc<dyn scheduler_core::traits::repository::WorkerRepository>;
     let task_controller = Arc::new(MockTaskController)
         as Arc<dyn scheduler_core::traits::scheduler::TaskControlService>;
-
-    // 创建默认API配置
     let api_config = scheduler_core::config::models::api_observability::ApiConfig {
         enabled: true,
         bind_address: "127.0.0.1:8080".to_string(),
@@ -346,11 +339,7 @@ async fn main() -> Result<(), Box<dyn std::error::Error>> {
         max_request_size_mb: 10,
         auth: scheduler_core::config::models::api_observability::AuthConfig::default(),
     };
-
-    // 创建应用
     let app = create_app(task_repo, task_run_repo, worker_repo, task_controller, api_config);
-
-    // 启动服务器
     let listener = TcpListener::bind("127.0.0.1:8080").await?;
     info!("API服务器启动在 http://127.0.0.1:8080");
 

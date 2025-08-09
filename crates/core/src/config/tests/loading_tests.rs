@@ -5,22 +5,14 @@ use tempfile::NamedTempFile;
 
 #[test]
 fn test_config_environment_override() {
-    // Set environment variables
     env::set_var("SCHEDULER_DATABASE_MAX_CONNECTIONS", "50");
     env::set_var("SCHEDULER_DISPATCHER_SCHEDULE_INTERVAL_SECONDS", "25");
     env::set_var("SCHEDULER_WORKER_WORKER_ID", "env-worker");
-
-    // Test that environment variables are set correctly
     assert_eq!(
         env::var("SCHEDULER_DATABASE_MAX_CONNECTIONS").unwrap(),
         "50"
     );
-
-    // Test AppConfig::load method directly without file
     let config = AppConfig::load(None).unwrap();
-
-    // Due to nested structure of environment variables, special handling may be needed
-    // If environment variable override works properly, these values should be overridden
     eprintln!(
         "Database max_connections: {}",
         config.database.max_connections
@@ -30,20 +22,14 @@ fn test_config_environment_override() {
         config.dispatcher.schedule_interval_seconds
     );
     eprintln!("Worker worker_id: {}", config.worker.worker_id);
-
-    // Debug: Check if environment variables are actually being applied
     if config.database.max_connections == 50 {
         eprintln!("✓ Environment variable override working for database.max_connections");
     } else {
         eprintln!("✗ Environment variable override NOT working for database.max_connections");
     }
-
-    // Clean up environment variables
     env::remove_var("SCHEDULER_DATABASE_MAX_CONNECTIONS");
     env::remove_var("SCHEDULER_DISPATCHER_SCHEDULE_INTERVAL_SECONDS");
     env::remove_var("SCHEDULER_WORKER_WORKER_ID");
-
-    // This test mainly verifies that config loading doesn't error
     assert!(config.validate().is_ok());
 }
 
@@ -61,30 +47,16 @@ fn test_simple_config_builder() {
     struct DatabaseConfig {
         max_connections: i64,
     }
-
-    // Set environment variable
     std::env::set_var("SCHEDULER_DATABASE_MAX_CONNECTIONS", "50");
-
-    // Test the config builder directly to see if environment variables work
     let mut builder = Config::builder();
-
-    // Add default values first
     builder = builder.set_default("database.max_connections", 10).unwrap();
-
-    // Add environment variables first (highest priority)
     builder = builder.add_source(
         Environment::with_prefix("SCHEDULER")
             .separator("_")
             .try_parsing(true),
     );
-
-    // Build config
     let config = builder.build().unwrap();
-
-    // Check raw value first
     let max_connections = config.get_int("database.max_connections").unwrap_or(0);
-
-    // Try to deserialize into our struct
     match config.clone().try_deserialize::<TestConfig>() {
         Ok(test_config) => {
             eprintln!(
@@ -101,17 +73,12 @@ fn test_simple_config_builder() {
         "Environment var: {:?}",
         std::env::var("SCHEDULER_DATABASE_MAX_CONNECTIONS")
     );
-
-    // Clean up
     std::env::remove_var("SCHEDULER_DATABASE_MAX_CONNECTIONS");
-
-    // This test should pass if the config builder is working correctly
     assert!(max_connections > 0);
 }
 
 #[test]
 fn test_config_file_loading() {
-    // Create a temporary config file
     let mut temp_file = NamedTempFile::new().unwrap();
     let config_content = r#"[database]
 url = "postgresql://test:5432/scheduler_test"
@@ -170,8 +137,6 @@ log_level = "info"
 
     temp_file.write_all(config_content.as_bytes()).unwrap();
     let config_path = temp_file.path().to_string_lossy().to_string();
-
-    // Load configuration from file
     let config = AppConfig::load(Some(&config_path)).unwrap();
 
     assert_eq!(config.database.url, "postgresql://test:5432/scheduler_test");
@@ -184,16 +149,12 @@ log_level = "info"
 
 #[test]
 fn test_config_file_not_found() {
-    // Test with non-existent file path
     let result = AppConfig::load(Some("/nonexistent/path/config.toml"));
     assert!(result.is_err());
 }
 
 #[test]
 fn test_config_default_paths() {
-    // This test would check default config paths
-    // For now, just verify that load with None doesn't error
-    // (it will use defaults or find config files in default locations)
     let config = AppConfig::load(None).unwrap();
     assert!(config.validate().is_ok());
 }

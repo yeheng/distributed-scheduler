@@ -1,6 +1,5 @@
 use serde::{Deserialize, Serialize};
 
-/// Message queue type
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 #[serde(rename_all = "snake_case")]
 #[derive(Default)]
@@ -10,7 +9,6 @@ pub enum MessageQueueType {
     RedisStream,
 }
 
-/// Redis configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct RedisConfig {
     pub host: String,
@@ -37,7 +35,6 @@ impl Default for RedisConfig {
 }
 
 impl RedisConfig {
-    /// Validate Redis configuration
     pub fn validate(&self) -> anyhow::Result<()> {
         if self.host.is_empty() {
             return Err(anyhow::anyhow!("Redis主机地址不能为空"));
@@ -65,8 +62,6 @@ impl RedisConfig {
 
         Ok(())
     }
-
-    /// Build Redis connection URL
     pub fn build_url(&self) -> String {
         let auth = if let Some(password) = &self.password {
             format!(":{password}@")
@@ -78,14 +73,11 @@ impl RedisConfig {
             auth, self.host, self.port, self.database
         )
     }
-
-    /// Check if password is configured
     pub fn has_password(&self) -> bool {
         self.password.is_some()
     }
 }
 
-/// Message queue configuration
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct MessageQueueConfig {
     #[serde(rename = "type", default)]
@@ -102,9 +94,7 @@ pub struct MessageQueueConfig {
 }
 
 impl MessageQueueConfig {
-    /// Validate message queue configuration
     pub fn validate(&self) -> anyhow::Result<()> {
-        // Validate queue names
         if self.task_queue.is_empty() {
             return Err(anyhow::anyhow!("任务队列名称不能为空"));
         }
@@ -124,8 +114,6 @@ impl MessageQueueConfig {
         if self.max_retries < 0 {
             return Err(anyhow::anyhow!("最大重试次数不能为负数"));
         }
-
-        // Validate type-specific configuration
         match self.r#type {
             MessageQueueType::Rabbitmq => {
                 self.validate_rabbitmq_config()?;
@@ -137,8 +125,6 @@ impl MessageQueueConfig {
 
         Ok(())
     }
-
-    /// Validate RabbitMQ configuration
     fn validate_rabbitmq_config(&self) -> anyhow::Result<()> {
         if self.url.is_empty() {
             return Err(anyhow::anyhow!("RabbitMQ URL不能为空"));
@@ -150,18 +136,13 @@ impl MessageQueueConfig {
 
         Ok(())
     }
-
-    /// Validate Redis Stream configuration
     fn validate_redis_stream_config(&self) -> anyhow::Result<()> {
-        // For Redis Stream, URL can be empty (use redis config) or redis:// format
         if !self.url.is_empty()
             && !self.url.starts_with("redis://")
             && !self.url.starts_with("rediss://")
         {
             return Err(anyhow::anyhow!("Redis URL必须是redis://或rediss://格式"));
         }
-
-        // Validate Redis-specific configuration
         if let Some(redis_config) = &self.redis {
             redis_config.validate()?;
         } else if self.url.is_empty() {
@@ -172,18 +153,12 @@ impl MessageQueueConfig {
 
         Ok(())
     }
-
-    /// Check if using RabbitMQ
     pub fn is_rabbitmq(&self) -> bool {
         self.r#type == MessageQueueType::Rabbitmq
     }
-
-    /// Check if using Redis Stream
     pub fn is_redis_stream(&self) -> bool {
         self.r#type == MessageQueueType::RedisStream
     }
-
-    /// Get Redis connection URL (if configured)
     pub fn get_redis_url(&self) -> Option<String> {
         if self.is_redis_stream() {
             if !self.url.is_empty() {

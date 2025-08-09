@@ -9,9 +9,7 @@ use tokio::time::sleep;
 
 use crate::{WorkerService, WorkerServiceTrait as _};
 
-/// 创建测试用的服务定位器
 async fn create_test_service_locator() -> Arc<ServiceLocator> {
-    // 简化版本，只注册消息队列
     let mut context = ApplicationContext::default();
     let message_queue = Arc::new(MockMessageQueue::new());
     context
@@ -22,7 +20,6 @@ async fn create_test_service_locator() -> Arc<ServiceLocator> {
     Arc::new(ServiceLocator::new(Arc::new(context)))
 }
 
-/// 创建空的执行器注册表
 fn create_empty_executor_registry() -> Arc<DefaultExecutorRegistry> {
     Arc::new(DefaultExecutorRegistry::new())
 }
@@ -63,14 +60,8 @@ async fn test_worker_service_start_stop() {
     .build()
     .await
     .unwrap();
-
-    // 测试启动
     assert!(worker_service.start().await.is_ok());
-
-    // 等待一小段时间让服务启动
     sleep(Duration::from_millis(100)).await;
-
-    // 测试停止
     assert!(worker_service.stop().await.is_ok());
 }
 
@@ -121,9 +112,6 @@ async fn test_worker_service_with_dispatcher_config() {
     .build()
     .await
     .unwrap();
-
-    // Note: 没有getter方法，只能测试构建是否成功
-    // 测试配置是否正确设置只能通过正常构建来验证
     assert_eq!(worker_service.get_supported_task_types().await.len(), 0);
 }
 
@@ -141,8 +129,6 @@ async fn test_worker_service_registration_without_dispatcher() {
     .build()
     .await
     .unwrap();
-
-    // 没有配置Dispatcher URL时，注册应该成功但不执行实际注册
     assert!(worker_service.register_with_dispatcher().await.is_ok());
     assert!(worker_service.send_heartbeat_to_dispatcher().await.is_ok());
     assert!(worker_service.unregister_from_dispatcher().await.is_ok());

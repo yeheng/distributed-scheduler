@@ -16,20 +16,12 @@ fn test_database_validation() {
     };
 
     assert!(config.validate().is_ok());
-
-    // Test empty URL
     config.url = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test invalid URL format
     config.url = "mysql://localhost/test".to_string();
     assert!(config.validate().is_err());
-
-    // Test valid URL
     config.url = "postgresql://localhost/test".to_string();
     assert!(config.validate().is_ok());
-
-    // Test connection count config
     config.max_connections = 0;
     assert!(config.validate().is_err());
 
@@ -41,20 +33,12 @@ fn test_database_validation() {
 #[test]
 fn test_message_queue_validation() {
     let mut config = MessageQueueConfig::default();
-
-    // Test empty URL
     config.url = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test invalid URL format
     config.url = "http://localhost".to_string();
     assert!(config.validate().is_err());
-
-    // Test valid URL
     config.url = "redis://localhost:6379".to_string();
     assert!(config.validate().is_ok());
-
-    // Test empty queue name
     config.task_queue = "".to_string();
     assert!(config.validate().is_err());
 }
@@ -70,22 +54,14 @@ fn test_dispatcher_validation() {
     };
 
     assert!(config.validate().is_ok());
-
-    // Test schedule interval
     config.schedule_interval_seconds = 0;
     assert!(config.validate().is_err());
-
-    // Test concurrent count
     config.schedule_interval_seconds = 10;
     config.max_concurrent_dispatches = 0;
     assert!(config.validate().is_err());
-
-    // Test invalid strategy
     config.max_concurrent_dispatches = 100;
     config.dispatch_strategy = "invalid_strategy".to_string();
     assert!(config.validate().is_err());
-
-    // Test valid strategy
     config.dispatch_strategy = "round_robin".to_string();
     assert!(config.validate().is_ok());
 }
@@ -104,17 +80,11 @@ fn test_worker_validation() {
     };
 
     assert!(config.validate().is_ok());
-
-    // Test empty worker ID
     config.worker_id = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test empty hostname
     config.worker_id = "test-worker".to_string();
     config.hostname = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test invalid IP address
     config.hostname = "test-host".to_string();
     config.ip_address = "invalid-ip".to_string();
     assert!(config.validate().is_err());
@@ -138,12 +108,8 @@ fn test_api_validation() {
     };
 
     assert!(config.validate().is_ok());
-
-    // Test empty bind address
     config.bind_address = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test invalid address format
     config.bind_address = "invalid-address".to_string();
     assert!(config.validate().is_err());
 }
@@ -159,17 +125,11 @@ fn test_observability_validation() {
     };
 
     assert!(config.validate().is_ok());
-
-    // Test invalid log level
     config.log_level = "invalid".to_string();
     assert!(config.validate().is_err());
-
-    // Test empty metrics endpoint
     config.log_level = "info".to_string();
     config.metrics_endpoint = "".to_string();
     assert!(config.validate().is_err());
-
-    // Test invalid metrics endpoint
     config.metrics_endpoint = "invalid".to_string();
     assert!(config.validate().is_err());
 }

@@ -54,8 +54,6 @@ mod strategies_tests {
             create_test_worker("worker2", vec!["shell"], 1, 5),
             create_test_worker("worker3", vec!["shell"], 2, 5),
         ];
-
-        // 测试轮询选择
         let selected1 = strategy.select_worker(&task, &workers).await.unwrap();
         let selected2 = strategy.select_worker(&task, &workers).await.unwrap();
         let selected3 = strategy.select_worker(&task, &workers).await.unwrap();
@@ -65,8 +63,6 @@ mod strategies_tests {
         assert!(selected2.is_some());
         assert!(selected3.is_some());
         assert!(selected4.is_some());
-
-        // 第四次选择应该回到第一个Worker（轮询）
         assert_eq!(selected1, selected4);
     }
 
@@ -154,8 +150,6 @@ mod strategies_tests {
     #[tokio::test]
     async fn test_composite_strategy() {
         let mut composite = CompositeStrategy::new(vec![]);
-
-        // 添加策略：先尝试任务类型亲和，再尝试负载均衡
         composite.add_strategy(Arc::new(TaskTypeAffinityStrategy::new()));
         composite.add_strategy(Arc::new(LoadBasedStrategy::new()));
 

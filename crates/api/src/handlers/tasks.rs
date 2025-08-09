@@ -15,7 +15,6 @@ use crate::{
     routes::AppState,
 };
 
-/// 任务创建请求
 #[derive(Debug, Deserialize)]
 pub struct CreateTaskRequest {
     pub name: String,
@@ -27,7 +26,6 @@ pub struct CreateTaskRequest {
     pub dependencies: Option<Vec<i64>>,
 }
 
-/// 任务响应
 #[derive(Debug, Serialize)]
 pub struct TaskResponse {
     pub id: i64,
@@ -45,7 +43,6 @@ pub struct TaskResponse {
     pub execution_stats: Option<TaskExecutionStats>,
 }
 
-/// 任务执行记录响应
 #[derive(Debug, Serialize)]
 pub struct TaskRunResponse {
     pub id: i64,
@@ -102,7 +99,6 @@ impl From<TaskRun> for TaskRunResponse {
     }
 }
 
-/// 任务更新请求
 #[derive(Debug, Deserialize)]
 pub struct UpdateTaskRequest {
     pub name: Option<String>,
@@ -114,7 +110,6 @@ pub struct UpdateTaskRequest {
     pub status: Option<scheduler_domain::entities::TaskStatus>,
 }
 
-/// 任务查询参数
 #[derive(Debug, Deserialize)]
 pub struct TaskQueryParams {
     pub status: Option<String>,
@@ -124,7 +119,6 @@ pub struct TaskQueryParams {
     pub page_size: Option<i64>,
 }
 
-/// 任务运行查询参数
 #[derive(Debug, Deserialize)]
 pub struct TaskRunQueryParams {
     pub status: Option<String>,
@@ -132,13 +126,11 @@ pub struct TaskRunQueryParams {
     pub page_size: Option<i64>,
 }
 
-/// 创建任务
 pub async fn create_task(
     State(state): State<AppState>,
     Json(request): Json<CreateTaskRequest>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
     tracing::debug!("Creating task with request: {:?}", request);
-    // 验证输入参数
     if request.name.trim().is_empty() {
         return Err(ApiError::BadRequest("任务名称不能为空".to_string()));
     }
@@ -150,21 +142,15 @@ pub async fn create_task(
     if request.schedule.trim().is_empty() {
         return Err(ApiError::BadRequest("调度表达式不能为空".to_string()));
     }
-
-    // 验证CRON表达式
     if let Err(e) = cron::Schedule::from_str(&request.schedule) {
         return Err(ApiError::BadRequest(format!("无效的CRON表达式: {e}")));
     }
-
-    // 检查任务名称是否已存在
     if (state.task_repo.get_by_name(&request.name).await?).is_some() {
         return Err(ApiError::Conflict(format!(
             "任务名称 '{}' 已存在",
             request.name
         )));
     }
-
-    // 创建任务对象
     let mut task = Task::new(
         request.name,
         request.task_type,
@@ -187,7 +173,6 @@ pub async fn create_task(
     }
 
     if let Some(deps) = request.dependencies {
-        // 验证依赖任务是否存在
         for dep_id in &deps {
             if state.task_repo.get_by_id(*dep_id).await?.is_none() {
                 return Err(ApiError::BadRequest(format!("依赖任务 {dep_id} 不存在")));
@@ -195,8 +180,6 @@ pub async fn create_task(
         }
         task.dependencies = deps;
     }
-
-    // 保存任务到数据库
     let created_task = match state.task_repo.create(&task).await {
         Ok(task) => task,
         Err(e) => {
@@ -210,17 +193,13 @@ pub async fn create_task(
     Ok(created(response))
 }
 
-/// 获取任务列表
 pub async fn list_tasks(
     State(state): State<AppState>,
     Query(params): Query<TaskQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 设置默认分页参数
     let page = params.page.unwrap_or(1).max(1);
     let page_size = params.page_size.unwrap_or(20).clamp(1, 100);
     let offset = (page - 1) * page_size;
-
-    // 构建过滤条件
     let mut filter = TaskFilter {
         limit: Some(page_size),
         offset: Some(offset),
@@ -246,11 +225,7 @@ pub async fn list_tasks(
     if let Some(name) = &params.name {
         filter.name_pattern = Some(name.clone());
     }
-
-    // 查询任务列表
     let tasks = state.task_repo.list(&filter).await?;
-
-    // 获取总数（为了分页信息）
     let total_filter = TaskFilter {
         status: filter.status,
         task_type: filter.task_type.clone(),
@@ -259,8 +234,6 @@ pub async fn list_tasks(
     };
     let total_tasks = state.task_repo.list(&total_filter).await?;
     let total = total_tasks.len() as i64;
-
-    // 转换为响应格式
     let task_responses: Vec<TaskResponse> = tasks.into_iter().map(TaskResponse::from).collect();
 
     let paginated_response = PaginatedResponse::new(task_responses, total, page, page_size);
@@ -268,14 +241,11 @@ pub async fn list_tasks(
     Ok(success(paginated_response))
 }
 
-/// 获取单个任务
 pub async fn get_task(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
     tracing::debug!("Getting task with id: {}", id);
-
-    // 获取任务基本信息
     let task = state
         .task_repo
         .get_by_id(id)
@@ -283,8 +253,6 @@ pub async fn get_task(
         .ok_or(ApiError::NotFound)?;
 
     tracing::debug!("Found task: {:?}", task.name);
-
-    // 获取最近的执行记录 (handle errors gracefully)
     let recent_runs = state
         .task_run_repo
         .get_recent_runs(id, 10)
@@ -295,15 +263,12 @@ pub async fn get_task(
         });
     let recent_run_responses: Vec<TaskRunResponse> =
         recent_runs.into_iter().map(TaskRunResponse::from).collect();
-
-    // 获取执行统计信息 (handle errors gracefully)
     let execution_stats = state
         .task_run_repo
         .get_execution_stats(id, 30)
         .await
         .unwrap_or_else(|e| {
             tracing::warn!("Failed to get execution stats for task {}: {:?}", id, e);
-            // Return default stats
             scheduler_core::traits::TaskExecutionStats {
                 task_id: id,
                 total_runs: 0,
@@ -315,8 +280,6 @@ pub async fn get_task(
                 last_execution: None,
             }
         });
-
-    // 构建响应
     let mut response = TaskResponse::from(task);
     response.recent_runs = Some(recent_run_responses);
     response.execution_stats = Some(execution_stats);
@@ -324,25 +287,20 @@ pub async fn get_task(
     Ok(success(response))
 }
 
-/// 更新任务
 pub async fn update_task(
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Json(request): Json<UpdateTaskRequest>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 获取现有任务
     let mut task = state
         .task_repo
         .get_by_id(id)
         .await?
         .ok_or(ApiError::NotFound)?;
-
-    // 更新字段
     if let Some(name) = request.name {
         if name.trim().is_empty() {
             return Err(ApiError::BadRequest("任务名称不能为空".to_string()));
         }
-        // 检查名称是否与其他任务冲突
         if let Some(existing_task) = state.task_repo.get_by_name(&name).await? {
             if existing_task.id != id {
                 return Err(ApiError::Conflict(format!("任务名称 '{name}' 已存在")));
@@ -355,7 +313,6 @@ pub async fn update_task(
         if schedule.trim().is_empty() {
             return Err(ApiError::BadRequest("调度表达式不能为空".to_string()));
         }
-        // 验证CRON表达式
         if let Err(e) = cron::Schedule::from_str(&schedule) {
             return Err(ApiError::BadRequest(format!("无效的CRON表达式: {e}")));
         }
@@ -381,7 +338,6 @@ pub async fn update_task(
     }
 
     if let Some(deps) = request.dependencies {
-        // 验证依赖任务是否存在
         for dep_id in &deps {
             if *dep_id == id {
                 return Err(ApiError::BadRequest("任务不能依赖自己".to_string()));
@@ -396,30 +352,22 @@ pub async fn update_task(
     if let Some(status) = request.status {
         task.status = status;
     }
-
-    // 更新时间戳
     task.updated_at = chrono::Utc::now();
-
-    // 保存更新
     state.task_repo.update(&task).await?;
 
     let response = TaskResponse::from(task);
     Ok(success(response))
 }
 
-/// 删除任务
 pub async fn delete_task(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 检查任务是否存在
     let task = state
         .task_repo
         .get_by_id(id)
         .await?
         .ok_or(ApiError::NotFound)?;
-
-    // 检查是否有其他任务依赖此任务
     let all_tasks = state.task_repo.list(&TaskFilter::default()).await?;
     for other_task in all_tasks {
         if other_task.dependencies.contains(&id) {
@@ -429,8 +377,6 @@ pub async fn delete_task(
             )));
         }
     }
-
-    // 检查是否有正在运行的任务实例
     let running_runs = state.task_run_repo.get_by_task_id(id).await?;
     let has_running = running_runs.iter().any(|run| run.is_running());
     if has_running {
@@ -438,8 +384,6 @@ pub async fn delete_task(
             "无法删除任务，存在正在运行的任务实例".to_string(),
         ));
     }
-
-    // 执行软删除（设置为INACTIVE状态）而不是硬删除
     let mut task_to_update = task;
     task_to_update.status = TaskStatus::Inactive;
     task_to_update.updated_at = chrono::Utc::now();
@@ -451,12 +395,10 @@ pub async fn delete_task(
     })))
 }
 
-/// 触发任务执行
 pub async fn trigger_task(
     State(state): State<AppState>,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 检查任务是否存在且为活跃状态
     let task = state
         .task_repo
         .get_by_id(id)
@@ -466,42 +408,30 @@ pub async fn trigger_task(
     if !task.is_active() {
         return Err(ApiError::BadRequest("只能触发活跃状态的任务".to_string()));
     }
-
-    // 检查依赖是否满足
     if !state.task_repo.check_dependencies(id).await? {
         return Err(ApiError::BadRequest(
             "任务依赖未满足，无法触发执行".to_string(),
         ));
     }
-
-    // 使用任务控制服务触发任务
     let task_run = state.task_controller.trigger_task(id).await?;
     let response = TaskRunResponse::from(task_run);
 
     Ok(success(response))
 }
 
-/// 获取任务执行历史
 pub async fn get_task_runs(
     State(state): State<AppState>,
     Path(task_id): Path<i64>,
     Query(params): Query<TaskRunQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 检查任务是否存在
     state
         .task_repo
         .get_by_id(task_id)
         .await?
         .ok_or(ApiError::NotFound)?;
-
-    // 设置默认分页参数
     let page = params.page.unwrap_or(1).max(1);
     let page_size = params.page_size.unwrap_or(20).clamp(1, 100);
-
-    // 获取任务执行记录
     let mut all_runs = state.task_run_repo.get_by_task_id(task_id).await?;
-
-    // 按状态过滤
     if let Some(status_str) = &params.status {
         let filter_status = match status_str.to_uppercase().as_str() {
             "PENDING" => TaskRunStatus::Pending,
@@ -520,8 +450,6 @@ pub async fn get_task_runs(
     }
 
     let total = all_runs.len() as i64;
-
-    // 分页
     let start = ((page - 1) * page_size) as usize;
     let end = (start + page_size as usize).min(all_runs.len());
     let paginated_runs = if start < all_runs.len() {
@@ -529,8 +457,6 @@ pub async fn get_task_runs(
     } else {
         vec![]
     };
-
-    // 转换为响应格式
     let run_responses: Vec<TaskRunResponse> = paginated_runs
         .into_iter()
         .map(TaskRunResponse::from)
@@ -541,7 +467,6 @@ pub async fn get_task_runs(
     Ok(success(paginated_response))
 }
 
-/// 获取单个任务执行记录
 pub async fn get_task_run(
     State(state): State<AppState>,
     Path(id): Path<i64>,
@@ -556,13 +481,11 @@ pub async fn get_task_run(
     Ok(success(response))
 }
 
-/// 获取任务执行统计信息
 pub async fn get_task_execution_stats(
     State(state): State<AppState>,
     Path(id): Path<i64>,
     Query(params): Query<TaskStatsQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
-    // 首先检查任务是否存在
     let _task = state
         .task_repo
         .get_by_id(id)
@@ -575,7 +498,6 @@ pub async fn get_task_execution_stats(
     Ok(success(stats))
 }
 
-/// 任务统计查询参数
 #[derive(Debug, Deserialize)]
 pub struct TaskStatsQueryParams {
     pub days: Option<i32>,
