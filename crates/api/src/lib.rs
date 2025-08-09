@@ -415,28 +415,28 @@ mod tests {
     impl TaskRepository for MockTaskRepository {
         async fn create(
             &self,
-            _task: &scheduler_core::models::Task,
-        ) -> scheduler_core::SchedulerResult<scheduler_core::models::Task> {
+            _task: &scheduler_domain::entities::Task,
+        ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::Task> {
             unimplemented!()
         }
 
         async fn get_by_id(
             &self,
             _id: i64,
-        ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::Task>> {
+        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
         async fn get_by_name(
             &self,
             _name: &str,
-        ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::Task>> {
+        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
         async fn update(
             &self,
-            _task: &scheduler_core::models::Task,
+            _task: &scheduler_domain::entities::Task,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -447,21 +447,21 @@ mod tests {
 
         async fn list(
             &self,
-            _filter: &scheduler_core::models::TaskFilter,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+            _filter: &scheduler_domain::entities::TaskFilter,
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
             Ok(vec![])
         }
 
         async fn get_active_tasks(
             &self,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
         async fn get_schedulable_tasks(
             &self,
             _current_time: chrono::DateTime<chrono::Utc>,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
@@ -472,14 +472,14 @@ mod tests {
         async fn get_dependencies(
             &self,
             _task_id: i64,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
         async fn batch_update_status(
             &self,
             _task_ids: &[i64],
-            _status: scheduler_core::models::TaskStatus,
+            _status: scheduler_domain::entities::TaskStatus,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -489,21 +489,21 @@ mod tests {
     impl TaskRunRepository for MockTaskRunRepository {
         async fn create(
             &self,
-            _task_run: &scheduler_core::models::TaskRun,
-        ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+            _task_run: &scheduler_domain::entities::TaskRun,
+        ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
             unimplemented!()
         }
 
         async fn get_by_id(
             &self,
             _id: i64,
-        ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn update(
             &self,
-            _task_run: &scheduler_core::models::TaskRun,
+            _task_run: &scheduler_domain::entities::TaskRun,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -515,48 +515,48 @@ mod tests {
         async fn get_by_task_id(
             &self,
             _task_id: i64,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_by_worker_id(
             &self,
             _worker_id: &str,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_by_status(
             &self,
-            _status: scheduler_core::models::TaskRunStatus,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+            _status: scheduler_domain::entities::TaskRunStatus,
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             Ok(vec![])
         }
 
         async fn get_pending_runs(
             &self,
             _limit: Option<i64>,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_running_runs(
             &self,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_timeout_runs(
             &self,
             _timeout_seconds: i64,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn update_status(
             &self,
             _id: i64,
-            _status: scheduler_core::models::TaskRunStatus,
+            _status: scheduler_domain::entities::TaskRunStatus,
             _worker_id: Option<&str>,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
@@ -575,7 +575,7 @@ mod tests {
             &self,
             _task_id: i64,
             _limit: i64,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
@@ -595,7 +595,7 @@ mod tests {
         async fn batch_update_status(
             &self,
             _run_ids: &[i64],
-            _status: scheduler_core::models::TaskRunStatus,
+            _status: scheduler_domain::entities::TaskRunStatus,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -605,7 +605,7 @@ mod tests {
     impl WorkerRepository for MockWorkerRepository {
         async fn register(
             &self,
-            _worker: &scheduler_core::models::WorkerInfo,
+            _worker: &scheduler_domain::entities::WorkerInfo,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -617,33 +617,33 @@ mod tests {
         async fn get_by_id(
             &self,
             _worker_id: &str,
-        ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::WorkerInfo>> {
             unimplemented!()
         }
 
         async fn update(
             &self,
-            _worker: &scheduler_core::models::WorkerInfo,
+            _worker: &scheduler_domain::entities::WorkerInfo,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
 
         async fn list(
             &self,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
             Ok(vec![])
         }
 
         async fn get_alive_workers(
             &self,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
             Ok(vec![])
         }
 
         async fn get_workers_by_task_type(
             &self,
             _task_type: &str,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
             unimplemented!()
         }
 
@@ -659,7 +659,7 @@ mod tests {
         async fn update_status(
             &self,
             _worker_id: &str,
-            _status: scheduler_core::models::WorkerStatus,
+            _status: scheduler_domain::entities::WorkerStatus,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -667,7 +667,7 @@ mod tests {
         async fn get_timeout_workers(
             &self,
             _timeout_seconds: i64,
-        ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
             unimplemented!()
         }
 
@@ -688,7 +688,7 @@ mod tests {
         async fn batch_update_status(
             &self,
             _worker_ids: &[String],
-            _status: scheduler_core::models::WorkerStatus,
+            _status: scheduler_domain::entities::WorkerStatus,
         ) -> scheduler_core::SchedulerResult<()> {
             unimplemented!()
         }
@@ -699,7 +699,7 @@ mod tests {
         async fn trigger_task(
             &self,
             _task_id: i64,
-        ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+        ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
             unimplemented!()
         }
 
@@ -714,7 +714,7 @@ mod tests {
         async fn restart_task_run(
             &self,
             _task_run_id: i64,
-        ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+        ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
             unimplemented!()
         }
 

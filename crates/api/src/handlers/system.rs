@@ -1,5 +1,5 @@
 use axum::extract::State;
-use scheduler_core::models::{TaskFilter, TaskRunStatus, TaskStatus, WorkerStatus};
+use scheduler_domain::entities::{TaskFilter, TaskRunStatus, TaskStatus, WorkerStatus};
 use serde::Serialize;
 
 use crate::{error::ApiResult, response::success, routes::AppState};

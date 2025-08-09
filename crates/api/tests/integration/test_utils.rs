@@ -132,9 +132,9 @@ impl TaskControlService for MockTaskControlService {
     async fn trigger_task(
         &self,
         task_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
-        use scheduler_core::models::TaskRun;
+        use scheduler_domain::entities::TaskRun;
 
         Ok(TaskRun::new(task_id, Utc::now()))
     }
@@ -150,9 +150,9 @@ impl TaskControlService for MockTaskControlService {
     async fn restart_task_run(
         &self,
         task_run_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
-        use scheduler_core::models::TaskRun;
+        use scheduler_domain::entities::TaskRun;
 
         let mut task_run = TaskRun::new(1, Utc::now());
         task_run.id = task_run_id;

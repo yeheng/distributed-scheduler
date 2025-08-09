@@ -43,7 +43,7 @@
 //!
 //! ```rust
 //! use scheduler_core::traits::MessageQueue;
-//! use scheduler_core::models::Message;
+//! use scheduler_domain::entities::Message;
 //!
 //! async fn message_workflow(queue: &dyn MessageQueue) -> SchedulerResult<()> {
 //!     // 1. 创建队列

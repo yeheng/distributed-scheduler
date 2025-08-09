@@ -227,7 +227,7 @@ impl MessageQueue for MessageQueueManager {
     async fn publish_message(
         &self,
         queue: &str,
-        message: &scheduler_core::models::Message,
+        message: &scheduler_domain::entities::Message,
     ) -> SchedulerResult<()> {
         self.current_queue.publish_message(queue, message).await
     }
@@ -235,7 +235,7 @@ impl MessageQueue for MessageQueueManager {
     async fn consume_messages(
         &self,
         queue: &str,
-    ) -> SchedulerResult<Vec<scheduler_core::models::Message>> {
+    ) -> SchedulerResult<Vec<scheduler_domain::entities::Message>> {
         self.current_queue.consume_messages(queue).await
     }
 

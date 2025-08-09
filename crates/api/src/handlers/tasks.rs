@@ -111,7 +111,7 @@ pub struct UpdateTaskRequest {
     pub timeout_seconds: Option<i32>,
     pub max_retries: Option<i32>,
     pub dependencies: Option<Vec<i64>>,
-    pub status: Option<scheduler_core::models::task::TaskStatus>,
+    pub status: Option<scheduler_domain::entities::TaskStatus>,
 }
 
 /// 任务查询参数

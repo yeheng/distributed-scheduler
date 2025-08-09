@@ -488,7 +488,7 @@ async fn test_complete_task_lifecycle_e2e() {
 
     setup
         .message_queue
-        .publish_message("tasks", &scheduler_core::models::Message::task_execution(task_execution_msg))
+        .publish_message("tasks", &scheduler_domain::entities::Message::task_execution(task_execution_msg))
         .await
         .unwrap();
 

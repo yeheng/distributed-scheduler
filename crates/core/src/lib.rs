@@ -47,7 +47,7 @@
 //!
 //! ```rust
 //! use scheduler_core::prelude::*;
-//! use scheduler_core::models::{Task, TaskStatus, TaskPriority};
+//! use scheduler_domain::entities::{Task, TaskStatus, TaskPriority};
 //! use chrono::{DateTime, Utc};
 //!
 //! // 创建任务

@@ -35,7 +35,7 @@
 //! ```
 
 use axum::extract::{Path, Query, State};
-use scheduler_core::models::{WorkerInfo, WorkerStatus};
+use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 use serde::{Deserialize, Serialize};
 
 use crate::{

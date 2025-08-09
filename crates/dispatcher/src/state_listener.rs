@@ -4,8 +4,8 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tracing::{debug, error, info, warn};
 
+use scheduler_domain::entities::{Message, MessageType, StatusUpdateMessage, TaskRunStatus};
 use scheduler_core::{
-    models::{Message, MessageType, StatusUpdateMessage, TaskRunStatus},
     traits::{MessageQueue, StateListenerService, TaskRunRepository, WorkerRepository},
     SchedulerError, SchedulerResult,
 };

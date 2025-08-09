@@ -33,7 +33,7 @@
 //!
 //! ```rust
 //! use scheduler_core::traits::TaskRepository;
-//! use scheduler_core::models::{Task, TaskFilter};
+//! use scheduler_domain::entities::{Task, TaskFilter};
 //!
 //! async fn manage_tasks(repo: &dyn TaskRepository) -> SchedulerResult<()> {
 //!     // 创建新任务
@@ -59,7 +59,7 @@
 //!
 //! ```rust
 //! use scheduler_core::traits::TaskRunRepository;
-//! use scheduler_core::models::{TaskRun, TaskRunStatus};
+//! use scheduler_domain::entities::{TaskRun, TaskRunStatus};
 //!
 //! async fn track_execution(repo: &dyn TaskRunRepository) -> SchedulerResult<()> {
 //!     // 创建执行实例
@@ -81,7 +81,7 @@
 //!
 //! ```rust
 //! use scheduler_core::traits::WorkerRepository;
-//! use scheduler_core::models::{WorkerInfo, WorkerStatus};
+//! use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 //!
 //! async fn manage_workers(repo: &dyn WorkerRepository) -> SchedulerResult<()> {
 //!     // 注册新Worker
@@ -501,7 +501,7 @@ pub trait TaskRepository: Send + Sync {
 ///
 /// ```rust
 /// use scheduler_core::traits::TaskRunRepository;
-/// use scheduler_core::models::{TaskRun, TaskRunStatus};
+/// use scheduler_domain::entities::{TaskRun, TaskRunStatus};
 ///
 /// async fn execute_task_workflow(repo: &dyn TaskRunRepository) -> SchedulerResult<()> {
 ///     // 1. 创建执行实例
@@ -1032,7 +1032,7 @@ pub trait TaskRunRepository: Send + Sync {
 ///
 /// ```rust
 /// use scheduler_core::traits::WorkerRepository;
-/// use scheduler_core::models::{WorkerInfo, WorkerStatus};
+/// use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 ///
 /// async fn manage_worker_lifecycle(repo: &dyn WorkerRepository) -> SchedulerResult<()> {
 ///     // 1. 新Worker注册

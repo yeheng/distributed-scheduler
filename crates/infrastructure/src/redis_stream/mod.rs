@@ -17,7 +17,8 @@ pub use metrics_collector::RedisStreamMetrics;
 pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
-use scheduler_core::{models::Message, traits::MessageQueue, SchedulerResult};
+use scheduler_domain::entities::Message;
+use scheduler_core::{traits::MessageQueue, SchedulerResult};
 use std::sync::Arc;
 
 /// 健康状态

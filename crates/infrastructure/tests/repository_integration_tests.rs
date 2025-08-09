@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
-use scheduler_core::models::{
+use scheduler_domain::entities::{
     Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
 };
 use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};

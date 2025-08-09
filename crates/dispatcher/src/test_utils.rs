@@ -3,7 +3,7 @@ pub mod mocks {
     use crate::retry_service::RetryService;
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
-    use scheduler_core::models::{TaskFilter, TaskStatus};
+    use scheduler_domain::entities::{TaskFilter, TaskStatus};
     use scheduler_core::traits::{
         TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerRepository,
     };

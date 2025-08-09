@@ -4,7 +4,8 @@ use std::time::Instant;
 
 use tracing::{debug, warn};
 
-use scheduler_core::{errors::SchedulerError, models::Message, SchedulerResult};
+use scheduler_domain::entities::Message;
+use scheduler_core::{errors::SchedulerError, SchedulerResult};
 
 use super::config::RedisStreamConfig;
 use super::connection_manager::RedisConnectionManager;

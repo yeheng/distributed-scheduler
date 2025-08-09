@@ -181,7 +181,7 @@ impl WorkerLifecycle {
 
         for message in messages {
             match &message.message_type {
-                MessageType::TaskExecution(task_execution) => {
+                scheduler_domain::entities::MessageType::TaskExecution(task_execution) => {
                     let task_execution = task_execution.clone();
                     let heartbeat_mgr = Arc::clone(heartbeat_manager);
 
@@ -189,7 +189,7 @@ impl WorkerLifecycle {
                     let status_callback = move |task_run_id, status, result, error_message| {
                         let heartbeat_manager = Arc::clone(&heartbeat_mgr);
                         async move {
-                            let update = scheduler_core::models::TaskStatusUpdate {
+                            let update = scheduler_domain::entities::TaskStatusUpdate {
                                 task_run_id,
                                 status,
                                 worker_id: "worker".to_string(),
@@ -208,7 +208,7 @@ impl WorkerLifecycle {
                         error!("Failed to handle task execution: {}", e);
                     }
                 }
-                MessageType::TaskControl(control_message) => {
+                scheduler_domain::entities::MessageType::TaskControl(control_message) => {
                     if let Err(e) =
                         Self::handle_task_control(task_execution_manager, control_message).await
                     {
@@ -238,25 +238,25 @@ impl WorkerLifecycle {
         control_message: &TaskControlMessage,
     ) -> SchedulerResult<()> {
         match control_message.action {
-            scheduler_core::models::TaskControlAction::Cancel => {
+            scheduler_domain::entities::TaskControlAction::Cancel => {
                 task_execution_manager
                     .cancel_task(control_message.task_run_id)
                     .await?;
             }
-            scheduler_core::models::TaskControlAction::Restart => {
+            scheduler_domain::entities::TaskControlAction::Restart => {
                 // In a full implementation, this would restart the task
                 info!(
                     "Restart action not yet implemented for task {}",
                     control_message.task_run_id
                 );
             }
-            scheduler_core::models::TaskControlAction::Pause => {
+            scheduler_domain::entities::TaskControlAction::Pause => {
                 info!(
                     "Pause action not yet implemented for task {}",
                     control_message.task_run_id
                 );
             }
-            scheduler_core::models::TaskControlAction::Resume => {
+            scheduler_domain::entities::TaskControlAction::Resume => {
                 info!(
                     "Resume action not yet implemented for task {}",
                     control_message.task_run_id

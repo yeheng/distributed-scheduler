@@ -2,8 +2,8 @@
 //!
 //! This component is responsible only for building SQL queries based on filter criteria.
 
-use scheduler_core::models::TaskFilter;
-use scheduler_core::models::TaskStatus;
+use scheduler_domain::entities::TaskFilter;
+use scheduler_domain::entities::TaskStatus;
 
 /// Task query builder - Handles dynamic SQL query construction for task filtering
 /// Follows SRP: Only responsible for building SQL queries

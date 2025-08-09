@@ -65,7 +65,7 @@
 //!
 //! ```rust
 //! use scheduler_core::service_interfaces::worker_services::WorkerManagementService;
-//! use scheduler_core::models::{WorkerInfo, WorkerStatus};
+//! use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 //!
 //! async fn manage_worker_example(
 //!     worker_service: Arc<dyn WorkerManagementService>

@@ -80,9 +80,10 @@
 //! ```
 
 use async_trait::async_trait;
-use scheduler_core::SchedulerResult;
+use crate::errors::SchedulerResult;
+use crate::entities::{Task, TaskRun, WorkerInfo};
 
-use crate::models::{Task, TaskRun, Worker};
+// 移除 models 的引用，因为我们现在使用 entities 模块
 
 /// 任务仓储抽象接口
 ///
@@ -862,12 +863,11 @@ pub trait WorkerRepository: Send + Sync {
     /// # 示例
     ///
     /// ```rust
-    /// let worker = Worker {
+    /// let worker = WorkerInfo {
     ///     id: "worker-001".to_string(),
     ///     hostname: "compute-node-1".to_string(),
     ///     ip_address: "192.168.1.100".to_string(),
-    ///     port: Some(8080),
-    ///     status: WorkerStatus::Available,
+    ///     status: WorkerStatus::Alive,
     ///     max_concurrent_tasks: 10,
     ///     current_task_count: 0,
     ///     supported_task_types: vec![
@@ -875,14 +875,13 @@ pub trait WorkerRepository: Send + Sync {
     ///         "shell".to_string(),
     ///     ],
     ///     last_heartbeat: Utc::now(),
-    ///     created_at: Utc::now(),
-    ///     updated_at: Utc::now(),
+    ///     registered_at: Utc::now(),
     /// };
     ///
     /// let registered_worker = repo.register(&worker).await?;
     /// println!("Worker {} 注册成功", registered_worker.id);
     /// ```
-    async fn register(&self, worker: &Worker) -> SchedulerResult<Worker>;
+    async fn register(&self, worker: &WorkerInfo) -> SchedulerResult<WorkerInfo>;
 
     /// 根据ID查找Worker节点
     ///
@@ -929,7 +928,7 @@ pub trait WorkerRepository: Send + Sync {
     ///     None => println!("Worker不存在"),
     /// }
     /// ```
-    async fn find_by_id(&self, id: &str) -> SchedulerResult<Option<Worker>>;
+    async fn find_by_id(&self, id: &str) -> SchedulerResult<Option<WorkerInfo>>;
 
     /// 查找所有Worker节点
     ///
@@ -979,7 +978,7 @@ pub trait WorkerRepository: Send + Sync {
     /// println!("集群负载: {:.1}% ({}/{})",
     ///          load_percentage, current_load, total_capacity);
     /// ```
-    async fn find_all(&self) -> SchedulerResult<Vec<Worker>>;
+    async fn find_all(&self) -> SchedulerResult<Vec<WorkerInfo>>;
 
     /// 更新Worker节点信息
     ///
@@ -988,11 +987,11 @@ pub trait WorkerRepository: Send + Sync {
     ///
     /// # 参数
     ///
-    /// * `worker` - 包含更新信息的Worker实体，必须包含有效的ID
+    /// * `worker` - 包含更新信息的WorkerInfo实体，必须包含有效的ID
     ///
     /// # 返回值
     ///
-    /// 成功时返回更新后的Worker实体。
+    /// 成功时返回更新后的WorkerInfo实体。
     ///
     /// # 错误
     ///
@@ -1037,7 +1036,7 @@ pub trait WorkerRepository: Send + Sync {
     /// repo.update(&worker).await?;
     /// println!("Worker进入维护模式");
     /// ```
-    async fn update(&self, worker: &Worker) -> SchedulerResult<Worker>;
+    async fn update(&self, worker: &WorkerInfo) -> SchedulerResult<WorkerInfo>;
 
     /// 注销Worker节点
     ///
@@ -1104,7 +1103,7 @@ pub trait WorkerRepository: Send + Sync {
     ///
     /// # 返回值
     ///
-    /// 返回状态为Available且有剩余容量的Worker列表，
+    /// 返回状态为Available且有剩余容量的WorkerInfo列表，
     /// 按负载率排序（负载低的优先）。
     ///
     /// # 可用条件
@@ -1121,7 +1120,7 @@ pub trait WorkerRepository: Send + Sync {
     ///
     /// # 负载均衡
     ///
-    /// 返回的Worker按以下规则排序：
+    /// 返回的WorkerInfo按以下规则排序：
     /// 1. 负载率低的优先（current/max比值小）
     /// 2. 剩余容量大的优先
     /// 3. 最近心跳时间新的优先

@@ -4,9 +4,8 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-# 依赖core来使用统一的错误类型
-scheduler-core = { path = "../core" }
 # 只依赖必要的基础库，不依赖其他scheduler crates
+# 体现依赖倒置原则，领域层不依赖任何具体实现
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -15,6 +14,8 @@ uuid = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+# 添加 sqlx 依赖以支持数据库类型转换
+sqlx = { workspace = true }
 
 [dev-dependencies]
 tempfile = {workspace = true}

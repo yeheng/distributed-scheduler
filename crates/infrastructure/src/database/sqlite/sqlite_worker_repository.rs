@@ -477,7 +477,7 @@ impl WorkerRepository for SqliteWorkerRepository {
 mod tests {
     use super::*;
     use chrono::Utc;
-    use scheduler_core::models::{WorkerInfo, WorkerStatus};
+    use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
     use sqlx::SqlitePool;
 
     async fn setup_test_db() -> SqlitePool {

@@ -2,7 +2,7 @@
 mod dependency_checker_tests {
     use async_trait::async_trait;
     use chrono::Utc;
-    use scheduler_core::models::{TaskRun, TaskRunStatus, TaskStatus};
+    use scheduler_domain::entities::{TaskRun, TaskRunStatus, TaskStatus};
     use scheduler_core::traits::{TaskRepository, TaskRunRepository};
     use scheduler_core::*;
     use serde_json::json;
@@ -63,7 +63,7 @@ mod dependency_checker_tests {
 
         async fn list(
             &self,
-            _filter: &scheduler_core::models::TaskFilter,
+            _filter: &scheduler_domain::entities::TaskFilter,
         ) -> SchedulerResult<Vec<Task>> {
             let tasks = self.tasks.lock().unwrap();
             Ok(tasks.values().cloned().collect())
