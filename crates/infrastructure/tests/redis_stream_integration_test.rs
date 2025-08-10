@@ -1,8 +1,8 @@
 use anyhow::Result;
 use chrono::Utc;
 use scheduler_core::config::models::{MessageQueueConfig, MessageQueueType};
-use scheduler_core::models::{Message, MessageType, StatusUpdateMessage, TaskExecutionMessage};
 use scheduler_core::traits::MessageQueue;
+use scheduler_domain::entities::*;
 use scheduler_core::{TaskResult, TaskRunStatus};
 use scheduler_infrastructure::message_queue::RabbitMQMessageQueue;
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};

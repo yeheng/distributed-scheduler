@@ -1,6 +1,6 @@
 use anyhow::Result;
-use scheduler_core::models::{Message, TaskExecutionMessage};
 use scheduler_core::traits::MessageQueue;
+use scheduler_domain::entities::*;
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;
 use std::time::Duration;
@@ -77,7 +77,7 @@ async fn main() -> Result<()> {
             message.message_type_str()
         );
 
-        if let scheduler_core::models::MessageType::TaskExecution(task_msg) = &message.message_type
+        if let MessageType::TaskExecution(task_msg) = &message.message_type
         {
             println!(
                 "      Task: {} (ID: {})",

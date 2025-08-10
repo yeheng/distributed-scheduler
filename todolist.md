@@ -21,7 +21,6 @@
 ## 待办
 
 - [ ] 更新所有测试模块的依赖以使用 testing-utils，重构重复 Mock 并统一测试命名规范 (id: todo-11)
-- [ ] 修复 api/handlers/auth.rs 中硬编码的凭证：替换为配置驱动实现并在代码/注释中强烈警告（不可用于生产） (id: todo-12)
 - [ ] 精简配置验证：移除 validation.rs 中的通用 ValidatorRegistry，保留每个 Config 的 validate() 并更新调用点 (id: todo-13)
 - [ ] 同步并更新文档：ARCHITECTURE.md、API_DOCUMENTATION.md 与 config 示例（开发/生产），确保与重构后实现一致 (id: todo-14)
 - [ ] 运行并修复代码质量与 CI：cargo fmt --check、cargo clippy、cargo test、更新 ci.yml 如有需要，确保所有检查通过 (id: todo-15)

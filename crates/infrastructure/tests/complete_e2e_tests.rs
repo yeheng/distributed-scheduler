@@ -4,6 +4,7 @@ use scheduler_domain::entities::*;
 use scheduler_core::{
     traits::{MessageQueue},
 };
+use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::*;
 use scheduler_infrastructure::observability::MetricsCollector;
 use sqlx::PgPool;

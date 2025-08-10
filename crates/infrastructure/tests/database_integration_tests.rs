@@ -1,8 +1,6 @@
 use chrono::Utc;
-use scheduler_core::{
-    models::{Task, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
-    traits::{TaskRepository, TaskRunRepository, WorkerRepository},
-};
+use scheduler_domain::repositories::*;
+use scheduler_domain::entities::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
@@ -68,11 +66,11 @@ async fn test_task_repository_integration() {
     let found_by_name = repo.get_by_name(&task.name).await.unwrap();
     assert!(found_by_name.is_some());
     assert_eq!(found_by_name.unwrap().id, created_task.id);
-    let filter = scheduler_core::models::TaskFilter::default();
+    let filter = TaskFilter::default();
     let all_tasks = repo.list(&filter).await.unwrap();
     assert!(!all_tasks.is_empty());
     assert!(all_tasks.iter().any(|t| t.id == created_task.id));
-    let active_filter = scheduler_core::models::TaskFilter {
+    let active_filter = TaskFilter {
         status: Some(TaskStatus::Active),
         ..Default::default()
     };

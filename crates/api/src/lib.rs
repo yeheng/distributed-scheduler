@@ -437,7 +437,7 @@ mod tests {
         async fn get_recent_executions(
             &self,
             _task_id: i64,
-            _limit: i64,
+            _limit: usize,
         ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }

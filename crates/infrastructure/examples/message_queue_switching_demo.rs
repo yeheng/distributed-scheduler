@@ -1,8 +1,8 @@
 use scheduler_core::{
     config::models::{MessageQueueConfig, MessageQueueType, RedisConfig},
-    models::{Message, TaskExecutionMessage},
     traits::MessageQueue,
 };
+use scheduler_domain::entities::*;
 use scheduler_infrastructure::{MessageQueueFactory, MessageQueueManager};
 use serde_json::json;
 use std::time::Duration;

@@ -3,7 +3,7 @@ use chrono::Utc;
 use scheduler_domain::entities::{
     Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
 };
-use scheduler_core::traits::{TaskRepository, TaskRunRepository, WorkerRepository};
+use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };

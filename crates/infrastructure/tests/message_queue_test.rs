@@ -5,9 +5,9 @@ mod message_queue_test {
     use chrono::Utc;
     use scheduler_core::{
         config::models::{MessageQueueConfig, MessageQueueType},
-        models::{Message, MessageType, StatusUpdateMessage},
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
+    use scheduler_domain::entities::*;
     use scheduler_infrastructure::RabbitMQMessageQueue;
     use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
     use tokio::time::{sleep, Duration};
