@@ -4,6 +4,7 @@ use scheduler_domain::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
+use scheduler_testing_utils::TaskRunBuilder;
 use sqlx::PgPool;
 use std::sync::Arc;
 use testcontainers::ContainerAsync;
@@ -111,9 +112,11 @@ impl TaskControlService for MockTaskControlService {
         task_id: i64,
     ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
-        use scheduler_domain::entities::TaskRun;
 
-        Ok(TaskRun::new(task_id, Utc::now()))
+        Ok(TaskRunBuilder::new()
+            .with_task_id(task_id)
+            .with_scheduled_at(Utc::now())
+            .build())
     }
 
     async fn pause_task(&self, _task_id: i64) -> scheduler_core::SchedulerResult<()> {
@@ -129,11 +132,12 @@ impl TaskControlService for MockTaskControlService {
         task_run_id: i64,
     ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
-        use scheduler_domain::entities::TaskRun;
 
-        let mut task_run = TaskRun::new(1, Utc::now());
-        task_run.id = task_run_id;
-        Ok(task_run)
+        Ok(TaskRunBuilder::new()
+            .with_id(task_run_id)
+            .with_task_id(1)
+            .with_scheduled_at(Utc::now())
+            .build())
     }
 
     async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_core::SchedulerResult<()> {

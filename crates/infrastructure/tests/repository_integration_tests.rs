@@ -1,12 +1,11 @@
 use anyhow::Result;
 use chrono::Utc;
-use scheduler_domain::entities::{
-    Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
-};
+use scheduler_domain::entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus};
 use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
+use scheduler_testing_utils::{TaskBuilder, TaskRunBuilder, WorkerInfoBuilder};
 
 mod database_test_utils;
 use database_test_utils::DatabaseTestContainer;
@@ -17,20 +16,15 @@ async fn test_postgres_task_repository_crud() -> Result<()> {
     container.run_migrations().await?;
 
     let repo = PostgresTaskRepository::new(container.pool.clone());
-    let task = Task {
-        id: 0,
-        name: "integration_test_task".to_string(),
-        task_type: "shell".to_string(),
-        schedule: "0 0 * * *".to_string(),
-        parameters: serde_json::json!({"command": "echo 'hello'"}),
-        timeout_seconds: 300,
-        max_retries: 3,
-        status: TaskStatus::Active,
-        dependencies: vec![],
-        shard_config: None,
-        created_at: Utc::now(),
-        updated_at: Utc::now(),
-    };
+    let task = TaskBuilder::new()
+        .with_name("integration_test_task")
+        .with_task_type("shell")
+        .with_schedule("0 0 * * *")
+        .with_parameters(serde_json::json!({"command": "echo 'hello'"}))
+        .with_timeout(300)
+        .with_max_retries(3)
+        .with_status(TaskStatus::Active)
+        .build();
 
     let created_task = repo.create(&task).await?;
     assert!(created_task.id > 0);
@@ -78,21 +72,12 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
         .await?;
 
     let repo = PostgresTaskRunRepository::new(container.pool.clone());
-    let task_run = TaskRun {
-        id: 0,
-        task_id,
-        status: TaskRunStatus::Pending,
-        worker_id: None,
-        retry_count: 0,
-        shard_index: None,
-        shard_total: None,
-        scheduled_at: Utc::now(),
-        started_at: None,
-        completed_at: None,
-        result: None,
-        error_message: None,
-        created_at: Utc::now(),
-    };
+    let task_run = TaskRunBuilder::new()
+        .with_task_id(task_id)
+        .with_status(TaskRunStatus::Pending)
+        .with_retry_count(0)
+        .with_scheduled_at(Utc::now())
+        .build();
 
     let created_task_run = repo.create(&task_run).await?;
     assert!(created_task_run.id > 0);
@@ -121,21 +106,12 @@ async fn test_postgres_task_run_repository_crud() -> Result<()> {
         completed_run.result,
         Some("Task completed successfully".to_string())
     );
-    let pending_task_run = TaskRun {
-        id: 0,
-        task_id,
-        status: TaskRunStatus::Pending,
-        worker_id: None,
-        retry_count: 0,
-        shard_index: None,
-        shard_total: None,
-        scheduled_at: Utc::now(),
-        started_at: None,
-        completed_at: None,
-        result: None,
-        error_message: None,
-        created_at: Utc::now(),
-    };
+    let pending_task_run = TaskRunBuilder::new()
+        .with_task_id(task_id)
+        .with_status(TaskRunStatus::Pending)
+        .with_retry_count(0)
+        .with_scheduled_at(Utc::now())
+        .build();
 
     let pending_run = repo.create(&pending_task_run).await?;
     let pending_runs = repo.get_pending_runs(None).await?;
@@ -161,17 +137,16 @@ async fn test_postgres_worker_repository_crud() -> Result<()> {
     container.run_migrations().await?;
 
     let repo = PostgresWorkerRepository::new(container.pool.clone());
-    let worker = WorkerInfo {
-        id: "integration_test_worker".to_string(),
-        hostname: "test-host".to_string(),
-        ip_address: "192.168.1.100".to_string(),
-        supported_task_types: vec!["shell".to_string(), "http".to_string()],
-        max_concurrent_tasks: 10,
-        current_task_count: 0,
-        status: WorkerStatus::Alive,
-        last_heartbeat: Utc::now(),
-        registered_at: Utc::now(),
-    };
+    let worker = WorkerInfoBuilder::new()
+        .with_id("integration_test_worker")
+        .with_hostname("test-host")
+        .with_ip_address("192.168.1.100")
+        .with_supported_task_types(vec!["shell", "http"])
+        .with_max_concurrent_tasks(10)
+        .with_current_task_count(0)
+        .with_status(WorkerStatus::Alive)
+        .with_last_heartbeat(Utc::now())
+        .build();
 
     repo.register(&worker).await?;
     let retrieved_worker = repo.get_by_id(&worker.id).await?;
@@ -210,20 +185,17 @@ async fn test_repository_performance() -> Result<()> {
     let task_repo = PostgresTaskRepository::new(container.pool.clone());
 
     let start = std::time::Instant::now();
-    let tasks: Vec<Task> = (0..50)
-        .map(|i| Task {
-            id: 0,
-            name: format!("perf_test_task_{}", i),
-            task_type: "shell".to_string(),
-            schedule: "0 0 * * *".to_string(),
-            parameters: serde_json::json!({"command": format!("echo 'task {}'", i)}),
-            timeout_seconds: 300,
-            max_retries: 3,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
+    let tasks: Vec<_> = (0..50)
+        .map(|i| {
+            TaskBuilder::new()
+                .with_name(&format!("perf_test_task_{}", i))
+                .with_task_type("shell")
+                .with_schedule("0 0 * * *")
+                .with_parameters(serde_json::json!({"command": format!("echo 'task {}'", i)}))
+                .with_timeout(300)
+                .with_max_retries(3)
+                .with_status(TaskStatus::Active)
+                .build()
         })
         .collect();
 

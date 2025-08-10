@@ -1,25 +1,17 @@
 use chrono::Utc;
 use scheduler_core::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
-use scheduler_domain::{StatusUpdateMessage, TaskControlAction, TaskControlMessage, TaskExecutionMessage, WorkerHeartbeatMessage};
-use serde_json::json;
+use scheduler_domain::{StatusUpdateMessage, TaskControlAction, TaskControlMessage, WorkerHeartbeatMessage};
+use scheduler_testing_utils::MessageBuilder;
 use std::collections::HashMap;
 
 #[tokio::test]
 async fn test_message_queue_publish_and_consume() {
     let mq = MockMessageQueue::new();
     let queue_name = "test_queue";
-    let task_execution = TaskExecutionMessage {
-        task_run_id: 123,
-        task_id: 456,
-        task_name: "test_task".to_string(),
-        task_type: "shell".to_string(),
-        parameters: json!({"command": "echo hello"}),
-        timeout_seconds: 300,
-        retry_count: 0,
-        shard_index: None,
-        shard_total: None,
-    };
-    let message = Message::task_execution(task_execution);
+    let message = MessageBuilder::new()
+        .task_execution(123, 456, "test_task")
+        .build();
+    
     mq.publish_message(queue_name, &message).await.unwrap();
     let consumed_messages = mq.consume_messages(queue_name).await.unwrap();
     assert_eq!(consumed_messages.len(), 1);
@@ -58,19 +50,10 @@ async fn test_message_queue_size_and_purge() {
     let queue_name = "test_queue";
     mq.create_queue(queue_name, true).await.unwrap();
 
-    let task_execution = TaskExecutionMessage {
-        task_run_id: 123,
-        task_id: 456,
-        task_name: "test_task".to_string(),
-        task_type: "shell".to_string(),
-        parameters: json!({}),
-        timeout_seconds: 300,
-        retry_count: 0,
-        shard_index: None,
-        shard_total: None,
-    };
     for i in 0..5 {
-        let mut message = Message::task_execution(task_execution.clone());
+        let mut message = MessageBuilder::new()
+            .task_execution(123, 456, "test_task")
+            .build();
         message.id = format!("message_{i}");
         mq.publish_message(queue_name, &message).await.unwrap();
     }
@@ -85,18 +68,6 @@ async fn test_message_queue_size_and_purge() {
 async fn test_message_queue_multiple_message_types() {
     let mq = MockMessageQueue::new();
     let queue_name = "mixed_queue";
-    let task_execution = TaskExecutionMessage {
-        task_run_id: 123,
-        task_id: 456,
-        task_name: "test_task".to_string(),
-        task_type: "shell".to_string(),
-        parameters: json!({}),
-        timeout_seconds: 300,
-        retry_count: 0,
-        shard_index: None,
-        shard_total: None,
-    };
-
     let status_update = StatusUpdateMessage {
         task_run_id: 789,
         status: TaskRunStatus::Completed,
@@ -126,8 +97,9 @@ async fn test_message_queue_multiple_message_types() {
         requester: "admin".to_string(),
         timestamp: Utc::now(),
     };
+
     let messages = vec![
-        Message::task_execution(task_execution),
+        MessageBuilder::new().task_execution(123, 456, "test_task").build(),
         Message::status_update(status_update),
         Message::worker_heartbeat(heartbeat),
         Message::task_control(control),

@@ -3,10 +3,6 @@ name = "scheduler-api"
 version = "0.1.0"
 edition = "2021"
 
-[[bin]]
-name = "api-server"
-path = "src/bin/api-server.rs"
-
 [dependencies]
 scheduler-core = { path = "../core" }
 scheduler-domain = { path = "../domain" }
@@ -39,3 +35,4 @@ sqlx = { workspace = true, features = ["runtime-tokio-rustls", "postgres", "chro
 testcontainers = { workspace = true }
 testcontainers-modules = { workspace = true }
 tracing-subscriber = { workspace = true }
+scheduler-testing-utils = { path = "../testing-utils" }
