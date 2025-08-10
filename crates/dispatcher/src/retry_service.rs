@@ -303,10 +303,8 @@ impl RetryService for TaskRetryService {
 #[cfg(test)]
 mod tests {
 
-    use scheduler_core::MockMessageQueue;
-
     use super::*;
-    use crate::test_utils::mocks::{MockTaskRepository, MockTaskRunRepository};
+    use scheduler_testing_utils::{MockMessageQueue, MockTaskRepository, MockTaskRunRepository};
 
     #[test]
     fn test_calculate_next_retry_time() {

@@ -28,10 +28,15 @@ connection_timeout_seconds = 60
 max_retry_attempts = 5
 retry_delay_seconds = 2
 
-# RabbitMQ配置示例
+# RabbitMQ配置示例（生产环境推荐）
+# 取消下面的注释并注释掉上面的redis配置来切换到RabbitMQ
 # [message_queue]
 # type = "rabbitmq"
 # url = "amqp://prod-user:secure-password@mq-host:5672"
+# task_queue = "tasks"
+# status_queue = "status_updates"
+# heartbeat_queue = "heartbeats"
+# control_queue = "control"
 
 [dispatcher]
 enabled = true

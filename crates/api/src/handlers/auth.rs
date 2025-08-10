@@ -61,14 +61,14 @@ pub async fn login(
 
     let access_token = jwt_service
         .generate_token(&user_id, &permissions)
-        .map_err(|e| ApiError::Internal(format!("Failed to generate token: {}", e)))?;
+        .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
 
     let response = LoginResponse {
         access_token,
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600, // convert to seconds
         user_id: user_id.clone(),
-        permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
     };
 
     info!("User {} logged in successfully", user_id);
@@ -89,7 +89,7 @@ pub async fn refresh_token(
 
     let access_token = jwt_service
         .generate_token(&current_user.user_id, &current_user.permissions)
-        .map_err(|e| ApiError::Internal(format!("Failed to generate token: {}", e)))?;
+        .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
 
     let response = LoginResponse {
         access_token,
@@ -99,7 +99,7 @@ pub async fn refresh_token(
         permissions: current_user
             .permissions
             .iter()
-            .map(|p| format!("{:?}", p))
+            .map(|p| format!("{p:?}"))
             .collect(),
     };
 
@@ -134,7 +134,7 @@ pub async fn create_api_key(
     let response = CreateApiKeyResponse {
         api_key: api_key.clone(),
         name: request.name,
-        permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
         created_at,
         expires_at,
     };
@@ -160,7 +160,7 @@ pub async fn validate_token(
         permissions: current_user
             .permissions
             .iter()
-            .map(|p| format!("{:?}", p))
+            .map(|p| format!("{p:?}"))
             .collect(),
         expires_at,
     };

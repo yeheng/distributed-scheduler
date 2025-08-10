@@ -63,14 +63,12 @@ impl TaskScheduler {
                 task.name,
                 cron_scheduler.get_frequency_description()
             );
-        } else {
-            if let Some(time_until) = cron_scheduler.time_until_next_execution(now) {
-                debug!(
-                    "任务 {} 下次执行还需等待: {}分钟",
-                    task.name,
-                    time_until.num_minutes()
-                );
-            }
+        } else if let Some(time_until) = cron_scheduler.time_until_next_execution(now) {
+            debug!(
+                "任务 {} 下次执行还需等待: {}分钟",
+                task.name,
+                time_until.num_minutes()
+            );
         }
 
         Ok(should_trigger)
@@ -306,18 +304,21 @@ impl TaskScheduler {
     }
 
     // Missing trait implementations
+    #[allow(dead_code)]
     async fn start(&self) -> SchedulerResult<()> {
         info!("启动任务调度器");
         // TODO: Implement scheduler startup logic
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn stop(&self) -> SchedulerResult<()> {
         info!("停止任务调度器");
         // TODO: Implement scheduler shutdown logic
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn schedule_task(&self, task: &Task) -> SchedulerResult<()> {
         info!("调度任务: {}", task.name);
         if let Some(task_run) = self.schedule_task_if_needed(task).await? {
@@ -326,6 +327,7 @@ impl TaskScheduler {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()> {
         info!("批量调度 {} 个任务", tasks.len());
         for task in tasks {
@@ -334,11 +336,13 @@ impl TaskScheduler {
         Ok(())
     }
 
+    #[allow(dead_code)]
     async fn is_running(&self) -> bool {
         // TODO: Implement proper running state tracking
         true
     }
 
+    #[allow(dead_code)]
     async fn get_stats(&self) -> SchedulerResult<SchedulerStats> {
         // TODO: Implement proper statistics collection
         Ok(SchedulerStats {
@@ -351,6 +355,7 @@ impl TaskScheduler {
         })
     }
 
+    #[allow(dead_code)]
     async fn reload_config(&self) -> SchedulerResult<()> {
         info!("重新加载调度器配置");
         // TODO: Implement configuration reload logic

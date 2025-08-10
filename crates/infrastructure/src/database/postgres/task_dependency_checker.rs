@@ -127,8 +127,7 @@ impl TaskDependencyChecker {
             "FAILED" => Ok(TaskRunStatus::Failed),
             "TIMEOUT" => Ok(TaskRunStatus::Timeout),
             _ => Err(SchedulerError::Internal(format!(
-                "Unknown task run status: {}",
-                status_str
+                "Unknown task run status: {status_str}"
             ))),
         }
     }

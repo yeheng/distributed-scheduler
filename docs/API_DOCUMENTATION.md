@@ -22,11 +22,30 @@
   "data": {
     // 响应数据
   },
-  "metadata": {
-    "timestamp": "2024-01-01T00:00:00Z",
-    "request_id": "req_123456789",
-    "version": "1.0.0"
-  }
+  "message": null,
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+#### 带消息的成功响应
+```json
+{
+  "success": true,
+  "data": {
+    // 响应数据
+  },
+  "message": "操作成功",
+  "timestamp": "2024-01-01T00:00:00Z"
+}
+```
+
+#### 空响应
+```json
+{
+  "success": true,
+  "data": null,
+  "message": null,
+  "timestamp": "2024-01-01T00:00:00Z"
 }
 ```
 
@@ -34,20 +53,9 @@
 ```json
 {
   "success": false,
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "请求参数验证失败",
-    "details": {
-      "field": "name",
-      "rule": "required",
-      "value": null
-    }
-  },
-  "metadata": {
-    "timestamp": "2024-01-01T00:00:00Z",
-    "request_id": "req_123456789",
-    "version": "1.0.0"
-  }
+  "data": null,
+  "message": "错误信息",
+  "timestamp": "2024-01-01T00:00:00Z"
 }
 ```
 

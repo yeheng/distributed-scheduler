@@ -159,7 +159,7 @@ impl JwtService {
             sub: user_id.to_string(),
             exp: exp.timestamp(),
             iat: now.timestamp(),
-            permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
+            permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
             user_id: user_id.to_string(),
         };
 

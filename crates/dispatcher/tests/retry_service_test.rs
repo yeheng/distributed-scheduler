@@ -289,7 +289,7 @@ async fn test_scan_retry_tasks() {
     let messages = message_queue.get_all_messages();
     assert_eq!(messages.len(), 1);
 
-    let dispatched_task = task_run_repo.get_by_id(2).await.unwrap().unwrap();
+    let dispatched_task = task_run_repo.get_by_id(1).await.unwrap().unwrap();
     assert_eq!(dispatched_task.status, TaskRunStatus::Dispatched);
 }
 

@@ -31,13 +31,21 @@ async fn test_recover_running_tasks_with_alive_worker() {
         .build();
     task_run_repo.create(&task_run).await.unwrap();
 
-    let recovery_service =
-        SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
+    let config = scheduler_dispatcher::recovery_service::RecoveryConfig {
+        worker_heartbeat_timeout_seconds: 60, // Set to 60 seconds for the test
+        ..Default::default()
+    };
+    let recovery_service = SystemRecoveryService::new(
+        task_run_repo.clone(),
+        worker_repo,
+        message_queue,
+        Some(config),
+    );
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
     let recovered_tasks = result.unwrap();
-    assert_eq!(recovered_tasks.len(), 0); // Task should remain running since worker is alive
+    assert_eq!(recovered_tasks.len(), 0); // Task should remain running since worker is alive (within timeout)
 }
 
 #[tokio::test]
@@ -62,8 +70,16 @@ async fn test_recover_running_tasks_with_timeout_worker() {
         .build();
     task_run_repo.create(&task_run).await.unwrap();
 
-    let recovery_service =
-        SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
+    let config = scheduler_dispatcher::recovery_service::RecoveryConfig {
+        worker_heartbeat_timeout_seconds: 60, // Set to 60 seconds for the test
+        ..Default::default()
+    };
+    let recovery_service = SystemRecoveryService::new(
+        task_run_repo.clone(),
+        worker_repo,
+        message_queue,
+        Some(config),
+    );
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
@@ -96,8 +112,16 @@ async fn test_recover_running_tasks_with_down_worker() {
         .build();
     task_run_repo.create(&task_run).await.unwrap();
 
-    let recovery_service =
-        SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
+    let config = scheduler_dispatcher::recovery_service::RecoveryConfig {
+        worker_heartbeat_timeout_seconds: 60, // Set to 60 seconds for the test
+        ..Default::default()
+    };
+    let recovery_service = SystemRecoveryService::new(
+        task_run_repo.clone(),
+        worker_repo,
+        message_queue,
+        Some(config),
+    );
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
@@ -122,8 +146,16 @@ async fn test_recover_running_tasks_with_missing_worker() {
         .build();
     task_run_repo.create(&task_run).await.unwrap();
 
-    let recovery_service =
-        SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
+    let config = scheduler_dispatcher::recovery_service::RecoveryConfig {
+        worker_heartbeat_timeout_seconds: 60, // Set to 60 seconds for the test
+        ..Default::default()
+    };
+    let recovery_service = SystemRecoveryService::new(
+        task_run_repo.clone(),
+        worker_repo,
+        message_queue,
+        Some(config),
+    );
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
@@ -139,13 +171,13 @@ async fn test_recover_dispatched_tasks() {
     let task_run_repo = Arc::new(MockTaskRunRepository::new());
     let worker_repo = Arc::new(MockWorkerRepository::new());
     let message_queue = Arc::new(MockMessageQueue::new());
-    let old_time = Utc::now() - Duration::seconds(400); // 400 seconds ago
+    let old_time = Utc::now() - Duration::seconds(400); // 400 seconds ago (exceeds 300s default timeout)
 
     let old_task_run = TaskRunBuilder::new()
         .with_id(1)
         .with_task_id(1)
         .with_status(TaskRunStatus::Dispatched)
-        .with_scheduled_at(old_time)
+        .with_created_at(old_time)
         .build();
     task_run_repo.create(&old_task_run).await.unwrap();
 
@@ -156,8 +188,16 @@ async fn test_recover_dispatched_tasks() {
         .build();
     task_run_repo.create(&recent_task_run).await.unwrap();
 
-    let recovery_service =
-        SystemRecoveryService::new(task_run_repo.clone(), worker_repo, message_queue, None);
+    let config = scheduler_dispatcher::recovery_service::RecoveryConfig {
+        worker_heartbeat_timeout_seconds: 60, // Set to 60 seconds for the test
+        ..Default::default()
+    };
+    let recovery_service = SystemRecoveryService::new(
+        task_run_repo.clone(),
+        worker_repo,
+        message_queue,
+        Some(config),
+    );
     let result = recovery_service.recover_interrupted_tasks().await;
     assert!(result.is_ok());
 
@@ -238,7 +278,7 @@ async fn test_recover_system_state() {
         .with_id(2)
         .with_task_id(1)
         .with_status(TaskRunStatus::Dispatched)
-        .with_scheduled_at(old_time)
+        .with_created_at(old_time)
         .build();
     task_run_repo.create(&dispatched_task).await.unwrap();
 

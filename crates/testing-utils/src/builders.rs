@@ -182,6 +182,11 @@ impl TaskRunBuilder {
         self
     }
 
+    pub fn with_created_at(mut self, created_at: DateTime<Utc>) -> Self {
+        self.task_run.created_at = created_at;
+        self
+    }
+
     pub fn running(mut self) -> Self {
         self.task_run.status = TaskRunStatus::Running;
         self.task_run.started_at = Some(Utc::now());

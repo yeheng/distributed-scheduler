@@ -57,13 +57,15 @@ pub enum LogLevel { /* ... */ }
 // 容器管理
 pub struct Container { /* ... */ }
 
-// 调度接口
+// 基础设施接口
 pub trait Scheduler { /* ... */ }
+pub trait MessageQueue { /* ... */ }
 ```
 
 **依赖关系**:
 - 作为基础设施层，为其他模块提供支持
-- 被 Application、Domain、Infrastructure 模块依赖
+- 重导出 Domain 和 Errors 模块的公共类型
+- 被 Application、Infrastructure、API、Dispatcher、Worker 模块依赖
 
 ### Domain模块 (领域层)
 
@@ -88,8 +90,8 @@ pub struct TaskQueryBuilder { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖 Core 模块和 Errors 模块
-- 被 Application、Infrastructure、API 模块依赖
+- 依赖 Errors 模块
+- 被 Core 模块重导出，供其他模块使用
 
 ### Application模块 (应用层)
 
@@ -99,7 +101,7 @@ pub struct TaskQueryBuilder { /* ... */ }
 // 应用服务接口
 pub trait TaskControlService { /* ... */ }
 pub trait WorkerServiceTrait { /* ... */ }
-pub trait MessageQueueService { /* ... */ }
+pub trait SchedulerService { /* ... */ }
 
 // 应用服务实现
 pub struct TaskService { /* ... */ }
@@ -122,7 +124,7 @@ pub type SchedulerResult<T> = Result<T, SchedulerError>;
 
 **依赖关系**:
 - 无外部依赖
-- 被所有其他模块依赖
+- 被 Core 模块重导出，供其他模块使用
 
 ### API模块
 

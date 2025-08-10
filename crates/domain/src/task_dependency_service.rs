@@ -124,10 +124,7 @@ impl TaskDependencyService {
         for (task_id, dependencies) in &graph {
             in_degree.entry(*task_id).or_insert(0);
             for &dep_id in dependencies {
-                adj_list
-                    .entry(dep_id)
-                    .or_insert_with(Vec::new)
-                    .push(*task_id);
+                adj_list.entry(dep_id).or_default().push(*task_id);
                 *in_degree.entry(*task_id).or_insert(0) += 1;
             }
         }
