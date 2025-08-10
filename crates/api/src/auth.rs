@@ -345,7 +345,7 @@ mod tests {
             },
         );
 
-        let api_service = ApiKeyService::new(keys);
+        let _api_service = ApiKeyService::new(keys);
     }
 
     #[test]

@@ -7,6 +7,7 @@ use scheduler_core::{
 use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::*;
 use scheduler_infrastructure::observability::MetricsCollector;
+use scheduler_testing_utils::{TaskBuilder, WorkerInfoBuilder};
 use sqlx::PgPool;
 use std::sync::Arc;
 use testcontainers::runners::AsyncRunner;
@@ -16,113 +17,6 @@ use tokio::time::sleep;
 use std::collections::HashMap;
 use std::time::Instant;
 use futures;
-
-pub struct TaskBuilder {
-    name: String,
-    task_type: String,
-    cron_expression: String,
-    parameters: serde_json::Value,
-    dependencies: Vec<i64>,
-    max_retries: i32,
-    timeout_seconds: i32,
-}
-
-impl TaskBuilder {
-    pub fn new(name: &str, task_type: &str) -> Self {
-        Self {
-            name: name.to_string(),
-            task_type: task_type.to_string(),
-            cron_expression: "0 0 * * *".to_string(),
-            parameters: serde_json::json!({
-                "command": format!("echo 'Executing {}'", name),
-                "timeout": 30
-            }),
-            dependencies: Vec::new(),
-            max_retries: 3,
-            timeout_seconds: 300,
-        }
-    }
-
-    pub fn with_cron(mut self, cron: &str) -> Self {
-        self.cron_expression = cron.to_string();
-        self
-    }
-
-    pub fn with_parameters(mut self, params: serde_json::Value) -> Self {
-        self.parameters = params;
-        self
-    }
-
-    pub fn with_dependencies(mut self, deps: Vec<i64>) -> Self {
-        self.dependencies = deps;
-        self
-    }
-
-    pub fn with_max_retries(mut self, retries: i32) -> Self {
-        self.max_retries = retries;
-        self
-    }
-
-    pub fn with_timeout(mut self, timeout: i32) -> Self {
-        self.timeout_seconds = timeout;
-        self
-    }
-
-    pub fn build(self) -> Task {
-        let mut task = Task::new(self.name, self.task_type, self.cron_expression, self.parameters);
-        task.dependencies = self.dependencies;
-        task.max_retries = self.max_retries;
-        task.timeout_seconds = self.timeout_seconds;
-        task
-    }
-}
-
-pub struct WorkerBuilder {
-    id: String,
-    task_types: Vec<String>,
-    max_concurrent_tasks: i32,
-    status: WorkerStatus,
-}
-
-impl WorkerBuilder {
-    pub fn new(id: &str) -> Self {
-        Self {
-            id: id.to_string(),
-            task_types: vec!["shell".to_string()],
-            max_concurrent_tasks: 5,
-            status: WorkerStatus::Alive,
-        }
-    }
-
-    pub fn with_task_types(mut self, types: Vec<String>) -> Self {
-        self.task_types = types;
-        self
-    }
-
-    pub fn with_max_concurrent(mut self, max: i32) -> Self {
-        self.max_concurrent_tasks = max;
-        self
-    }
-
-    pub fn with_status(mut self, status: WorkerStatus) -> Self {
-        self.status = status;
-        self
-    }
-
-    pub fn build(&self) -> WorkerInfo {
-        WorkerInfo {
-            id: self.id.clone(),
-            hostname: format!("{}-host", self.id),
-            ip_address: "127.0.0.1".to_string(),
-            supported_task_types: self.task_types.clone(),
-            max_concurrent_tasks: self.max_concurrent_tasks,
-            current_task_count: 0,
-            status: self.status,
-            last_heartbeat: Utc::now(),
-            registered_at: Utc::now(),
-        }
-    }
-}
 
 pub struct ContainerPool {
     containers: HashMap<String, testcontainers::ContainerAsync<Postgres>>,
@@ -233,16 +127,23 @@ impl E2ETestSetup {
         report
     }
     pub async fn create_test_worker(&self, worker_id: &str, task_types: Vec<String>) -> WorkerInfo {
-        let worker = WorkerBuilder::new(worker_id)
-            .with_task_types(task_types)
+        let worker = WorkerInfoBuilder::new()
+            .with_id(worker_id)
+            .with_supported_task_types(task_types.iter().map(|s| s.as_str()).collect())
             .build();
 
         self.worker_repo.register(&worker).await.unwrap();
         worker
     }
     pub async fn create_test_task(&self, name: &str, task_type: &str, dependencies: Vec<i64>) -> Task {
-        let task = TaskBuilder::new(name, task_type)
+        let task = TaskBuilder::new()
+            .with_name(name)
+            .with_task_type(task_type)
             .with_dependencies(dependencies)
+            .with_parameters(serde_json::json!({
+                "command": format!("echo 'Executing {}'", name),
+                "timeout": 30
+            }))
             .build();
 
         self.task_repo.create(&task).await.unwrap()
@@ -325,8 +226,9 @@ impl E2ETestSetup {
         let worker_repo = &self.worker_repo;
         let workers = futures::future::try_join_all(
             worker_configs.into_iter().map(|(id, task_types)| async move {
-                let worker = WorkerBuilder::new(&id)
-                    .with_task_types(task_types)
+                let worker = WorkerInfoBuilder::new()
+                    .with_id(&id)
+                    .with_supported_task_types(task_types.iter().map(|s| s.as_str()).collect())
                     .build();
                 worker_repo.register(&worker).await?;
                 Ok::<WorkerInfo, Box<dyn std::error::Error>>(worker)
@@ -344,8 +246,14 @@ impl E2ETestSetup {
         let task_repo = &self.task_repo;
         let tasks = futures::future::try_join_all(
             task_configs.into_iter().map(|(name, task_type, dependencies)| async move {
-                let task = TaskBuilder::new(&name, task_type)
+                let task = TaskBuilder::new()
+                    .with_name(&name)
+                    .with_task_type(task_type)
                     .with_dependencies(dependencies)
+                    .with_parameters(serde_json::json!({
+                        "command": format!("echo 'Executing {}'", name),
+                        "timeout": 30
+                    }))
                     .build();
                 let created_task = task_repo.create(&task).await?;
                 assert!(created_task.id > 0, "Task should have a valid database-generated ID");
@@ -543,7 +451,9 @@ async fn test_task_retry_mechanism_e2e() {
     let worker = setup
         .create_test_worker("retry-worker", vec!["shell".to_string()])
         .await;
-    let task = TaskBuilder::new("retry_task", "shell")
+    let task = TaskBuilder::new()
+        .with_name("retry_task")
+        .with_task_type("shell")
         .with_max_retries(2)
         .with_timeout(10)
         .build();
@@ -756,7 +666,9 @@ async fn test_task_timeout_handling_e2e() {
     let worker = setup
         .create_test_worker("timeout-worker", vec!["shell".to_string()])
         .await;
-    let task = TaskBuilder::new("timeout_task", "shell")
+    let task = TaskBuilder::new()
+        .with_name("timeout_task")
+        .with_task_type("shell")
         .with_timeout(1) // 1秒超时
         .build();
     

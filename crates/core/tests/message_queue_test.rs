@@ -1,5 +1,6 @@
 use chrono::Utc;
-use scheduler_core::{models::*, traits::MockMessageQueue, *};
+use scheduler_core::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
+use scheduler_domain::{StatusUpdateMessage, TaskControlAction, TaskControlMessage, TaskExecutionMessage, WorkerHeartbeatMessage};
 use serde_json::json;
 use std::collections::HashMap;
 
