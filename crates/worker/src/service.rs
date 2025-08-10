@@ -1,6 +1,9 @@
 use std::sync::Arc;
 
-use scheduler_core::{SchedulerResult, ServiceLocator, traits::{TaskStatusUpdate, WorkerServiceTrait, ExecutorRegistry}};
+use scheduler_core::{
+    traits::{ExecutorRegistry, TaskStatusUpdate, WorkerServiceTrait},
+    SchedulerResult, ServiceLocator,
+};
 use scheduler_domain::entities::TaskRun;
 
 use crate::components::{

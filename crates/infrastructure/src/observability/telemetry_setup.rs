@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
@@ -98,7 +97,6 @@ pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
 }
 
 pub fn init_tracing() -> Result<()> {
-
     tracing_subscriber::registry()
         .with(
             tracing_subscriber::EnvFilter::try_from_default_env().unwrap_or_else(|_| "info".into()),

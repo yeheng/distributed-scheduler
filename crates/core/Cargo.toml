@@ -25,7 +25,3 @@ scheduler-testing-utils = { path = "../testing-utils" }
 tempfile = {workspace = true}
 testcontainers = {workspace = true}
 testcontainers-modules = { workspace = true, features = ["postgres"] }
-
-[[example]]
-name = "config_usage"
-path = "examples/config_usage.rs"

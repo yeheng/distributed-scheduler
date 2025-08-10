@@ -2,8 +2,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use scheduler_domain::repositories::TaskExecutionStats;
 use scheduler_domain::entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus};
+use scheduler_domain::repositories::TaskExecutionStats;
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 

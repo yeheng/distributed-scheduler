@@ -21,17 +21,20 @@ impl TaskDependencyChecker {
     /// Check if all dependencies of a task are satisfied by delegating to domain service
     pub async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
         let task_dependencies = self.get_task_dependencies(task_id).await?;
-        
+
         if task_dependencies.is_empty() {
             return Ok(true);
         }
 
         let dependency_statuses = self.get_dependency_run_statuses(&task_dependencies).await?;
-        
-        TaskDependencyService::check_dependencies_satisfied(&task_dependencies, &dependency_statuses)
+
+        TaskDependencyService::check_dependencies_satisfied(
+            &task_dependencies,
+            &dependency_statuses,
+        )
     }
 
-    /// Get dependency tasks as full Task entities 
+    /// Get dependency tasks as full Task entities
     pub async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         let task_dependencies = self.get_task_dependencies(task_id).await?;
 
@@ -88,7 +91,10 @@ impl TaskDependencyChecker {
     }
 
     /// Get the latest run status for a specific task
-    async fn get_latest_task_run_status(&self, task_id: i64) -> SchedulerResult<Option<TaskRunStatus>> {
+    async fn get_latest_task_run_status(
+        &self,
+        task_id: i64,
+    ) -> SchedulerResult<Option<TaskRunStatus>> {
         let recent_run = sqlx::query(
             "SELECT status FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1",
         )
@@ -175,15 +181,15 @@ impl TaskDependencyChecker {
 #[cfg(test)]
 mod tests {
     use super::*;
-    
+
     // Note: Integration tests with actual database connections should use testcontainers
     // These tests focus on business logic that doesn't require database connections
-    
+
     #[test]
     fn test_parse_task_run_status_valid_cases() {
         // Test the parsing logic without creating a real TaskDependencyChecker
         // Since parse_task_run_status is a private method, we test the logic directly
-        
+
         let test_cases = vec![
             ("PENDING", TaskRunStatus::Pending),
             ("DISPATCHED", TaskRunStatus::Dispatched),
@@ -192,18 +198,18 @@ mod tests {
             ("FAILED", TaskRunStatus::Failed),
             ("TIMEOUT", TaskRunStatus::Timeout),
         ];
-        
+
         for (status_str, expected) in test_cases {
             let result = parse_status_string(status_str);
             assert!(result.is_ok());
             assert_eq!(result.unwrap(), expected);
         }
     }
-    
+
     #[test]
     fn test_parse_task_run_status_invalid_cases() {
         let invalid_cases = vec!["INVALID_STATUS", "", "pending", "Completed", "unknown"];
-        
+
         for invalid_status in invalid_cases {
             let result = parse_status_string(invalid_status);
             assert!(result.is_err());

@@ -1,19 +1,18 @@
 //! Mock implementations for all repository and service traits
-//! 
+//!
 //! This module provides in-memory mock implementations that can be used
-//! for unit testing without requiring actual database connections or 
+//! for unit testing without requiring actual database connections or
 //! external services.
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::{SchedulerResult};
+use scheduler_core::traits::MessageQueue;
+use scheduler_core::SchedulerResult;
 use scheduler_domain::entities::{
-    Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, 
-    WorkerInfo, WorkerStatus, Message
+    Message, Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
 };
 use scheduler_domain::repositories::{TaskExecutionStats, WorkerLoadStats};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
-use scheduler_core::traits::MessageQueue;
 use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
@@ -35,14 +34,14 @@ impl MockTaskRepository {
     pub fn with_tasks(tasks: Vec<Task>) -> Self {
         let mut task_map = HashMap::new();
         let mut max_id = 0;
-        
+
         for task in tasks {
             if task.id > max_id {
                 max_id = task.id;
             }
             task_map.insert(task.id, task);
         }
-        
+
         Self {
             tasks: Arc::new(Mutex::new(task_map)),
             next_id: Arc::new(Mutex::new(max_id + 1)),
@@ -74,11 +73,11 @@ impl TaskRepository for MockTaskRepository {
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
         let mut tasks = self.tasks.lock().unwrap();
         let mut next_id = self.next_id.lock().unwrap();
-        
+
         let mut new_task = task.clone();
         new_task.id = *next_id;
         *next_id += 1;
-        
+
         tasks.insert(new_task.id, new_task.clone());
         Ok(new_task)
     }
@@ -113,11 +112,11 @@ impl TaskRepository for MockTaskRepository {
         if let Some(status) = filter.status {
             filtered_tasks.retain(|t| t.status == status);
         }
-        
+
         if let Some(task_type) = &filter.task_type {
             filtered_tasks.retain(|t| t.task_type == *task_type);
         }
-        
+
         if let Some(name_pattern) = &filter.name_pattern {
             filtered_tasks.retain(|t| t.name.contains(name_pattern));
         }
@@ -126,7 +125,7 @@ impl TaskRepository for MockTaskRepository {
         if let Some(offset) = filter.offset {
             filtered_tasks = filtered_tasks.into_iter().skip(offset as usize).collect();
         }
-        
+
         if let Some(limit) = filter.limit {
             filtered_tasks.truncate(limit as usize);
         }
@@ -201,14 +200,14 @@ impl MockTaskRunRepository {
     pub fn with_task_runs(task_runs: Vec<TaskRun>) -> Self {
         let mut task_run_map = HashMap::new();
         let mut max_id = 0;
-        
+
         for task_run in task_runs {
             if task_run.id > max_id {
                 max_id = task_run.id;
             }
             task_run_map.insert(task_run.id, task_run);
         }
-        
+
         Self {
             task_runs: Arc::new(Mutex::new(task_run_map)),
             next_id: Arc::new(Mutex::new(max_id + 1)),
@@ -236,11 +235,11 @@ impl TaskRunRepository for MockTaskRunRepository {
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
         let mut task_runs = self.task_runs.lock().unwrap();
         let mut next_id = self.next_id.lock().unwrap();
-        
+
         let mut new_task_run = task_run.clone();
         new_task_run.id = *next_id;
         *next_id += 1;
-        
+
         task_runs.insert(new_task_run.id, new_task_run.clone());
         Ok(new_task_run)
     }
@@ -296,11 +295,11 @@ impl TaskRunRepository for MockTaskRunRepository {
             .filter(|tr| tr.status == TaskRunStatus::Pending)
             .cloned()
             .collect();
-            
+
         if let Some(limit) = limit {
             pending_runs.truncate(limit as usize);
         }
-        
+
         Ok(pending_runs)
     }
 
@@ -361,14 +360,18 @@ impl TaskRunRepository for MockTaskRunRepository {
             .filter(|tr| tr.task_id == task_id)
             .cloned()
             .collect();
-            
+
         recent_runs.sort_by(|a, b| b.created_at.cmp(&a.created_at));
         recent_runs.truncate(limit as usize);
-        
+
         Ok(recent_runs)
     }
 
-    async fn get_execution_stats(&self, task_id: i64, _days: i32) -> SchedulerResult<TaskExecutionStats> {
+    async fn get_execution_stats(
+        &self,
+        task_id: i64,
+        _days: i32,
+    ) -> SchedulerResult<TaskExecutionStats> {
         let task_runs = self.task_runs.lock().unwrap();
         let runs: Vec<&TaskRun> = task_runs
             .values()
@@ -376,9 +379,18 @@ impl TaskRunRepository for MockTaskRunRepository {
             .collect();
 
         let total_runs = runs.len() as i64;
-        let successful_runs = runs.iter().filter(|tr| tr.status == TaskRunStatus::Completed).count() as i64;
-        let failed_runs = runs.iter().filter(|tr| tr.status == TaskRunStatus::Failed).count() as i64;
-        let timeout_runs = runs.iter().filter(|tr| tr.status == TaskRunStatus::Timeout).count() as i64;
+        let successful_runs = runs
+            .iter()
+            .filter(|tr| tr.status == TaskRunStatus::Completed)
+            .count() as i64;
+        let failed_runs = runs
+            .iter()
+            .filter(|tr| tr.status == TaskRunStatus::Failed)
+            .count() as i64;
+        let timeout_runs = runs
+            .iter()
+            .filter(|tr| tr.status == TaskRunStatus::Timeout)
+            .count() as i64;
 
         let success_rate = if total_runs > 0 {
             (successful_runs as f64 / total_runs as f64) * 100.0
@@ -432,7 +444,7 @@ impl MockWorkerRepository {
         for worker in workers {
             worker_map.insert(worker.id.clone(), worker);
         }
-        
+
         Self {
             workers: Arc::new(Mutex::new(worker_map)),
         }
@@ -540,7 +552,8 @@ impl WorkerRepository for MockWorkerRepository {
                 worker_id: w.id.clone(),
                 current_task_count: w.current_task_count,
                 max_concurrent_tasks: w.max_concurrent_tasks,
-                load_percentage: (w.current_task_count as f64 / w.max_concurrent_tasks as f64) * 100.0,
+                load_percentage: (w.current_task_count as f64 / w.max_concurrent_tasks as f64)
+                    * 100.0,
                 total_completed_tasks: 0,
                 total_failed_tasks: 0,
                 average_task_duration_ms: None,
@@ -597,13 +610,10 @@ impl MockMessageQueue {
             .cloned()
             .unwrap_or_default()
     }
-    
+
     pub fn add_message_to_queue(&self, queue: &str, message: Message) {
         let mut queues = self.queues.lock().unwrap();
-        queues
-            .entry(queue.to_string())
-            .or_default()
-            .push(message);
+        queues.entry(queue.to_string()).or_default().push(message);
     }
 
     pub fn get_all_messages(&self) -> Vec<Message> {

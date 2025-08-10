@@ -1,4 +1,3 @@
-
 pub mod config;
 pub mod connection_manager;
 pub mod message_handler;
@@ -11,8 +10,8 @@ pub use metrics_collector::RedisStreamMetrics;
 pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
+use scheduler_core::{traits::MessageQueue, SchedulerResult};
 use scheduler_domain::entities::Message;
-use scheduler_core::{SchedulerResult, traits::MessageQueue};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

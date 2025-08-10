@@ -1,8 +1,8 @@
 use chrono::Utc;
 use scheduler_core::traits::MockMessageQueue;
 use scheduler_core::MessageQueue;
-use scheduler_domain::repositories::*;
 use scheduler_domain::entities::*;
+use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
@@ -94,9 +94,7 @@ async fn test_task_dispatch_and_execution_flow() {
     let received_messages = setup.message_queue.consume_messages("tasks").await.unwrap();
     assert!(!received_messages.is_empty());
     let received_message = &received_messages[0];
-    let task_run_id = if let MessageType::TaskExecution(ref msg) =
-        received_message.message_type
-    {
+    let task_run_id = if let MessageType::TaskExecution(ref msg) = received_message.message_type {
         msg.task_run_id
     } else {
         panic!("Expected TaskExecution message");
@@ -162,8 +160,7 @@ async fn test_task_dispatch_and_execution_flow() {
     assert!(!status_messages.is_empty());
 
     let received_status = &status_messages[0];
-    if let MessageType::StatusUpdate(ref msg) = received_status.message_type
-    {
+    if let MessageType::StatusUpdate(ref msg) = received_status.message_type {
         assert_eq!(msg.task_run_id, task_run_id);
         assert_eq!(msg.status, TaskRunStatus::Completed);
     } else {
@@ -404,8 +401,7 @@ async fn test_concurrent_task_execution() {
     assert_eq!(status_messages.len(), 3);
 
     for status_msg in &status_messages {
-        if let MessageType::StatusUpdate(ref msg) = status_msg.message_type
-        {
+        if let MessageType::StatusUpdate(ref msg) = status_msg.message_type {
             assert_eq!(msg.status, TaskRunStatus::Completed);
         } else {
             panic!("Expected StatusUpdate message");

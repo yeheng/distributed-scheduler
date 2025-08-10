@@ -112,7 +112,7 @@ impl EventTracker {
             event_id: None,
             related_events: Vec::new(),
         };
-        
+
         self.track_event(event).await;
     }
     pub async fn get_recent_events(&self, seconds: u64) -> Vec<EventRecord> {
@@ -122,7 +122,7 @@ impl EventTracker {
             .unwrap_or_default()
             .as_secs()
             - seconds;
-        
+
         events
             .iter()
             .filter(|event| event.timestamp >= cutoff)
@@ -152,17 +152,26 @@ impl EventTracker {
     pub async fn clear(&self) {
         let mut events = self.events.write().await;
         let mut metrics = self.metrics.write().await;
-        
+
         events.clear();
         *metrics = EventMetrics::new();
     }
     async fn update_metrics(&self, event: &EventRecord) {
         let mut metrics = self.metrics.write().await;
-        
+
         metrics.total_events += 1;
-        *metrics.events_by_category.entry(event.category).or_insert(0) += 1;
-        *metrics.events_by_severity.entry(event.severity).or_insert(0) += 1;
-        *metrics.events_by_source.entry(event.source.clone()).or_insert(0) += 1;
+        *metrics
+            .events_by_category
+            .entry(event.category)
+            .or_insert(0) += 1;
+        *metrics
+            .events_by_severity
+            .entry(event.severity)
+            .or_insert(0) += 1;
+        *metrics
+            .events_by_source
+            .entry(event.source.clone())
+            .or_insert(0) += 1;
         self.update_event_rates(&mut metrics).await;
     }
     async fn update_event_rates(&self, metrics: &mut EventMetrics) {
@@ -171,20 +180,21 @@ impl EventTracker {
             .duration_since(UNIX_EPOCH)
             .unwrap_or_default()
             .as_secs();
-        
+
         let cutoff = now - self.config.rate_window_seconds;
-        
+
         let recent_events: u64 = events
             .iter()
             .filter(|event| event.timestamp >= cutoff)
             .count() as u64;
-        
+
         let recent_errors: u64 = events
             .iter()
             .filter(|event| event.timestamp >= cutoff && event.severity >= LogLevel::Error)
             .count() as u64;
-        
-        metrics.recent_event_rate = recent_events as f64 / self.config.rate_window_seconds as f64 * 60.0;
+
+        metrics.recent_event_rate =
+            recent_events as f64 / self.config.rate_window_seconds as f64 * 60.0;
         metrics.error_rate = recent_errors as f64 / self.config.rate_window_seconds as f64 * 60.0;
     }
 }

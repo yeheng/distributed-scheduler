@@ -1,6 +1,6 @@
 use anyhow::Result;
-use scheduler_domain::entities::{Message, TaskExecutionMessage};
 use scheduler_core::traits::MessageQueue;
+use scheduler_domain::entities::{Message, TaskExecutionMessage};
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};
@@ -454,14 +454,12 @@ async fn test_high_load_stress() -> Result<()> {
                                     Ok(Ok(())) => {
                                         acked_count_clone.fetch_add(1, Ordering::Relaxed);
                                     }
-                                    Ok(Err(_)) | Err(_) => {
-                                    }
+                                    Ok(Err(_)) | Err(_) => {}
                                 }
                             }
                         }
                     }
-                    Ok(Err(_)) | Err(_) => {
-                    }
+                    Ok(Err(_)) | Err(_) => {}
                 }
 
                 tokio::time::sleep(Duration::from_millis(10)).await;

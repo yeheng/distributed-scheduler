@@ -1,4 +1,3 @@
-
 use axum::extract::{Path, Query, State};
 use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 use scheduler_domain::repositories::WorkerLoadStats;

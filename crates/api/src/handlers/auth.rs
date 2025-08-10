@@ -1,7 +1,4 @@
-use axum::{
-    extract::State,
-    Json,
-};
+use axum::{extract::State, Json};
 use serde::{Deserialize, Serialize};
 use tracing::info;
 
@@ -57,8 +54,11 @@ pub async fn login(
     info!("User login attempt: {}", request.username);
     let (user_id, permissions) = validate_user_credentials(&request.username, &request.password)?;
 
-    let jwt_service = JwtService::new(&state.auth_config.jwt_secret, state.auth_config.jwt_expiration_hours);
-    
+    let jwt_service = JwtService::new(
+        &state.auth_config.jwt_secret,
+        state.auth_config.jwt_expiration_hours,
+    );
+
     let access_token = jwt_service
         .generate_token(&user_id, &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {}", e)))?;
@@ -82,8 +82,11 @@ pub async fn refresh_token(
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     info!("Token refresh for user: {}", current_user.user_id);
 
-    let jwt_service = JwtService::new(&state.auth_config.jwt_secret, state.auth_config.jwt_expiration_hours);
-    
+    let jwt_service = JwtService::new(
+        &state.auth_config.jwt_secret,
+        state.auth_config.jwt_expiration_hours,
+    );
+
     let access_token = jwt_service
         .generate_token(&current_user.user_id, &current_user.permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {}", e)))?;
@@ -93,7 +96,11 @@ pub async fn refresh_token(
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600,
         user_id: current_user.user_id.clone(),
-        permissions: current_user.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        permissions: current_user
+            .permissions
+            .iter()
+            .map(|p| format!("{:?}", p))
+            .collect(),
     };
 
     Ok(Json(ApiResponse::success(response)))
@@ -105,7 +112,10 @@ pub async fn create_api_key(
 ) -> ApiResult<Json<ApiResponse<CreateApiKeyResponse>>> {
     current_user.require_permission(Permission::Admin)?;
 
-    info!("Creating API key: {} for user: {}", request.name, current_user.user_id);
+    info!(
+        "Creating API key: {} for user: {}",
+        request.name, current_user.user_id
+    );
     let permissions: Result<Vec<Permission>, _> = request
         .permissions
         .iter()
@@ -117,10 +127,10 @@ pub async fn create_api_key(
     let api_key = crate::auth::ApiKeyService::generate_api_key();
 
     let created_at = chrono::Utc::now();
-    let expires_at = request.expires_in_days.map(|days| {
-        created_at + chrono::Duration::days(days as i64)
-    });
-    
+    let expires_at = request
+        .expires_in_days
+        .map(|days| created_at + chrono::Duration::days(days as i64));
+
     let response = CreateApiKeyResponse {
         api_key: api_key.clone(),
         name: request.name,
@@ -147,7 +157,11 @@ pub async fn validate_token(
     let response = ValidateTokenResponse {
         valid: true,
         user_id: current_user.user_id,
-        permissions: current_user.permissions.iter().map(|p| format!("{:?}", p)).collect(),
+        permissions: current_user
+            .permissions
+            .iter()
+            .map(|p| format!("{:?}", p))
+            .collect(),
         expires_at,
     };
 
@@ -158,17 +172,21 @@ pub async fn logout(
     current_user: crate::auth::AuthenticatedUser,
 ) -> ApiResult<Json<ApiResponse<()>>> {
     info!("User {} logged out", current_user.user_id);
-    
+
     Ok(Json(ApiResponse::success(())))
 }
-fn validate_user_credentials(username: &str, password: &str) -> ApiResult<(String, Vec<Permission>)> {
-    
+fn validate_user_credentials(
+    username: &str,
+    password: &str,
+) -> ApiResult<(String, Vec<Permission>)> {
     match username {
         "admin" => {
             if password == "admin123" {
                 Ok(("admin".to_string(), vec![Permission::Admin]))
             } else {
-                Err(ApiError::Authentication(crate::auth::AuthError::InvalidToken))
+                Err(ApiError::Authentication(
+                    crate::auth::AuthError::InvalidToken,
+                ))
             }
         }
         "operator" => {
@@ -180,10 +198,12 @@ fn validate_user_credentials(username: &str, password: &str) -> ApiResult<(Strin
                         Permission::TaskWrite,
                         Permission::WorkerRead,
                         Permission::SystemRead,
-                    ]
+                    ],
                 ))
             } else {
-                Err(ApiError::Authentication(crate::auth::AuthError::InvalidToken))
+                Err(ApiError::Authentication(
+                    crate::auth::AuthError::InvalidToken,
+                ))
             }
         }
         "viewer" => {
@@ -194,13 +214,17 @@ fn validate_user_credentials(username: &str, password: &str) -> ApiResult<(Strin
                         Permission::TaskRead,
                         Permission::WorkerRead,
                         Permission::SystemRead,
-                    ]
+                    ],
                 ))
             } else {
-                Err(ApiError::Authentication(crate::auth::AuthError::InvalidToken))
+                Err(ApiError::Authentication(
+                    crate::auth::AuthError::InvalidToken,
+                ))
             }
         }
-        _ => Err(ApiError::Authentication(crate::auth::AuthError::InvalidToken))
+        _ => Err(ApiError::Authentication(
+            crate::auth::AuthError::InvalidToken,
+        )),
     }
 }
 
@@ -214,7 +238,7 @@ fn parse_permission_string(permission: &str) -> Result<Permission, ()> {
         "SystemRead" => Ok(Permission::SystemRead),
         "SystemWrite" => Ok(Permission::SystemWrite),
         "Admin" => Ok(Permission::Admin),
-        _ => Err(())
+        _ => Err(()),
     }
 }
 
@@ -236,7 +260,7 @@ mod tests {
     async fn test_validate_user_credentials() {
         let result = validate_user_credentials("admin", "admin123");
         assert!(result.is_ok());
-        
+
         let (user_id, permissions) = result.unwrap();
         assert_eq!(user_id, "admin");
         assert!(permissions.contains(&Permission::Admin));
@@ -251,7 +275,10 @@ mod tests {
     #[test]
     fn test_parse_permission_string() {
         assert_eq!(parse_permission_string("Admin").unwrap(), Permission::Admin);
-        assert_eq!(parse_permission_string("TaskRead").unwrap(), Permission::TaskRead);
+        assert_eq!(
+            parse_permission_string("TaskRead").unwrap(),
+            Permission::TaskRead
+        );
         assert!(parse_permission_string("InvalidPermission").is_err());
     }
 }

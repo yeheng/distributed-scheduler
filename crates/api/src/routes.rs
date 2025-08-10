@@ -12,8 +12,8 @@ use crate::{
         health::health_check,
         system::{get_system_health, get_system_stats},
         tasks::{
-            create_task, delete_task, get_task, get_task_execution_stats, get_task_run, get_task_runs,
-            list_tasks, trigger_task, update_task,
+            create_task, delete_task, get_task, get_task_execution_stats, get_task_run,
+            get_task_runs, list_tasks, trigger_task, update_task,
         },
         workers::{get_worker, get_worker_stats, list_workers},
     },
@@ -55,6 +55,9 @@ pub fn create_routes(state: AppState) -> Router {
     if state.auth_config.enabled {
         router.layer(middleware::from_fn_with_state(state, auth_middleware))
     } else {
-        router.layer(middleware::from_fn_with_state(state, optional_auth_middleware))
+        router.layer(middleware::from_fn_with_state(
+            state,
+            optional_auth_middleware,
+        ))
     }
 }

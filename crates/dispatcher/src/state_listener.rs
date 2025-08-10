@@ -4,8 +4,13 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tracing::{debug, error, info, warn};
 
-use scheduler_domain::entities::{Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus};
-use scheduler_core::{SchedulerError, SchedulerResult, traits::{MessageQueue, StateListenerService}};
+use scheduler_core::{
+    traits::{MessageQueue, StateListenerService},
+    SchedulerError, SchedulerResult,
+};
+use scheduler_domain::entities::{
+    Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus,
+};
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
 
 use crate::retry_service::RetryService;
@@ -264,8 +269,8 @@ impl StateListener {
             (Failed, Dispatched) => true,  // 重试时回到Dispatched
             (Timeout, Pending) => true,    // 超时后重试
             (Timeout, Dispatched) => true, // 超时后重试
-            (Pending, Failed) => true,    // 任务可以被取消或失败
-            (Dispatched, Failed) => true, // 任务可以被取消或失败
+            (Pending, Failed) => true,     // 任务可以被取消或失败
+            (Dispatched, Failed) => true,  // 任务可以被取消或失败
             (status1, status2) if status1 == status2 => true,
             _ => false,
         }

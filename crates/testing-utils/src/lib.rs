@@ -1,11 +1,11 @@
 //! # Scheduler Testing Utils
-//! 
+//!
 //! Shared testing utilities for the distributed task scheduler system.
 //! This crate provides mock implementations, test containers, and testing helpers
 //! that can be used across all other crates in the workspace.
 //!
 //! ## Features
-//! 
+//!
 //! - **Mock Repositories**: In-memory implementations of all repository traits
 //! - **Mock Services**: Test doubles for all service interfaces  
 //! - **Database Test Containers**: PostgreSQL test container with migrations
@@ -29,13 +29,13 @@
 //! use scheduler_testing_utils::containers::DatabaseTestContainer;
 //! ```
 
-pub mod mocks;
-pub mod containers;
 pub mod builders;
+pub mod containers;
 pub mod helpers;
+pub mod mocks;
 
 // Re-export commonly used items
-pub use mocks::*;
-pub use containers::*;
 pub use builders::*;
+pub use containers::*;
 pub use helpers::*;
+pub use mocks::*;

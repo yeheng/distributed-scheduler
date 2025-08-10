@@ -39,33 +39,90 @@
 
 ## 📦 模块架构
 
-### Core模块
+系统采用分层架构和领域驱动设计(DDD)，将代码组织为以下核心模块：
 
-**职责**: 提供核心数据模型、服务接口和基础设施
+### Core模块 (基础设施层)
+
+**职责**: 提供配置管理、日志记录、容器依赖注入等基础设施
 
 ```rust
-// 核心数据模型
+// 配置管理
+pub struct AppConfig { /* ... */ }
+pub struct DatabaseConfig { /* ... */ }
+pub struct MessageQueueConfig { /* ... */ }
+
+// 日志记录
+pub enum LogLevel { /* ... */ }
+
+// 容器管理
+pub struct Container { /* ... */ }
+
+// 调度接口
+pub trait Scheduler { /* ... */ }
+```
+
+**依赖关系**:
+- 作为基础设施层，为其他模块提供支持
+- 被 Application、Domain、Infrastructure 模块依赖
+
+### Domain模块 (领域层)
+
+**职责**: 包含业务实体、领域服务、仓储接口和业务逻辑
+
+```rust
+// 领域实体
 pub struct Task { /* ... */ }
 pub struct TaskRun { /* ... */ }
 pub struct WorkerInfo { /* ... */ }
 
-// 服务接口
-#[async_trait]
-pub trait TaskControlService { /* ... */ }
+// 领域服务
+pub struct TaskDependencyService { /* ... */ }
 
-#[async_trait]
-pub trait WorkerServiceTrait { /* ... */ }
+// 仓储接口
+pub trait TaskRepository { /* ... */ }
+pub trait TaskRunRepository { /* ... */ }
+pub trait WorkerRepository { /* ... */ }
 
-// 配置管理
-pub struct AppConfig { /* ... */ }
-
-// 错误处理
-pub enum SchedulerError { /* ... */ }
+// 查询构建器
+pub struct TaskQueryBuilder { /* ... */ }
 ```
 
 **依赖关系**:
-- 无外部依赖，作为基础模块
-- 被其他所有模块依赖
+- 依赖 Core 模块和 Errors 模块
+- 被 Application、Infrastructure、API 模块依赖
+
+### Application模块 (应用层)
+
+**职责**: 应用服务实现，协调领域对象完成业务用例
+
+```rust
+// 应用服务接口
+pub trait TaskControlService { /* ... */ }
+pub trait WorkerServiceTrait { /* ... */ }
+pub trait MessageQueueService { /* ... */ }
+
+// 应用服务实现
+pub struct TaskService { /* ... */ }
+pub struct WorkerService { /* ... */ }
+```
+
+**依赖关系**:
+- 依赖 Core、Domain、Errors 模块
+- 被 API、Dispatcher、Worker 模块依赖
+
+### Errors模块 (错误处理层)
+
+**职责**: 统一错误类型定义和处理
+
+```rust
+// 统一错误类型
+pub enum SchedulerError { /* ... */ }
+pub type SchedulerResult<T> = Result<T, SchedulerError>;
+```
+
+**依赖关系**:
+- 无外部依赖
+- 被所有其他模块依赖
 
 ### API模块
 
@@ -85,8 +142,7 @@ pub fn cors_layer() -> Layer { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖Core模块
-- 依赖Infrastructure模块的数据库实现
+- 依赖 Core、Application、Domain、Infrastructure 模块
 
 ### Dispatcher模块
 
@@ -108,8 +164,7 @@ pub struct DependencyChecker { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖Core模块
-- 依赖Infrastructure模块
+- 依赖 Core、Application、Domain、Infrastructure 模块
 
 ### Worker模块
 
@@ -131,8 +186,7 @@ pub struct HeartbeatManager { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖Core模块
-- 依赖Infrastructure模块
+- 依赖 Core、Application、Domain、Infrastructure 模块
 
 ### Infrastructure模块
 
@@ -150,29 +204,29 @@ pub struct MetricsCollector { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖Core模块
+- 依赖 Core、Domain 模块
 - 可能依赖外部库（如PostgreSQL驱动、RabbitMQ客户端等）
 
-### Domain模块
+### Testing-Utils模块
 
-**职责**: 领域模型和业务逻辑
+**职责**: 提供测试工具和模拟实现
 
 ```rust
-// 领域实体
-pub struct TaskEntity { /* ... */ }
-pub struct WorkerEntity { /* ... */ }
+// 测试数据构建器
+pub struct TaskBuilder { /* ... */ }
+pub struct TaskRunBuilder { /* ... */ }
+pub struct WorkerInfoBuilder { /* ... */ }
+pub struct MessageBuilder { /* ... */ }
 
-// 领域服务
-pub struct TaskDomainService { /* ... */ }
-
-// 值对象
-pub struct TaskPriority { /* ... */ }
-pub struct WorkerStatus { /* ... */ }
+// Mock 实现
+pub struct MockTaskRepository { /* ... */ }
+pub struct MockTaskRunRepository { /* ... */ }
+pub struct MockWorkerRepository { /* ... */ }
 ```
 
 **依赖关系**:
-- 依赖Core模块
-- 被业务逻辑模块依赖
+- 依赖 Domain、Errors 模块
+- 被所有测试模块依赖
 
 ## 🔄 数据流架构
 
@@ -180,42 +234,42 @@ pub struct WorkerStatus { /* ... */ }
 
 ```
 1. 任务创建
-   API → Core → Database
+   API → Application → Domain → Infrastructure → Database
 
 2. 任务调度
-   Dispatcher → Database (查询待调度任务)
-   Dispatcher → Message Queue (发送任务消息)
+   Dispatcher → Infrastructure → Database (查询待调度任务)
+   Dispatcher → Infrastructure → Message Queue (发送任务消息)
 
 3. 任务执行
-   Worker → Message Queue (接收任务消息)
-   Worker → TaskExecutor (执行任务)
-   Worker → Database (更新任务状态)
+   Worker → Infrastructure → Message Queue (接收任务消息)
+   Worker → Application → TaskExecutor (执行任务)
+   Worker → Infrastructure → Database (更新任务状态)
 
 4. 状态更新
-   Worker → Message Queue (发送状态更新)
-   Dispatcher → Database (更新任务状态)
-   API → Database (查询最新状态)
+   Worker → Infrastructure → Message Queue (发送状态更新)
+   Dispatcher → Infrastructure → Database (更新任务状态)
+   API → Infrastructure → Database (查询最新状态)
 ```
 
 ### Worker生命周期
 
 ```
 1. Worker注册
-   Worker → API → Database (注册Worker信息)
-   Worker → Message Queue (订阅任务队列)
+   Worker → API → Application → Infrastructure → Database (注册Worker信息)
+   Worker → Infrastructure → Message Queue (订阅任务队列)
 
 2. 心跳机制
-   Worker → API (定期心跳)
-   API → Database (更新Worker状态)
-   Dispatcher → Database (检查Worker健康度)
+   Worker → API → Application → Infrastructure (定期心跳)
+   API → Infrastructure → Database (更新Worker状态)
+   Dispatcher → Infrastructure → Database (检查Worker健康度)
 
 3. 任务分配
-   Dispatcher → Database (查询可用Worker)
-   Dispatcher → Message Queue (发送任务到指定Worker)
+   Dispatcher → Infrastructure → Database (查询可用Worker)
+   Dispatcher → Infrastructure → Message Queue (发送任务到指定Worker)
 
 4. 故障处理
-   Dispatcher → Database (检测超时Worker)
-   Dispatcher → Message Queue (重新分配任务)
+   Dispatcher → Infrastructure → Database (检测超时Worker)
+   Dispatcher → Infrastructure → Message Queue (重新分配任务)
 ```
 
 ## 🗄️ 数据架构

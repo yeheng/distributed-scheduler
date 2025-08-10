@@ -5,15 +5,14 @@ mod tests {
     use scheduler_core::models::*;
     use scheduler_core::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-    use scheduler_domain::{TaskStatus};
+    use scheduler_domain::TaskStatus;
     use serde_json::json;
     use std::sync::Arc;
-    
+
     use scheduler_dispatcher::scheduler::*;
     use scheduler_infrastructure::MetricsCollector;
     use scheduler_testing_utils::{
-        MockMessageQueue, MockTaskRepository, MockTaskRunRepository, 
-        TaskBuilder, TaskRunBuilder
+        MockMessageQueue, MockTaskRepository, MockTaskRunRepository, TaskBuilder, TaskRunBuilder,
     };
 
     fn create_test_metrics() -> Arc<MetricsCollector> {
@@ -257,7 +256,7 @@ mod tests {
             .build();
 
         task_repo.create(&task).await.unwrap();
-        
+
         let old_run = TaskRunBuilder::new()
             .with_id(1)
             .with_task_id(1)

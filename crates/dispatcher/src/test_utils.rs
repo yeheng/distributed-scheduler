@@ -2,15 +2,15 @@
 pub mod mocks {
     // Re-export shared mock implementations from testing-utils
     pub use scheduler_testing_utils::{
-        MockTaskRepository, MockTaskRunRepository, MockWorkerRepository,
-        TaskBuilder, TaskRunBuilder, WorkerInfoBuilder
+        MockTaskRepository, MockTaskRunRepository, MockWorkerRepository, TaskBuilder,
+        TaskRunBuilder, WorkerInfoBuilder,
     };
-    
+
     use crate::retry_service::RetryService;
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
     use scheduler_core::SchedulerResult;
-    use scheduler_domain::entities::{TaskRun};
+    use scheduler_domain::entities::TaskRun;
 
     #[derive(Debug, Clone)]
     pub struct MockRetryService;

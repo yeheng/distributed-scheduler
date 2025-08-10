@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{SchedulerError, SchedulerResult, traits::MessageQueue};
-use scheduler_domain::entities::{Message, TaskRun, TaskRunStatus, TaskExecutionMessage};
+use scheduler_core::{traits::MessageQueue, SchedulerError, SchedulerResult};
+use scheduler_domain::entities::{Message, TaskExecutionMessage, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 
 #[derive(Debug, Clone)]

@@ -1,12 +1,11 @@
-
+pub mod event_tracker;
+pub mod log_config;
 pub mod log_level;
 pub mod structured_logger;
-pub mod log_config;
-pub mod event_tracker;
+pub use event_tracker::EventTracker;
+pub use log_config::LogConfig;
 pub use log_level::LogLevel;
 pub use structured_logger::StructuredLogger;
-pub use log_config::LogConfig;
-pub use event_tracker::EventTracker;
 
 pub struct LoggingService {
     logger: StructuredLogger,

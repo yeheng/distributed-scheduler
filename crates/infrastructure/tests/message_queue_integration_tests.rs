@@ -109,9 +109,7 @@ impl MessageQueueIntegrationTestSetup {
         let messages = queue.consume_messages(queue_name).await?;
         assert_eq!(messages.len(), 1);
 
-        if let MessageType::TaskExecution(ref msg) =
-            messages[0].message_type
-        {
+        if let MessageType::TaskExecution(ref msg) = messages[0].message_type {
             assert_eq!(msg.task_name, "test-task");
             assert_eq!(msg.task_type, "shell");
         } else {
@@ -134,9 +132,7 @@ impl MessageQueueIntegrationTestSetup {
         let status_messages = queue.consume_messages("status_updates").await?;
         assert_eq!(status_messages.len(), 1);
 
-        if let MessageType::StatusUpdate(ref msg) =
-            status_messages[0].message_type
-        {
+        if let MessageType::StatusUpdate(ref msg) = status_messages[0].message_type {
             assert_eq!(msg.status, TaskRunStatus::Completed);
             assert_eq!(msg.worker_id, "test-worker");
         } else {
@@ -245,9 +241,7 @@ impl MessageQueueIntegrationTestSetup {
         let messages = queue.consume_messages(queue_name).await?;
         assert_eq!(messages.len(), 1);
 
-        if let MessageType::TaskExecution(ref msg) =
-            messages[0].message_type
-        {
+        if let MessageType::TaskExecution(ref msg) = messages[0].message_type {
             assert_eq!(msg.task_name, "durability-test");
         } else {
             return Err(anyhow::anyhow!("Expected TaskExecution message"));
@@ -472,15 +466,11 @@ mod tests {
 
         assert_eq!(rabbitmq_messages.len(), 1);
         assert_eq!(redis_messages.len(), 1);
-        if let MessageType::TaskExecution(ref msg) =
-            rabbitmq_messages[0].message_type
-        {
+        if let MessageType::TaskExecution(ref msg) = rabbitmq_messages[0].message_type {
             assert_eq!(msg.task_name, "rabbitmq-test");
         }
 
-        if let MessageType::TaskExecution(ref msg) =
-            redis_messages[0].message_type
-        {
+        if let MessageType::TaskExecution(ref msg) = redis_messages[0].message_type {
             assert_eq!(msg.task_name, "redis-test");
         }
 
@@ -521,9 +511,7 @@ mod tests {
             let messages = rabbitmq_queue.consume_messages(queue_name).await?;
             assert_eq!(messages.len(), 1);
 
-            if let MessageType::TaskExecution(ref msg) =
-                messages[0].message_type
-            {
+            if let MessageType::TaskExecution(ref msg) = messages[0].message_type {
                 assert_eq!(msg.task_type, task_types[i]);
             }
         }

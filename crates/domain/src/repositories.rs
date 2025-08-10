@@ -1,8 +1,7 @@
-
 use crate::entities::{Task, TaskFilter, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
-use scheduler_errors::SchedulerResult;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use scheduler_errors::SchedulerResult;
 
 #[async_trait]
 pub trait TaskRepository: Send + Sync {

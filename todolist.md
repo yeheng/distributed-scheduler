@@ -15,14 +15,13 @@
 - [x] 将 task_query_builder.rs 逻辑抽取到 domain Crate（比 dispatcher 更好，避免循环依赖），PostgresTaskRepository 现使用 domain 的查询构建器 (id: todo-8)
 - [x] 将 infrastructure/src/database/postgres/task_dependency_checker.rs 的业务逻辑抽出到 domain Crate 的 TaskDependencyService，postgres 实现现在委派给领域服务 (id: todo-9)
 - [x] 创建 crates/testing-utils Crate，并将共享 Mock（MockTaskRepository 等）与测试辅助（DatabaseTestContainer）迁移至该 Crate (id: todo-10)
+- [x] 更新所有测试模块的依赖以使用 testing-utils，重构重复 Mock 并统一测试命名规范 (id: todo-11)
 
 ## 进行中
 
 ## 待办
-
-- [ ] 更新所有测试模块的依赖以使用 testing-utils，重构重复 Mock 并统一测试命名规范 (id: todo-11)
-- [ ] 精简配置验证：移除 validation.rs 中的通用 ValidatorRegistry，保留每个 Config 的 validate() 并更新调用点 (id: todo-13)
-- [ ] 同步并更新文档：ARCHITECTURE.md、API_DOCUMENTATION.md 与 config 示例（开发/生产），确保与重构后实现一致 (id: todo-14)
+- [x] 精简配置验证：移除 validation.rs 中的通用 ValidatorRegistry，保留每个 Config 的 validate() 并更新调用点 (id: todo-13)
+- [x] 同步并更新文档：ARCHITECTURE.md、API_DOCUMENTATION.md 与 config 示例（开发/生产），确保与重构后实现一致 (id: todo-14)
 - [ ] 运行并修复代码质量与 CI：cargo fmt --check、cargo clippy、cargo test、更新 ci.yml 如有需要，确保所有检查通过 (id: todo-15)
 
 ---

@@ -1,4 +1,3 @@
-
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 pub struct TaskTracer;

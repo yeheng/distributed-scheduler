@@ -58,11 +58,11 @@ impl LogConfig {
 
         if config.enable_file_logging {
             config.log_file_path = std::env::var("LOG_FILE_PATH").ok();
-            
+
             if let Ok(max_size_str) = std::env::var("LOG_MAX_SIZE") {
                 config.max_file_size = max_size_str.parse().ok();
             }
-            
+
             if let Ok(max_files_str) = std::env::var("LOG_MAX_FILES") {
                 config.max_files = max_files_str.parse().ok();
             }

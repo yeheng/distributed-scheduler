@@ -1,4 +1,3 @@
-
 use opentelemetry::global;
 use opentelemetry::propagation::{Extractor, Injector};
 use tracing_opentelemetry::OpenTelemetrySpanExt;

@@ -1,10 +1,9 @@
-
 use crate::{
     entities::{Task, TaskRun, TaskRunStatus},
     repositories::TaskRunRepository,
 };
-use scheduler_errors::{SchedulerError, SchedulerResult};
 use async_trait::async_trait;
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[async_trait]
 pub trait TaskSchedulingService: Send + Sync {

@@ -187,8 +187,7 @@ mod message_queue_test {
             eprintln!("Warning: Failed to close connection: {}", e);
         }
         match test_result {
-            Ok(Ok(())) => {
-            }
+            Ok(Ok(())) => {}
             Ok(Err(e)) => {
                 panic!("Test failed: {}", e);
             }

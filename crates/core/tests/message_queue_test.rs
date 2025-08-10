@@ -1,6 +1,8 @@
 use chrono::Utc;
 use scheduler_core::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
-use scheduler_domain::{StatusUpdateMessage, TaskControlAction, TaskControlMessage, WorkerHeartbeatMessage};
+use scheduler_domain::{
+    StatusUpdateMessage, TaskControlAction, TaskControlMessage, WorkerHeartbeatMessage,
+};
 use scheduler_testing_utils::MessageBuilder;
 use std::collections::HashMap;
 
@@ -11,7 +13,7 @@ async fn test_message_queue_publish_and_consume() {
     let message = MessageBuilder::new()
         .task_execution(123, 456, "test_task")
         .build();
-    
+
     mq.publish_message(queue_name, &message).await.unwrap();
     let consumed_messages = mq.consume_messages(queue_name).await.unwrap();
     assert_eq!(consumed_messages.len(), 1);
@@ -99,7 +101,9 @@ async fn test_message_queue_multiple_message_types() {
     };
 
     let messages = vec![
-        MessageBuilder::new().task_execution(123, 456, "test_task").build(),
+        MessageBuilder::new()
+            .task_execution(123, 456, "test_task")
+            .build(),
         Message::status_update(status_update),
         Message::worker_heartbeat(heartbeat),
         Message::task_control(control),

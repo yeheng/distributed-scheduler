@@ -159,10 +159,7 @@ impl JwtService {
             sub: user_id.to_string(),
             exp: exp.timestamp(),
             iat: now.timestamp(),
-            permissions: permissions
-                .iter()
-                .map(|p| format!("{:?}", p))
-                .collect(),
+            permissions: permissions.iter().map(|p| format!("{:?}", p)).collect(),
             user_id: user_id.to_string(),
         };
 
@@ -270,7 +267,7 @@ fn extract_jwt_token(req: &Request) -> Option<String> {
 fn validate_api_key(api_key: &str, config: &AuthConfig) -> Result<AuthenticatedUser, AuthError> {
     let api_service = ApiKeyService::new(config.api_keys.clone());
     let key_info = api_service.validate_api_key(api_key)?;
-    
+
     Ok(AuthenticatedUser {
         user_id: key_info.name.clone(),
         permissions: key_info.permissions.clone(),
@@ -280,15 +277,13 @@ fn validate_api_key(api_key: &str, config: &AuthConfig) -> Result<AuthenticatedU
 
 fn validate_jwt_token(token: &str, config: &AuthConfig) -> Result<AuthenticatedUser, AuthError> {
     let jwt_service = JwtService::new(&config.jwt_secret, config.jwt_expiration_hours);
-    let claims = jwt_service
-        .validate_token(token)
-        .map_err(|err| {
-            error!("JWT validation failed: {}", err);
-            match err.kind() {
-                jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::ExpiredToken,
-                _ => AuthError::InvalidToken,
-            }
-        })?;
+    let claims = jwt_service.validate_token(token).map_err(|err| {
+        error!("JWT validation failed: {}", err);
+        match err.kind() {
+            jsonwebtoken::errors::ErrorKind::ExpiredSignature => AuthError::ExpiredToken,
+            _ => AuthError::InvalidToken,
+        }
+    })?;
 
     let permissions = claims
         .permissions
@@ -326,7 +321,9 @@ mod tests {
         let jwt_service = JwtService::new("test-secret", 24);
         let permissions = vec![Permission::TaskRead, Permission::TaskWrite];
 
-        let token = jwt_service.generate_token("test-user", &permissions).unwrap();
+        let token = jwt_service
+            .generate_token("test-user", &permissions)
+            .unwrap();
         let claims = jwt_service.validate_token(&token).unwrap();
 
         assert_eq!(claims.user_id, "test-user");

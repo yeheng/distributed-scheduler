@@ -1,10 +1,12 @@
 #[cfg(test)]
 mod dependency_checker_tests {
-    use std::sync::Arc;
     use scheduler_core::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-    use scheduler_testing_utils::{MockTaskRepository, MockTaskRunRepository, TaskBuilder, TaskRunBuilder};
+    use scheduler_testing_utils::{
+        MockTaskRepository, MockTaskRunRepository, TaskBuilder, TaskRunBuilder,
+    };
     use serde_json::json;
+    use std::sync::Arc;
 
     use scheduler_dispatcher::dependency_checker::*;
 
@@ -106,7 +108,7 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo, task_run_repo);
-        
+
         let result = checker.validate_dependencies(1, &[1]).await;
         assert!(result.is_err());
         assert!(matches!(
@@ -120,7 +122,7 @@ mod dependency_checker_tests {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
         let checker = DependencyChecker::new(task_repo, task_run_repo);
-        
+
         let result = checker.validate_dependencies(1, &[999]).await;
         assert!(result.is_err());
         // The specific error type might be different - let's just check it's an error

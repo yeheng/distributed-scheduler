@@ -2,16 +2,13 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
+use scheduler_application::interfaces::TaskSchedulerService;
+use scheduler_core::traits::scheduler::TaskControlService;
 use scheduler_core::{
     config::AppConfig,
     container::ServiceLocator,
-    traits::{
-        ExecutorRegistry, StateListenerService,
-        WorkerServiceTrait,
-    },
+    traits::{ExecutorRegistry, StateListenerService, WorkerServiceTrait},
 };
-use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_core::traits::scheduler::TaskControlService;
 use scheduler_dispatcher::{
     controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
 };
@@ -23,7 +20,8 @@ use scheduler_infrastructure::{
     observability::MetricsCollector,
 };
 use scheduler_worker::{
-    executors::{HttpExecutor, ShellExecutor}, WorkerService,
+    executors::{HttpExecutor, ShellExecutor},
+    WorkerService,
 };
 use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};

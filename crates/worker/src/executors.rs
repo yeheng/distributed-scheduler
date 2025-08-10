@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
+use scheduler_core::traits::{ExecutorStatus, TaskExecutionContext, TaskExecutor};
 use scheduler_core::{SchedulerError, SchedulerResult};
-use scheduler_core::traits::{TaskExecutor, TaskExecutionContext, ExecutorStatus};
 use scheduler_domain::entities::TaskResult;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -35,10 +35,7 @@ impl Default for ShellExecutor {
 
 #[async_trait]
 impl TaskExecutor for ShellExecutor {
-    async fn execute_task(
-        &self,
-        context: &TaskExecutionContext,
-    ) -> SchedulerResult<TaskResult> {
+    async fn execute_task(&self, context: &TaskExecutionContext) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
         let shell_params: ShellTaskParams = serde_json::from_value(
             context.parameters.get("shell_params").cloned()
@@ -333,10 +330,7 @@ impl Default for HttpExecutor {
 
 #[async_trait]
 impl TaskExecutor for HttpExecutor {
-    async fn execute_task(
-        &self,
-        context: &TaskExecutionContext,
-    ) -> SchedulerResult<TaskResult> {
+    async fn execute_task(&self, context: &TaskExecutionContext) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
         let http_params: HttpTaskParams = serde_json::from_value(
             context.parameters.get("http_params").cloned()
@@ -566,10 +560,7 @@ impl MockTaskExecutor {
 
 #[async_trait]
 impl TaskExecutor for MockTaskExecutor {
-    async fn execute_task(
-        &self,
-        _context: &TaskExecutionContext,
-    ) -> SchedulerResult<TaskResult> {
+    async fn execute_task(&self, _context: &TaskExecutionContext) -> SchedulerResult<TaskResult> {
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
         if self.should_succeed {

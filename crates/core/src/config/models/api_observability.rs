@@ -113,12 +113,16 @@ impl AuthConfig {
                     return Err(anyhow::anyhow!("API密钥权限不能为空"));
                 }
                 let valid_permissions = [
-                    "TaskRead", "TaskWrite", "TaskDelete",
-                    "WorkerRead", "WorkerWrite", 
-                    "SystemRead", "SystemWrite",
-                    "Admin"
+                    "TaskRead",
+                    "TaskWrite",
+                    "TaskDelete",
+                    "WorkerRead",
+                    "WorkerWrite",
+                    "SystemRead",
+                    "SystemWrite",
+                    "Admin",
                 ];
-                
+
                 for permission in &key_config.permissions {
                     if !valid_permissions.contains(&permission.as_str()) {
                         return Err(anyhow::anyhow!(

@@ -1,22 +1,20 @@
 use chrono::{Duration, Utc};
+use futures;
+use scheduler_core::traits::MessageQueue;
 use scheduler_core::traits::MockMessageQueue;
 use scheduler_domain::entities::*;
-use scheduler_core::{
-    traits::{MessageQueue},
-};
 use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::*;
 use scheduler_infrastructure::observability::MetricsCollector;
 use scheduler_testing_utils::{TaskBuilder, WorkerInfoBuilder};
 use sqlx::PgPool;
+use std::collections::HashMap;
 use std::sync::Arc;
+use std::time::Instant;
 use testcontainers::runners::AsyncRunner;
 use testcontainers::ImageExt;
 use testcontainers_modules::postgres::Postgres;
 use tokio::time::sleep;
-use std::collections::HashMap;
-use std::time::Instant;
-use futures;
 
 pub struct ContainerPool {
     containers: HashMap<String, testcontainers::ContainerAsync<Postgres>>,
@@ -31,7 +29,10 @@ impl ContainerPool {
         }
     }
 
-    pub async fn get_or_create_pool(&mut self, pool_id: &str) -> Result<PgPool, Box<dyn std::error::Error>> {
+    pub async fn get_or_create_pool(
+        &mut self,
+        pool_id: &str,
+    ) -> Result<PgPool, Box<dyn std::error::Error>> {
         if let Some(pool) = self.pools.get(pool_id) {
             return Ok(pool.clone());
         }
@@ -85,10 +86,8 @@ impl E2ETestSetup {
     }
 
     pub async fn with_pool_id(pool_id: &str) -> Self {
-        INIT.call_once(|| {
-            unsafe {
-                CONTAINER_POOL = Some(ContainerPool::new());
-            }
+        INIT.call_once(|| unsafe {
+            CONTAINER_POOL = Some(ContainerPool::new());
         });
 
         let pool = unsafe {
@@ -116,7 +115,8 @@ impl E2ETestSetup {
         }
     }
     pub fn record_performance(&mut self, operation: &str, duration: std::time::Duration) {
-        self.performance_metrics.insert(operation.to_string(), duration);
+        self.performance_metrics
+            .insert(operation.to_string(), duration);
     }
     pub fn get_performance_report(&self) -> String {
         let mut report = String::new();
@@ -135,7 +135,12 @@ impl E2ETestSetup {
         self.worker_repo.register(&worker).await.unwrap();
         worker
     }
-    pub async fn create_test_task(&self, name: &str, task_type: &str, dependencies: Vec<i64>) -> Task {
+    pub async fn create_test_task(
+        &self,
+        name: &str,
+        task_type: &str,
+        dependencies: Vec<i64>,
+    ) -> Task {
         let task = TaskBuilder::new()
             .with_name(name)
             .with_task_type(task_type)
@@ -220,32 +225,40 @@ impl E2ETestSetup {
         let duration = start_time.elapsed();
         self.record_performance("cleanup_worker", duration);
     }
-    pub async fn create_test_workers_parallel(&mut self, worker_configs: Vec<(String, Vec<String>)>) -> Vec<WorkerInfo> {
+    pub async fn create_test_workers_parallel(
+        &mut self,
+        worker_configs: Vec<(String, Vec<String>)>,
+    ) -> Vec<WorkerInfo> {
         let start_time = Instant::now();
-        
+
         let worker_repo = &self.worker_repo;
-        let workers = futures::future::try_join_all(
-            worker_configs.into_iter().map(|(id, task_types)| async move {
+        let workers = futures::future::try_join_all(worker_configs.into_iter().map(
+            |(id, task_types)| async move {
                 let worker = WorkerInfoBuilder::new()
                     .with_id(&id)
                     .with_supported_task_types(task_types.iter().map(|s| s.as_str()).collect())
                     .build();
                 worker_repo.register(&worker).await?;
                 Ok::<WorkerInfo, Box<dyn std::error::Error>>(worker)
-            })
-        ).await.unwrap();
+            },
+        ))
+        .await
+        .unwrap();
 
         let duration = start_time.elapsed();
         self.record_performance("create_workers_parallel", duration);
-        
+
         workers
     }
-    pub async fn create_test_tasks_parallel(&mut self, task_configs: Vec<(String, &str, Vec<i64>)>) -> Vec<Task> {
+    pub async fn create_test_tasks_parallel(
+        &mut self,
+        task_configs: Vec<(String, &str, Vec<i64>)>,
+    ) -> Vec<Task> {
         let start_time = Instant::now();
-        
+
         let task_repo = &self.task_repo;
-        let tasks = futures::future::try_join_all(
-            task_configs.into_iter().map(|(name, task_type, dependencies)| async move {
+        let tasks = futures::future::try_join_all(task_configs.into_iter().map(
+            |(name, task_type, dependencies)| async move {
                 let task = TaskBuilder::new()
                     .with_name(&name)
                     .with_task_type(task_type)
@@ -256,27 +269,29 @@ impl E2ETestSetup {
                     }))
                     .build();
                 let created_task = task_repo.create(&task).await?;
-                assert!(created_task.id > 0, "Task should have a valid database-generated ID");
+                assert!(
+                    created_task.id > 0,
+                    "Task should have a valid database-generated ID"
+                );
                 Ok::<Task, Box<dyn std::error::Error>>(created_task)
-            })
-        ).await.unwrap();
+            },
+        ))
+        .await
+        .unwrap();
 
         let duration = start_time.elapsed();
         self.record_performance("create_tasks_parallel", duration);
-        
+
         tasks
     }
     pub async fn verify_database_health(&mut self) -> bool {
         let start_time = Instant::now();
-        
-        let result = sqlx::query("SELECT 1")
-            .fetch_one(&self.pool)
-            .await
-            .is_ok();
-        
+
+        let result = sqlx::query("SELECT 1").fetch_one(&self.pool).await.is_ok();
+
         let duration = start_time.elapsed();
         self.record_performance("database_health_check", duration);
-        
+
         result
     }
     pub fn get_test_stats(&self) -> String {
@@ -284,7 +299,10 @@ impl E2ETestSetup {
             "Test Setup Stats:\n  Pool ID: {}\n  Performance Metrics: {}\n  Database Health: {}",
             self.pool_id,
             self.performance_metrics.len(),
-            if self.performance_metrics.contains_key("database_health_check") {
+            if self
+                .performance_metrics
+                .contains_key("database_health_check")
+            {
                 "Verified"
             } else {
                 "Not checked"
@@ -303,7 +321,10 @@ pub async fn cleanup_container_pool() {
 #[tokio::test]
 async fn test_complete_task_lifecycle_e2e() {
     let mut setup = E2ETestSetup::new().await;
-    assert!(setup.verify_database_health().await, "Database should be healthy");
+    assert!(
+        setup.verify_database_health().await,
+        "Database should be healthy"
+    );
     let worker = setup
         .create_test_worker("e2e-worker", vec!["shell".to_string()])
         .await;
@@ -328,7 +349,10 @@ async fn test_complete_task_lifecycle_e2e() {
 
     setup
         .message_queue
-        .publish_message("tasks", &scheduler_domain::entities::Message::task_execution(task_execution_msg))
+        .publish_message(
+            "tasks",
+            &scheduler_domain::entities::Message::task_execution(task_execution_msg),
+        )
         .await
         .unwrap();
     let task_messages = setup.message_queue.consume_messages("tasks").await.unwrap();
@@ -375,59 +399,85 @@ async fn test_task_dependency_chain_e2e() {
         ("task_b".to_string(), "shell", vec![]), // 依赖将在后面设置
         ("task_c".to_string(), "shell", vec![]), // 依赖将在后面设置
     ];
-    
+
     let mut tasks = setup.create_test_tasks_parallel(task_configs).await;
     tasks[1].dependencies = vec![tasks[0].id];
     tasks[2].dependencies = vec![tasks[1].id];
     for task in &tasks {
         setup.task_repo.update(task).await.unwrap();
     }
-    let created_runs: Vec<TaskRun> = futures::future::try_join_all(
-        tasks.iter().map(|task| async {
+    let created_runs: Vec<TaskRun> =
+        futures::future::try_join_all(tasks.iter().map(|task| async {
             let run = TaskRun::new(task.id, Utc::now());
             setup.task_run_repo.create(&run).await
-        })
-    ).await.unwrap();
-    let can_execute_a = setup.task_repo.check_dependencies(tasks[0].id).await.unwrap();
-    assert!(can_execute_a, "Task A should be executable (no dependencies)");
-    setup.simulate_task_execution(
-        created_runs[0].id,
-        &worker.id,
-        Some("task_a completed".to_string()),
-        None
-    ).await.unwrap();
+        }))
+        .await
+        .unwrap();
+    let can_execute_a = setup
+        .task_repo
+        .check_dependencies(tasks[0].id)
+        .await
+        .unwrap();
     assert!(
-        setup.wait_for_task_run_status(created_runs[0].id, TaskRunStatus::Completed, 5).await,
+        can_execute_a,
+        "Task A should be executable (no dependencies)"
+    );
+    setup
+        .simulate_task_execution(
+            created_runs[0].id,
+            &worker.id,
+            Some("task_a completed".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
+    assert!(
+        setup
+            .wait_for_task_run_status(created_runs[0].id, TaskRunStatus::Completed, 5)
+            .await,
         "Task A should complete first"
     );
-    setup.simulate_task_execution(
-        created_runs[1].id,
-        &worker.id,
-        Some("task_b completed".to_string()),
-        None
-    ).await.unwrap();
+    setup
+        .simulate_task_execution(
+            created_runs[1].id,
+            &worker.id,
+            Some("task_b completed".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
     assert!(
-        setup.wait_for_task_run_status(created_runs[1].id, TaskRunStatus::Completed, 5).await,
+        setup
+            .wait_for_task_run_status(created_runs[1].id, TaskRunStatus::Completed, 5)
+            .await,
         "Task B should complete after Task A"
     );
-    setup.simulate_task_execution(
-        created_runs[2].id,
-        &worker.id,
-        Some("task_c completed".to_string()),
-        None
-    ).await.unwrap();
+    setup
+        .simulate_task_execution(
+            created_runs[2].id,
+            &worker.id,
+            Some("task_c completed".to_string()),
+            None,
+        )
+        .await
+        .unwrap();
     for (i, run) in created_runs.iter().enumerate() {
         assert!(
             setup
                 .wait_for_task_run_status(run.id, TaskRunStatus::Completed, 5)
                 .await,
-            "Task {} should be completed", i + 1
+            "Task {} should be completed",
+            i + 1
         );
     }
     let final_runs: Vec<Option<TaskRun>> = futures::future::try_join_all(
-        created_runs.iter().map(|run| setup.task_run_repo.get_by_id(run.id))
-    ).await.unwrap();
-    
+        created_runs
+            .iter()
+            .map(|run| setup.task_run_repo.get_by_id(run.id)),
+    )
+    .await
+    .unwrap();
+
     let final_runs: Vec<TaskRun> = final_runs.into_iter().filter_map(|r| r).collect();
 
     for i in 0..final_runs.len() - 1 {
@@ -457,7 +507,7 @@ async fn test_task_retry_mechanism_e2e() {
         .with_max_retries(2)
         .with_timeout(10)
         .build();
-    
+
     let task = setup.task_repo.create(&task).await.unwrap();
     let task_run_1 = setup
         .task_run_repo
@@ -545,32 +595,35 @@ async fn test_multiple_workers_load_balancing_e2e() {
         ("load-worker-2".to_string(), vec!["shell".to_string()]),
         ("load-worker-3".to_string(), vec!["shell".to_string()]),
     ];
-    
+
     let workers = setup.create_test_workers_parallel(worker_configs).await;
     let task_configs: Vec<(String, &str, Vec<i64>)> = (0..6)
         .map(|i| (format!("load_test_task_{}", i), "shell", vec![]))
         .collect();
-    
+
     let tasks = setup.create_test_tasks_parallel(task_configs).await;
-    let created_runs: Vec<TaskRun> = futures::future::try_join_all(
-        tasks.iter().map(|task| async {
+    let created_runs: Vec<TaskRun> =
+        futures::future::try_join_all(tasks.iter().map(|task| async {
             let run = TaskRun::new(task.id, Utc::now());
             setup.task_run_repo.create(&run).await
-        })
-    ).await.unwrap();
-    let _execution_results = futures::future::try_join_all(
-        created_runs.iter().enumerate().map(|(i, task_run)| {
+        }))
+        .await
+        .unwrap();
+    let _execution_results =
+        futures::future::try_join_all(created_runs.iter().enumerate().map(|(i, task_run)| {
             let worker = &workers[i % workers.len()]; // 简单轮询负载均衡
             let result_msg = format!("Task {} completed by {}", i, worker.id);
             setup.simulate_task_execution(task_run.id, &worker.id, Some(result_msg), None)
-        })
-    ).await.unwrap();
+        }))
+        .await
+        .unwrap();
     for (i, task_run) in created_runs.iter().enumerate() {
         assert!(
             setup
                 .wait_for_task_run_status(task_run.id, TaskRunStatus::Completed, 5)
                 .await,
-            "Task {} should be completed", i
+            "Task {} should be completed",
+            i
         );
 
         let completed_run = setup
@@ -599,7 +652,7 @@ async fn test_worker_failure_and_task_reassignment_e2e() {
         ("primary-worker".to_string(), vec!["shell".to_string()]),
         ("backup-worker".to_string(), vec!["shell".to_string()]),
     ];
-    
+
     let workers = setup.create_test_workers_parallel(worker_configs).await;
     let task = setup
         .create_test_task("failover_task", "shell", vec![])
@@ -671,7 +724,7 @@ async fn test_task_timeout_handling_e2e() {
         .with_task_type("shell")
         .with_timeout(1) // 1秒超时
         .build();
-    
+
     let task = setup.task_repo.create(&task).await.unwrap();
     let task_run = setup
         .task_run_repo
@@ -721,32 +774,34 @@ async fn test_performance_benchmark_e2e() {
     let worker_configs: Vec<(String, Vec<String>)> = (0..5)
         .map(|i| (format!("benchmark-worker-{}", i), vec!["shell".to_string()]))
         .collect();
-    
+
     let workers = setup.create_test_workers_parallel(worker_configs).await;
     let task_configs: Vec<(String, &str, Vec<i64>)> = (0..20)
         .map(|i| (format!("benchmark_task_{}", i), "shell", vec![]))
         .collect();
-    
+
     let tasks = setup.create_test_tasks_parallel(task_configs).await;
     let start_time = Instant::now();
-    let created_runs: Vec<TaskRun> = futures::future::try_join_all(
-        tasks.iter().map(|task| async {
+    let created_runs: Vec<TaskRun> =
+        futures::future::try_join_all(tasks.iter().map(|task| async {
             let run = TaskRun::new(task.id, Utc::now());
             setup.task_run_repo.create(&run).await
-        })
-    ).await.unwrap();
-    
+        }))
+        .await
+        .unwrap();
+
     let creation_duration = start_time.elapsed();
     setup.record_performance("bulk_task_run_creation", creation_duration);
     let execution_start = Instant::now();
-    let _execution_results = futures::future::try_join_all(
-        created_runs.iter().enumerate().map(|(i, task_run)| {
+    let _execution_results =
+        futures::future::try_join_all(created_runs.iter().enumerate().map(|(i, task_run)| {
             let worker = &workers[i % workers.len()];
             let result_msg = format!("Benchmark task {} completed", i);
             setup.simulate_task_execution(task_run.id, &worker.id, Some(result_msg), None)
-        })
-    ).await.unwrap();
-    
+        }))
+        .await
+        .unwrap();
+
     let execution_duration = execution_start.elapsed();
     setup.record_performance("parallel_task_execution", execution_duration);
     let verification_start = Instant::now();
@@ -755,7 +810,8 @@ async fn test_performance_benchmark_e2e() {
             setup
                 .wait_for_task_run_status(task_run.id, TaskRunStatus::Completed, 10)
                 .await,
-            "Benchmark task {} should be completed", i
+            "Benchmark task {} should be completed",
+            i
         );
     }
     let verification_duration = verification_start.elapsed();
@@ -765,7 +821,7 @@ async fn test_performance_benchmark_e2e() {
         "Bulk task run creation should complete within 5 seconds, took: {:?}",
         creation_duration
     );
-    
+
     assert!(
         execution_duration.as_millis() < 3000,
         "Parallel task execution should complete within 3 seconds, took: {:?}",
@@ -775,7 +831,10 @@ async fn test_performance_benchmark_e2e() {
     println!("{}", setup.get_performance_report());
     println!("Total tasks executed: {}", tasks.len());
     println!("Total workers used: {}", workers.len());
-    println!("Average time per task: {:?}", execution_duration / tasks.len() as u32);
+    println!(
+        "Average time per task: {:?}",
+        execution_duration / tasks.len() as u32
+    );
     for task in tasks {
         setup.cleanup_task_and_runs(task.id).await;
     }
@@ -793,22 +852,24 @@ async fn test_concurrent_execution_e2e() {
     let task_configs: Vec<(String, &str, Vec<i64>)> = (0..10)
         .map(|i| (format!("concurrent_task_{}", i), "shell", vec![]))
         .collect();
-    
+
     let tasks = setup.create_test_tasks_parallel(task_configs).await;
-    let created_runs: Vec<TaskRun> = futures::future::try_join_all(
-        tasks.iter().map(|task| async {
+    let created_runs: Vec<TaskRun> =
+        futures::future::try_join_all(tasks.iter().map(|task| async {
             let run = TaskRun::new(task.id, Utc::now());
             setup.task_run_repo.create(&run).await
-        })
-    ).await.unwrap();
+        }))
+        .await
+        .unwrap();
     let concurrent_start = Instant::now();
-    let _execution_results = futures::future::try_join_all(
-        created_runs.iter().enumerate().map(|(i, task_run)| {
+    let _execution_results =
+        futures::future::try_join_all(created_runs.iter().enumerate().map(|(i, task_run)| {
             let result_msg = format!("Concurrent task {} completed", i);
             setup.simulate_task_execution(task_run.id, &worker.id, Some(result_msg), None)
-        })
-    ).await.unwrap();
-    
+        }))
+        .await
+        .unwrap();
+
     let concurrent_duration = concurrent_start.elapsed();
     setup.record_performance("concurrent_task_execution", concurrent_duration);
     for (i, task_run) in created_runs.iter().enumerate() {
@@ -816,7 +877,8 @@ async fn test_concurrent_execution_e2e() {
             setup
                 .wait_for_task_run_status(task_run.id, TaskRunStatus::Completed, 5)
                 .await,
-            "Concurrent task {} should be completed", i
+            "Concurrent task {} should be completed",
+            i
         );
     }
     assert!(

@@ -1,11 +1,8 @@
 use std::sync::Arc;
 
-use crate::{
-    SchedulerResult,
-    traits::MessageQueue,
-};
-use scheduler_errors::SchedulerError;
+use crate::{traits::MessageQueue, SchedulerResult};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
+use scheduler_errors::SchedulerError;
 
 pub struct ServiceContainer {
     task_repository: Option<Arc<dyn TaskRepository>>,

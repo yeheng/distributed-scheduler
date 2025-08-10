@@ -127,7 +127,10 @@ impl AppConfig {
                     .set_default("api.request_timeout_seconds", 30)?
                     .set_default("api.max_request_size_mb", 10)?
                     .set_default("api.auth.enabled", false)?
-                    .set_default("api.auth.jwt_secret", "your-secret-key-change-this-in-production")?
+                    .set_default(
+                        "api.auth.jwt_secret",
+                        "your-secret-key-change-this-in-production",
+                    )?
                     .set_default("api.auth.jwt_expiration_hours", 24)?
                     .set_default("observability.tracing_enabled", true)?
                     .set_default("observability.metrics_enabled", true)?

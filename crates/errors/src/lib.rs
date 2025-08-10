@@ -19,7 +19,11 @@ pub enum SchedulerError {
     #[error("检测到循环依赖")]
     CircularDependency,
     #[error("无效的任务依赖: 任务 {task_id} 依赖任务 {dependency_id} - {reason}")]
-    InvalidDependency { task_id: i64, dependency_id: i64, reason: String },
+    InvalidDependency {
+        task_id: i64,
+        dependency_id: i64,
+        reason: String,
+    },
     #[error("失去领导权")]
     LeadershipLost,
     #[error("消息队列错误: {0}")]
@@ -73,18 +77,18 @@ impl SchedulerError {
     pub fn is_fatal(&self) -> bool {
         matches!(
             self,
-            SchedulerError::Internal(_) 
-            | SchedulerError::Configuration(_)
-            | SchedulerError::ResourceExhausted(_)
+            SchedulerError::Internal(_)
+                | SchedulerError::Configuration(_)
+                | SchedulerError::ResourceExhausted(_)
         )
     }
     pub fn is_retryable(&self) -> bool {
         matches!(
             self,
             SchedulerError::DatabaseOperation(_)
-            | SchedulerError::MessageQueue(_) 
-            | SchedulerError::Network(_)
-            | SchedulerError::Timeout(_)
+                | SchedulerError::MessageQueue(_)
+                | SchedulerError::Network(_)
+                | SchedulerError::Timeout(_)
         )
     }
     pub fn user_message(&self) -> &str {

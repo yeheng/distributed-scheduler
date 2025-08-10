@@ -116,7 +116,10 @@ mod tests {
 
         assert!(query.contains("AND status = $1"));
         assert_eq!(params.len(), 1);
-        assert!(matches!(params[0], TaskQueryParam::Status(TaskStatus::Active)));
+        assert!(matches!(
+            params[0],
+            TaskQueryParam::Status(TaskStatus::Active)
+        ));
     }
 
     #[test]
@@ -168,8 +171,14 @@ mod tests {
 
     #[test]
     fn test_task_query_param_type_name() {
-        assert_eq!(TaskQueryParam::String("test".to_string()).type_name(), "TEXT");
-        assert_eq!(TaskQueryParam::Status(TaskStatus::Active).type_name(), "TEXT");
+        assert_eq!(
+            TaskQueryParam::String("test".to_string()).type_name(),
+            "TEXT"
+        );
+        assert_eq!(
+            TaskQueryParam::Status(TaskStatus::Active).type_name(),
+            "TEXT"
+        );
         assert_eq!(TaskQueryParam::Int64(123).type_name(), "BIGINT");
         assert_eq!(TaskQueryParam::Int32(456).type_name(), "INTEGER");
     }

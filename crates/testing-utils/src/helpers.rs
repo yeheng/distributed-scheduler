@@ -12,7 +12,7 @@ pub struct TestEnv;
 
 impl TestEnv {
     /// Wait for a condition to be true with timeout
-    /// 
+    ///
     /// This is useful for integration tests where you need to wait for
     /// asynchronous operations to complete.
     pub async fn wait_for<F, Fut>(mut condition: F, timeout: Duration) -> bool
@@ -21,36 +21,36 @@ impl TestEnv {
         Fut: std::future::Future<Output = bool>,
     {
         let start = std::time::Instant::now();
-        
+
         while start.elapsed() < timeout {
             if condition().await {
                 return true;
             }
             sleep(Duration::from_millis(100)).await;
         }
-        
+
         false
     }
 
     /// Wait for a condition with a custom poll interval
     pub async fn wait_for_with_interval<F, Fut>(
-        condition: F, 
-        timeout: Duration, 
-        poll_interval: Duration
+        condition: F,
+        timeout: Duration,
+        poll_interval: Duration,
     ) -> bool
     where
         F: Fn() -> Fut,
         Fut: std::future::Future<Output = bool>,
     {
         let start = std::time::Instant::now();
-        
+
         while start.elapsed() < timeout {
             if condition().await {
                 return true;
             }
             sleep(poll_interval).await;
         }
-        
+
         false
     }
 
@@ -88,7 +88,10 @@ impl TestData {
     pub fn string_params(params: &[(&str, &str)]) -> serde_json::Value {
         let mut map = serde_json::Map::new();
         for (key, value) in params {
-            map.insert(key.to_string(), serde_json::Value::String(value.to_string()));
+            map.insert(
+                key.to_string(),
+                serde_json::Value::String(value.to_string()),
+            );
         }
         serde_json::Value::Object(map)
     }
@@ -99,12 +102,9 @@ pub struct TestAssertions;
 
 impl TestAssertions {
     /// Assert that a collection contains exactly the expected items (order independent)
-    pub fn assert_contains_exactly<T: PartialEq + std::fmt::Debug>(
-        actual: &[T], 
-        expected: &[T]
-    ) {
+    pub fn assert_contains_exactly<T: PartialEq + std::fmt::Debug>(actual: &[T], expected: &[T]) {
         assert_eq!(
-            actual.len(), 
+            actual.len(),
             expected.len(),
             "Collections have different lengths. Actual: {:?}, Expected: {:?}",
             actual,
@@ -128,12 +128,7 @@ impl TestAssertions {
         T: std::fmt::Debug,
     {
         for item in items {
-            assert!(
-                predicate(item),
-                "{}: Failed for item {:?}",
-                message,
-                item
-            );
+            assert!(predicate(item), "{}: Failed for item {:?}", message, item);
         }
     }
 
@@ -232,7 +227,7 @@ mod tests {
     fn test_unique_name() {
         let name1 = TestEnv::unique_name("test");
         let name2 = TestEnv::unique_name("test");
-        
+
         assert!(name1.starts_with("test_"));
         assert!(name2.starts_with("test_"));
         assert_ne!(name1, name2);
@@ -248,7 +243,10 @@ mod tests {
     fn test_json_params() {
         let params = TestData::json_params(&[
             ("key1", serde_json::Value::String("value1".to_string())),
-            ("key2", serde_json::Value::Number(serde_json::Number::from(42))),
+            (
+                "key2",
+                serde_json::Value::Number(serde_json::Number::from(42)),
+            ),
         ]);
 
         assert_eq!(params["key1"], "value1");
@@ -257,10 +255,7 @@ mod tests {
 
     #[test]
     fn test_string_params() {
-        let params = TestData::string_params(&[
-            ("name", "test"),
-            ("type", "shell"),
-        ]);
+        let params = TestData::string_params(&[("name", "test"), ("type", "shell")]);
 
         assert_eq!(params["name"], "test");
         assert_eq!(params["type"], "shell");
@@ -270,7 +265,7 @@ mod tests {
     fn test_assert_contains_exactly() {
         let actual = vec![1, 2, 3];
         let expected = vec![3, 1, 2];
-        
+
         TestAssertions::assert_contains_exactly(&actual, &expected);
     }
 
@@ -283,7 +278,11 @@ mod tests {
     #[test]
     fn test_assert_any() {
         let numbers = vec![1, 3, 4, 7];
-        TestAssertions::assert_any(&numbers, |&n| n % 2 == 0, "At least one number should be even");
+        TestAssertions::assert_any(
+            &numbers,
+            |&n| n % 2 == 0,
+            "At least one number should be even",
+        );
     }
 
     #[test]

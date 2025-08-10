@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use scheduler_core::{SchedulerError, SchedulerResult, ServiceLocator, traits::TaskStatusUpdate};
+use scheduler_core::{traits::TaskStatusUpdate, SchedulerError, SchedulerResult, ServiceLocator};
 use scheduler_domain::entities::TaskControlMessage;
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;

@@ -1,10 +1,9 @@
-
+pub mod auth;
 pub mod error;
 pub mod handlers;
 pub mod middleware;
 pub mod response;
 pub mod routes;
-pub mod auth;
 
 use axum::Router;
 use std::sync::Arc;
@@ -12,10 +11,10 @@ use tower::ServiceBuilder;
 
 use middleware::{cors_layer, request_logging, trace_layer};
 use routes::{create_routes, AppState};
-use scheduler_core::config::models::api_observability::AuthConfig as CoreAuthConfig;
-use scheduler_domain::repositories::*;
-use scheduler_core::traits::scheduler::*;
 use scheduler_core::config::models::api_observability::ApiConfig;
+use scheduler_core::config::models::api_observability::AuthConfig as CoreAuthConfig;
+use scheduler_core::traits::scheduler::*;
+use scheduler_domain::repositories::*;
 
 pub fn create_app(
     task_repo: Arc<dyn TaskRepository>,
@@ -58,7 +57,13 @@ pub fn create_simple_app(
         auth: CoreAuthConfig::default(),
     };
 
-    create_app(task_repo, task_run_repo, worker_repo, task_controller, default_api_config)
+    create_app(
+        task_repo,
+        task_run_repo,
+        worker_repo,
+        task_controller,
+        default_api_config,
+    )
 }
 fn convert_auth_config(core_config: &CoreAuthConfig) -> Arc<auth::AuthConfig> {
     let mut auth_api_keys = std::collections::HashMap::new();
@@ -100,7 +105,6 @@ fn convert_auth_config(core_config: &CoreAuthConfig) -> Arc<auth::AuthConfig> {
 
 #[cfg(test)]
 mod tests {
-    use std::sync::Arc;
     use super::create_simple_app;
     use async_trait::async_trait;
     use axum::{
@@ -109,6 +113,7 @@ mod tests {
     };
     use scheduler_core::TaskControlService;
     use scheduler_domain::*;
+    use std::sync::Arc;
     use tower::ServiceExt;
     struct MockTaskRepository;
     struct MockTaskRunRepository;
@@ -287,8 +292,7 @@ mod tests {
             &self,
             _task_id: i64,
             _days: i32,
-        ) -> scheduler_core::SchedulerResult<TaskExecutionStats>
-        {
+        ) -> scheduler_core::SchedulerResult<TaskExecutionStats> {
             unimplemented!()
         }
 
@@ -321,7 +325,8 @@ mod tests {
         async fn get_by_id(
             &self,
             _worker_id: &str,
-        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::WorkerInfo>> {
+        ) -> scheduler_core::SchedulerResult<Option<scheduler_domain::entities::WorkerInfo>>
+        {
             unimplemented!()
         }
 
@@ -384,8 +389,7 @@ mod tests {
 
         async fn get_worker_load_stats(
             &self,
-        ) -> scheduler_core::SchedulerResult<Vec<WorkerLoadStats>>
-        {
+        ) -> scheduler_core::SchedulerResult<Vec<WorkerLoadStats>> {
             unimplemented!()
         }
 
@@ -426,11 +430,17 @@ mod tests {
             unimplemented!()
         }
 
-        async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_core::SchedulerResult<usize> {
+        async fn cancel_all_task_runs(
+            &self,
+            _task_id: i64,
+        ) -> scheduler_core::SchedulerResult<usize> {
             unimplemented!()
         }
 
-        async fn has_running_instances(&self, _task_id: i64) -> scheduler_core::SchedulerResult<bool> {
+        async fn has_running_instances(
+            &self,
+            _task_id: i64,
+        ) -> scheduler_core::SchedulerResult<bool> {
             unimplemented!()
         }
 
@@ -445,14 +455,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_health_endpoint() {
-        let task_repo = Arc::new(MockTaskRepository)
-            as Arc<dyn TaskRepository>;
-        let task_run_repo = Arc::new(MockTaskRunRepository)
-            as Arc<dyn TaskRunRepository>;
-        let worker_repo = Arc::new(MockWorkerRepository)
-            as Arc<dyn WorkerRepository>;
-        let task_controller = Arc::new(MockTaskController)
-            as Arc<dyn TaskControlService>;
+        let task_repo = Arc::new(MockTaskRepository) as Arc<dyn TaskRepository>;
+        let task_run_repo = Arc::new(MockTaskRunRepository) as Arc<dyn TaskRunRepository>;
+        let worker_repo = Arc::new(MockWorkerRepository) as Arc<dyn WorkerRepository>;
+        let task_controller = Arc::new(MockTaskController) as Arc<dyn TaskControlService>;
 
         let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
 
@@ -471,14 +477,10 @@ mod tests {
 
     #[tokio::test]
     async fn test_api_routes_exist() {
-        let task_repo = Arc::new(MockTaskRepository)
-            as Arc<dyn TaskRepository>;
-        let task_run_repo = Arc::new(MockTaskRunRepository)
-            as Arc<dyn TaskRunRepository>;
-        let worker_repo = Arc::new(MockWorkerRepository)
-            as Arc<dyn WorkerRepository>;
-        let task_controller = Arc::new(MockTaskController)
-            as Arc<dyn TaskControlService>;
+        let task_repo = Arc::new(MockTaskRepository) as Arc<dyn TaskRepository>;
+        let task_run_repo = Arc::new(MockTaskRunRepository) as Arc<dyn TaskRunRepository>;
+        let worker_repo = Arc::new(MockWorkerRepository) as Arc<dyn WorkerRepository>;
+        let task_controller = Arc::new(MockTaskController) as Arc<dyn TaskControlService>;
 
         let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
         let response = app

@@ -4,8 +4,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use scheduler_domain::entities::TaskResult;
 use scheduler_core::SchedulerResult;
+use scheduler_domain::entities::TaskResult;
 use scheduler_domain::entities::TaskRun;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -44,7 +44,7 @@ pub trait TaskExecutor: Send + Sync {
         &self,
         context: &TaskExecutionContextTrait,
     ) -> SchedulerResult<TaskResult>;
-    
+
     async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
         let task_info = task_run
             .result
@@ -76,7 +76,7 @@ pub trait TaskExecutor: Send + Sync {
 
         self.execute_task(&context).await
     }
-    
+
     fn supports_task_type(&self, task_type: &str) -> bool;
     fn name(&self) -> &str;
     fn version(&self) -> &str {

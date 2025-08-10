@@ -1,8 +1,8 @@
 use std::collections::HashMap;
 use std::time::{SystemTime, UNIX_EPOCH};
 
-use crate::logging::log_level::LogLevel;
 use crate::logging::log_config::OutputFormat;
+use crate::logging::log_level::LogLevel;
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct LogEntry {
@@ -104,8 +104,12 @@ impl StructuredLogger {
     }
     fn write_entry(&self, entry: &LogEntry) {
         let output = match self.output_format {
-            OutputFormat::Json => entry.to_json().unwrap_or_else(|_| "Invalid log entry".to_string()),
-            OutputFormat::Pretty => entry.to_json_pretty().unwrap_or_else(|_| "Invalid log entry".to_string()),
+            OutputFormat::Json => entry
+                .to_json()
+                .unwrap_or_else(|_| "Invalid log entry".to_string()),
+            OutputFormat::Pretty => entry
+                .to_json_pretty()
+                .unwrap_or_else(|_| "Invalid log entry".to_string()),
             OutputFormat::Text => self.format_as_text(entry),
         };
 

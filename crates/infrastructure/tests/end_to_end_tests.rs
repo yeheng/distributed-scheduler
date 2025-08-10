@@ -1,8 +1,8 @@
 use chrono::Utc;
 use scheduler_core::traits::MockMessageQueue;
-use scheduler_domain::repositories::*;
-use scheduler_domain::entities::*;
 use scheduler_core::MessageQueue;
+use scheduler_domain::entities::*;
+use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
@@ -175,9 +175,7 @@ async fn test_complete_task_lifecycle() {
         .unwrap();
     assert_eq!(status_messages.len(), 1);
 
-    if let MessageType::StatusUpdate(ref msg) =
-        status_messages[0].message_type
-    {
+    if let MessageType::StatusUpdate(ref msg) = status_messages[0].message_type {
         assert_eq!(msg.task_run_id, created_run.id);
         assert_eq!(msg.status, TaskRunStatus::Completed);
         assert_eq!(msg.worker_id, worker.id);
@@ -703,18 +701,14 @@ async fn test_message_queue_integration() {
 
     assert_eq!(shell_messages.len(), 1);
     assert_eq!(http_messages.len(), 1);
-    if let MessageType::TaskExecution(ref msg) =
-        shell_messages[0].message_type
-    {
+    if let MessageType::TaskExecution(ref msg) = shell_messages[0].message_type {
         assert_eq!(msg.task_type, "shell");
         assert_eq!(msg.task_run_id, shell_run.id);
     } else {
         panic!("Expected TaskExecution message");
     }
 
-    if let MessageType::TaskExecution(ref msg) =
-        http_messages[0].message_type
-    {
+    if let MessageType::TaskExecution(ref msg) = http_messages[0].message_type {
         assert_eq!(msg.task_type, "http");
         assert_eq!(msg.task_run_id, http_run.id);
     } else {
@@ -766,8 +760,7 @@ async fn test_message_queue_integration() {
     assert_eq!(status_messages.len(), 2);
 
     for status_msg in &status_messages {
-        if let MessageType::StatusUpdate(ref msg) = status_msg.message_type
-        {
+        if let MessageType::StatusUpdate(ref msg) = status_msg.message_type {
             assert_eq!(msg.status, TaskRunStatus::Completed);
             assert_eq!(msg.worker_id, worker.id);
         } else {

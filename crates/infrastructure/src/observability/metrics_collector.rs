@@ -1,4 +1,3 @@
-
 use anyhow::Result;
 use metrics::{counter, gauge, histogram, Counter, Gauge, Histogram};
 use tracing::{info, warn};

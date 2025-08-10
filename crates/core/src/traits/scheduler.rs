@@ -4,8 +4,8 @@ use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 
 use crate::SchedulerResult;
-use scheduler_domain::{
-    entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus, TaskResult, Message},
+use scheduler_domain::entities::{
+    Message, Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
 };
 
 #[async_trait]
@@ -124,11 +124,8 @@ pub trait MessageQueue: Send + Sync {
 
 #[async_trait]
 pub trait TaskExecutor: Send + Sync {
-    async fn execute_task(
-        &self,
-        context: &TaskExecutionContext,
-    ) -> SchedulerResult<TaskResult>;
-    
+    async fn execute_task(&self, context: &TaskExecutionContext) -> SchedulerResult<TaskResult>;
+
     fn supports_task_type(&self, task_type: &str) -> bool;
     fn name(&self) -> &str;
     fn version(&self) -> &str;
@@ -280,8 +277,11 @@ impl MockMessageQueue {
             .cloned()
             .unwrap_or_default()
     }
-    
-    pub async fn add_message(&self, message: scheduler_domain::entities::Message) -> SchedulerResult<()> {
+
+    pub async fn add_message(
+        &self,
+        message: scheduler_domain::entities::Message,
+    ) -> SchedulerResult<()> {
         let mut queues = self.queues.lock().unwrap();
         queues
             .entry("default".to_string())
@@ -298,7 +298,11 @@ impl MockMessageQueue {
 
 #[async_trait]
 impl MessageQueue for MockMessageQueue {
-    async fn publish_message(&self, queue: &str, message: &scheduler_domain::entities::Message) -> SchedulerResult<()> {
+    async fn publish_message(
+        &self,
+        queue: &str,
+        message: &scheduler_domain::entities::Message,
+    ) -> SchedulerResult<()> {
         let mut queues = self.queues.lock().unwrap();
         queues
             .entry(queue.to_string())
@@ -307,7 +311,10 @@ impl MessageQueue for MockMessageQueue {
         Ok(())
     }
 
-    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<scheduler_domain::entities::Message>> {
+    async fn consume_messages(
+        &self,
+        queue: &str,
+    ) -> SchedulerResult<Vec<scheduler_domain::entities::Message>> {
         let mut queues = self.queues.lock().unwrap();
         let messages = queues.remove(queue).unwrap_or_default();
         Ok(messages)

@@ -1,4 +1,3 @@
-
 use async_trait::async_trait;
 use lapin::{
     options::*, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties,
@@ -160,9 +159,7 @@ impl MessageQueue for RabbitMQMessageQueue {
 
                 Ok(vec![message])
             }
-            Ok(None) => {
-                Ok(vec![])
-            }
+            Ok(None) => Ok(vec![]),
             Err(e) => {
                 let error_msg = e.to_string();
                 if error_msg.contains("NOT_FOUND") || error_msg.contains("404") {

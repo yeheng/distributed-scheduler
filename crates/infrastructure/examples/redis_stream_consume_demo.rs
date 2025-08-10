@@ -77,8 +77,7 @@ async fn main() -> Result<()> {
             message.message_type_str()
         );
 
-        if let MessageType::TaskExecution(task_msg) = &message.message_type
-        {
+        if let MessageType::TaskExecution(task_msg) = &message.message_type {
             println!(
                 "      Task: {} (ID: {})",
                 task_msg.task_name, task_msg.task_id

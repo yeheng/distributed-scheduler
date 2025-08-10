@@ -8,20 +8,45 @@ connection_timeout_seconds = 60
 idle_timeout_seconds = 1800
 
 [message_queue]
-url = "amqp://mq-host:5672"
+# 消息队列类型: "rabbitmq" 或 "redis_stream"
+type = "redis_stream"
+url = "redis://redis-host:6379"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
 max_retries = 5
 retry_delay_seconds = 120
 connection_timeout_seconds = 60
+
+# Redis Stream配置（推荐用于生产环境）
+[message_queue.redis]
+host = "redis-host"
+port = 6379
+database = 0
+connection_timeout_seconds = 60
+max_retry_attempts = 5
+retry_delay_seconds = 2
+
+# RabbitMQ配置示例
+# [message_queue]
+# type = "rabbitmq"
+# url = "amqp://prod-user:secure-password@mq-host:5672"
 
 [dispatcher]
 enabled = true
 schedule_interval_seconds = 30
 max_concurrent_dispatches = 500
 worker_timeout_seconds = 180
+dispatch_strategy = "load_balancer"
 
 [worker]
 enabled = false
+worker_id = "prod-worker"
+hostname = "worker-host"
+ip_address = "10.0.0.100"
 max_concurrent_tasks = 20
+supported_task_types = ["shell", "http", "python"]
 heartbeat_interval_seconds = 60
 task_poll_interval_seconds = 10
 
@@ -36,5 +61,6 @@ max_request_size_mb = 50
 [observability]
 tracing_enabled = true
 metrics_enabled = true
+metrics_endpoint = "/metrics"
 log_level = "warn"
 jaeger_endpoint = "http://jaeger:14268/api/traces"

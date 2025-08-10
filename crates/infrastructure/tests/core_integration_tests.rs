@@ -1,10 +1,10 @@
 use anyhow::Result;
 use chrono::Utc;
+use scheduler_domain::entities::*;
+use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
-use scheduler_domain::repositories::*;
-use scheduler_domain::entities::*;
 use testcontainers::ContainerAsync;
 use testcontainers::{runners::AsyncRunner, ImageExt};
 use testcontainers_modules::postgres::Postgres;

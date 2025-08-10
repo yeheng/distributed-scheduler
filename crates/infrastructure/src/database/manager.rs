@@ -1,9 +1,9 @@
-use scheduler_errors::{SchedulerError, SchedulerResult};
-use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 use super::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
 use super::sqlite::{SqliteTaskRepository, SqliteTaskRunRepository, SqliteWorkerRepository};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone, PartialEq)]
 pub enum DatabaseType {

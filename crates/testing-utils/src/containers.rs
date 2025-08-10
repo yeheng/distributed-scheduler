@@ -11,7 +11,7 @@ use testcontainers_modules::postgres::Postgres;
 use tokio::time::{sleep, Duration};
 
 /// PostgreSQL test container with pre-configured schema and data
-/// 
+///
 /// This container automatically sets up the required database schema
 /// for the scheduler system and provides utilities for test data management.
 pub struct DatabaseTestContainer {
@@ -22,12 +22,12 @@ pub struct DatabaseTestContainer {
 
 impl DatabaseTestContainer {
     /// Create a new PostgreSQL test container
-    /// 
+    ///
     /// This will:
     /// 1. Start a PostgreSQL container
     /// 2. Wait for it to be ready
     /// 3. Create a connection pool
-    /// 
+    ///
     /// Note: You must call `run_migrations()` after creation to set up the schema.
     pub async fn new() -> Result<Self> {
         let postgres_image = Postgres::default()
@@ -43,7 +43,7 @@ impl DatabaseTestContainer {
             "postgresql://test_user:test_password@localhost:{}/scheduler_test",
             port
         );
-        
+
         // Retry connection with backoff
         let mut retry_count = 0;
         let pool = loop {
@@ -74,7 +74,13 @@ impl DatabaseTestContainer {
 
     /// Clean all tables (useful for test isolation)
     pub async fn clean_tables(&self) -> Result<()> {
-        let tables = vec!["task_runs", "tasks", "workers", "task_dependencies", "task_locks"];
+        let tables = vec![
+            "task_runs",
+            "tasks",
+            "workers",
+            "task_dependencies",
+            "task_locks",
+        ];
 
         for table in tables {
             sqlx::query(&format!(
@@ -179,7 +185,13 @@ impl DatabaseTestContainer {
             .map(|row| row.get::<String, _>("table_name"))
             .collect();
 
-        let expected_tables = vec!["tasks", "task_runs", "workers", "task_dependencies", "task_locks"];
+        let expected_tables = vec![
+            "tasks",
+            "task_runs",
+            "workers",
+            "task_dependencies",
+            "task_locks",
+        ];
         for expected in &expected_tables {
             if !table_names.contains(&expected.to_string()) {
                 return Ok(false);
@@ -337,7 +349,7 @@ mod tests {
         let container = DatabaseTestContainer::new()
             .await
             .expect("Failed to create container");
-        
+
         container
             .run_migrations()
             .await

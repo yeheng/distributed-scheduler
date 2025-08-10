@@ -5,8 +5,8 @@
 
 use chrono::{DateTime, Utc};
 use scheduler_domain::entities::{
-    Task, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus, 
-    Message, MessageType, TaskExecutionMessage, ShardConfig
+    Message, MessageType, ShardConfig, Task, TaskExecutionMessage, TaskRun, TaskRunStatus,
+    TaskStatus, WorkerInfo, WorkerStatus,
 };
 
 /// Builder for creating test Task entities
@@ -365,7 +365,7 @@ impl MessageBuilder {
             shard_index: None,
             shard_total: None,
         };
-        
+
         self.message.message_type = MessageType::TaskExecution(execution_msg.clone());
         self.message.payload = serde_json::to_value(execution_msg).unwrap();
         self

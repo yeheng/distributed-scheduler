@@ -9,8 +9,8 @@ idle_timeout_seconds = 600
 
 [message_queue]
 # 消息队列类型: "rabbitmq" 或 "redis_stream"
-# type = "rabbitmq"
-url = "amqp://guest:guest@localhost:5672"
+type = "redis_stream"
+url = "redis://localhost:6379"
 task_queue = "tasks"
 status_queue = "status_updates"
 heartbeat_queue = "heartbeats"
@@ -19,15 +19,19 @@ max_retries = 3
 retry_delay_seconds = 60
 connection_timeout_seconds = 30
 
-# Redis Stream配置示例（当type = "redis_stream"时使用）
-# [message_queue.redis]
-# host = "localhost"
-# port = 6379
-# database = 0
-# password = ""
-# connection_timeout_seconds = 30
-# max_retry_attempts = 3
-# retry_delay_seconds = 1
+# Redis Stream配置（当type = "redis_stream"时使用）
+[message_queue.redis]
+host = "localhost"
+port = 6379
+database = 0
+connection_timeout_seconds = 30
+max_retry_attempts = 3
+retry_delay_seconds = 1
+
+# RabbitMQ配置示例（当type = "rabbitmq"时）
+# [message_queue]
+# type = "rabbitmq"
+# url = "amqp://guest:guest@localhost:5672"
 
 [dispatcher]
 enabled = true
