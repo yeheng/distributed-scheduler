@@ -12,7 +12,7 @@ pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
 use scheduler_domain::entities::Message;
-use scheduler_core::{traits::MessageQueue, SchedulerResult};
+use scheduler_core::{SchedulerResult, traits::MessageQueue};
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

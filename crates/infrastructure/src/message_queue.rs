@@ -4,10 +4,10 @@ use lapin::{
     options::*, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties,
     Consumer, Queue,
 };
-use scheduler_core::{
-    config::models::MessageQueueConfig, errors::SchedulerError, models::Message,
-    traits::MessageQueue, SchedulerResult,
-};
+use scheduler_core::traits::MessageQueue;
+use scheduler_core::{config::models::MessageQueueConfig, SchedulerResult};
+use scheduler_domain::entities::Message;
+use scheduler_errors::SchedulerError;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, info};

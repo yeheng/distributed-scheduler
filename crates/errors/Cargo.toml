@@ -1,0 +1,10 @@
+[package]
+name = "scheduler-errors"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+thiserror = { workspace = true }
+sqlx = { workspace = true }
+serde_json = { workspace = true }
+anyhow = { workspace = true }

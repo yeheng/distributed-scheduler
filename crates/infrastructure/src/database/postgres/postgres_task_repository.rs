@@ -1,18 +1,16 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::{
-    errors::SchedulerError,
-    models::{Task, TaskFilter, TaskStatus},
-    traits::TaskRepository,
-    SchedulerResult,
+use scheduler_core::SchedulerResult;
+use scheduler_domain::{
+    entities::{Task, TaskFilter, TaskStatus},
+    repositories::TaskRepository,
+    task_query_builder::{TaskQueryBuilder, TaskQueryParam},
 };
+use scheduler_errors::SchedulerError;
 use sqlx::{PgPool, Row};
 use tracing::debug;
 
-use super::{
-    task_dependency_checker::TaskDependencyChecker,
-    task_query_builder::{TaskQueryBuilder, TaskQueryParam},
-};
+use super::task_dependency_checker::TaskDependencyChecker;
 
 pub struct PostgresTaskRepository {
     pool: PgPool,

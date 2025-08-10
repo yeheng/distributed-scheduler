@@ -11,6 +11,7 @@ path = "src/bin/api-server.rs"
 scheduler-core = { path = "../core" }
 scheduler-domain = { path = "../domain" }
 scheduler-infrastructure = { path = "../infrastructure" }
+scheduler-errors = { path = "../errors" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

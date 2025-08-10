@@ -1,6 +1,7 @@
 
 use axum::extract::{Path, Query, State};
 use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
+use scheduler_domain::repositories::WorkerLoadStats;
 use serde::{Deserialize, Serialize};
 
 use crate::{
@@ -121,7 +122,7 @@ pub async fn get_worker_stats(
         Some(stat) => Ok(success(stat)),
         None => {
             let load_percentage = worker.load_percentage();
-            let basic_stat = scheduler_core::traits::WorkerLoadStats {
+            let basic_stat = WorkerLoadStats {
                 worker_id: worker.id,
                 current_task_count: worker.current_task_count,
                 max_concurrent_tasks: worker.max_concurrent_tasks,

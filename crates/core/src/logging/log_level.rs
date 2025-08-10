@@ -10,7 +10,7 @@ pub enum LogLevel {
 }
 
 impl FromStr for LogLevel {
-    type Err = crate::errors::SchedulerError;
+    type Err = scheduler_errors::SchedulerError;
 
     fn from_str(level: &str) -> Result<Self, Self::Err> {
         match level.to_lowercase().as_str() {
@@ -19,7 +19,7 @@ impl FromStr for LogLevel {
             "info" => Ok(LogLevel::Info),
             "warn" | "warning" => Ok(LogLevel::Warn),
             "error" => Ok(LogLevel::Error),
-            _ => Err(crate::errors::SchedulerError::Configuration(format!(
+            _ => Err(scheduler_errors::SchedulerError::Configuration(format!(
                 "Invalid log level: {level}"
             ))),
         }

@@ -7,6 +7,7 @@ edition = "2021"
 scheduler-core = { path = "../core" }
 scheduler-domain = { path = "../domain" }
 scheduler-infrastructure = { path = "../infrastructure" }
+scheduler-application = { path = "../application" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -18,3 +19,6 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 cron = { workspace = true }
 rand = { workspace = true }
+
+[dev-dependencies]
+scheduler-testing-utils = { path = "../testing-utils" }

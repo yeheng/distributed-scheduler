@@ -3,7 +3,7 @@ use axum::{
     response::{IntoResponse, Response},
     Json,
 };
-use scheduler_core::errors::SchedulerError;
+use scheduler_errors::SchedulerError;
 use serde_json::json;
 
 #[derive(Debug, thiserror::Error)]

@@ -5,11 +5,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
-    models::{WorkerInfo, WorkerStatus},
-    traits::WorkerRepository,
-    SchedulerResult,
-};
+use scheduler_core::SchedulerResult;
+use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
+use scheduler_domain::repositories::WorkerRepository;
 
 use crate::retry_service::RetryService;
 

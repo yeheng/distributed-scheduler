@@ -1,4 +1,6 @@
 use scheduler_api::create_app;
+use scheduler_core::{TaskFilter, WorkerInfo};
+use scheduler_domain::{models::{Task, TaskRun}, TaskRunRepository};
 use std::sync::Arc;
 use tokio::net::TcpListener;
 use tracing::{info, Level};
@@ -8,31 +10,31 @@ struct MockWorkerRepository;
 struct MockTaskController;
 
 #[async_trait::async_trait]
-impl scheduler_core::traits::repository::TaskRepository for MockTaskRepository {
+impl TaskRepository for MockTaskRepository {
     async fn create(
         &self,
-        _task: &scheduler_core::models::Task,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::Task> {
+        _task: &Task,
+    ) -> scheduler_core::SchedulerResult<Task> {
         unimplemented!()
     }
 
     async fn get_by_id(
         &self,
         _id: i64,
-    ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::Task>> {
+    ) -> scheduler_core::SchedulerResult<Option<Task>> {
         unimplemented!()
     }
 
     async fn get_by_name(
         &self,
         _name: &str,
-    ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::Task>> {
+    ) -> scheduler_core::SchedulerResult<Option<Task>> {
         unimplemented!()
     }
 
     async fn update(
         &self,
-        _task: &scheduler_core::models::Task,
+        _task: &Task,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
@@ -43,21 +45,21 @@ impl scheduler_core::traits::repository::TaskRepository for MockTaskRepository {
 
     async fn list(
         &self,
-        _filter: &scheduler_core::models::TaskFilter,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+        _filter: &TaskFilter,
+    ) -> scheduler_core::SchedulerResult<Vec<Task>> {
         unimplemented!()
     }
 
     async fn get_active_tasks(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+    ) -> scheduler_core::SchedulerResult<Vec<Task>> {
         unimplemented!()
     }
 
     async fn get_schedulable_tasks(
         &self,
         _current_time: chrono::DateTime<chrono::Utc>,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+    ) -> scheduler_core::SchedulerResult<Vec<Task>> {
         unimplemented!()
     }
 
@@ -68,38 +70,38 @@ impl scheduler_core::traits::repository::TaskRepository for MockTaskRepository {
     async fn get_dependencies(
         &self,
         _task_id: i64,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::Task>> {
+    ) -> scheduler_core::SchedulerResult<Vec<Task>> {
         unimplemented!()
     }
 
     async fn batch_update_status(
         &self,
         _task_ids: &[i64],
-        _status: scheduler_core::models::TaskStatus,
+        _status: TaskStatus,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
 }
 
 #[async_trait::async_trait]
-impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunRepository {
+impl TaskRunRepository for MockTaskRunRepository {
     async fn create(
         &self,
-        _task_run: &scheduler_core::models::TaskRun,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+        _task_run: &TaskRun,
+    ) -> scheduler_core::SchedulerResult<TaskRun> {
         unimplemented!()
     }
 
     async fn get_by_id(
         &self,
         _id: i64,
-    ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Option<TaskRun>> {
         unimplemented!()
     }
 
     async fn update(
         &self,
-        _task_run: &scheduler_core::models::TaskRun,
+        _task_run: &TaskRun,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
@@ -111,48 +113,48 @@ impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunReposi
     async fn get_by_task_id(
         &self,
         _task_id: i64,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn get_by_worker_id(
         &self,
         _worker_id: &str,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn get_by_status(
         &self,
-        _status: scheduler_core::models::TaskRunStatus,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+        _status: TaskRunStatus,
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn get_pending_runs(
         &self,
         _limit: Option<i64>,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn get_running_runs(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn get_timeout_runs(
         &self,
         _timeout_seconds: i64,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
     async fn update_status(
         &self,
         _id: i64,
-        _status: scheduler_core::models::TaskRunStatus,
+        _status: TaskRunStatus,
         _worker_id: Option<&str>,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
@@ -171,7 +173,7 @@ impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunReposi
         &self,
         _task_id: i64,
         _limit: i64,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::TaskRun>> {
+    ) -> scheduler_core::SchedulerResult<Vec<TaskRun>> {
         unimplemented!()
     }
 
@@ -179,7 +181,7 @@ impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunReposi
         &self,
         _task_id: i64,
         _days: i32,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats>
+    ) -> scheduler_core::SchedulerResult<TaskExecutionStats>
     {
         unimplemented!()
     }
@@ -191,17 +193,17 @@ impl scheduler_core::traits::repository::TaskRunRepository for MockTaskRunReposi
     async fn batch_update_status(
         &self,
         _run_ids: &[i64],
-        _status: scheduler_core::models::TaskRunStatus,
+        _status: TaskRunStatus,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
 }
 
 #[async_trait::async_trait]
-impl scheduler_core::traits::repository::WorkerRepository for MockWorkerRepository {
+impl WorkerRepository for MockWorkerRepository {
     async fn register(
         &self,
-        _worker: &scheduler_core::models::WorkerInfo,
+        _worker: &WorkerInfo,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
@@ -213,33 +215,33 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
     async fn get_by_id(
         &self,
         _worker_id: &str,
-    ) -> scheduler_core::SchedulerResult<Option<scheduler_core::models::WorkerInfo>> {
+    ) -> scheduler_core::SchedulerResult<Option<WorkerInfo>> {
         unimplemented!()
     }
 
     async fn update(
         &self,
-        _worker: &scheduler_core::models::WorkerInfo,
+        _worker: &WorkerInfo,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
 
     async fn list(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+    ) -> scheduler_core::SchedulerResult<Vec<WorkerInfo>> {
         unimplemented!()
     }
 
     async fn get_alive_workers(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+    ) -> scheduler_core::SchedulerResult<Vec<WorkerInfo>> {
         unimplemented!()
     }
 
     async fn get_workers_by_task_type(
         &self,
         _task_type: &str,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+    ) -> scheduler_core::SchedulerResult<Vec<WorkerInfo>> {
         unimplemented!()
     }
 
@@ -255,7 +257,7 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
     async fn update_status(
         &self,
         _worker_id: &str,
-        _status: scheduler_core::models::WorkerStatus,
+        _status: WorkerStatus,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
@@ -263,7 +265,7 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
     async fn get_timeout_workers(
         &self,
         _timeout_seconds: i64,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::models::WorkerInfo>> {
+    ) -> scheduler_core::SchedulerResult<Vec<WorkerInfo>> {
         unimplemented!()
     }
 
@@ -276,7 +278,7 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
 
     async fn get_worker_load_stats(
         &self,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_core::traits::repository::WorkerLoadStats>>
+    ) -> scheduler_core::SchedulerResult<Vec<WorkerLoadStats>>
     {
         unimplemented!()
     }
@@ -284,7 +286,7 @@ impl scheduler_core::traits::repository::WorkerRepository for MockWorkerReposito
     async fn batch_update_status(
         &self,
         _worker_ids: &[String],
-        _status: scheduler_core::models::WorkerStatus,
+        _status: WorkerStatus,
     ) -> scheduler_core::SchedulerResult<()> {
         unimplemented!()
     }
@@ -295,7 +297,7 @@ impl scheduler_core::traits::scheduler::TaskControlService for MockTaskControlle
     async fn trigger_task(
         &self,
         _task_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<TaskRun> {
         unimplemented!()
     }
 
@@ -310,7 +312,7 @@ impl scheduler_core::traits::scheduler::TaskControlService for MockTaskControlle
     async fn restart_task_run(
         &self,
         _task_run_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_core::models::TaskRun> {
+    ) -> scheduler_core::SchedulerResult<TaskRun> {
         unimplemented!()
     }
 
@@ -323,11 +325,11 @@ impl scheduler_core::traits::scheduler::TaskControlService for MockTaskControlle
 async fn main() -> Result<(), Box<dyn std::error::Error>> {
     tracing_subscriber::fmt().with_max_level(Level::INFO).init();
     let task_repo =
-        Arc::new(MockTaskRepository) as Arc<dyn scheduler_core::traits::repository::TaskRepository>;
+        Arc::new(MockTaskRepository) as Arc<dyn TaskRepository>;
     let task_run_repo = Arc::new(MockTaskRunRepository)
-        as Arc<dyn scheduler_core::traits::repository::TaskRunRepository>;
+        as Arc<dyn TaskRunRepository>;
     let worker_repo = Arc::new(MockWorkerRepository)
-        as Arc<dyn scheduler_core::traits::repository::WorkerRepository>;
+        as Arc<dyn WorkerRepository>;
     let task_controller = Arc::new(MockTaskController)
         as Arc<dyn scheduler_core::traits::scheduler::TaskControlService>;
     let api_config = scheduler_core::config::models::api_observability::ApiConfig {

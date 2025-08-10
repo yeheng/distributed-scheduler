@@ -4,9 +4,10 @@ mod strategies_tests {
 
     use chrono::Utc;
     use scheduler_core::{
-        models::TaskStatus, traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus,
+        traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus,
     };
     use scheduler_dispatcher::strategies::*;
+    use scheduler_domain::TaskStatus;
     use serde_json::json;
     fn create_test_task(task_type: &str) -> Task {
         Task {

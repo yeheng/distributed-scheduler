@@ -4,9 +4,10 @@ use std::sync::Arc;
 use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
-use scheduler_core::{
-    SchedulerError, SchedulerResult, TaskExecutionContextTrait, TaskExecutor, TaskResult, TaskRun,
-};
+use chrono::Utc;
+use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_core::traits::{TaskExecutor, TaskExecutionContext, ExecutorStatus};
+use scheduler_domain::entities::TaskResult;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
 use tokio::process::Command;
@@ -36,7 +37,7 @@ impl Default for ShellExecutor {
 impl TaskExecutor for ShellExecutor {
     async fn execute_task(
         &self,
-        context: &TaskExecutionContextTrait,
+        context: &TaskExecutionContext,
     ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
         let shell_params: ShellTaskParams = serde_json::from_value(
@@ -156,31 +157,31 @@ impl TaskExecutor for ShellExecutor {
         Ok(result)
     }
 
-    async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        let task_info = task_run
-            .result
-            .as_ref()
-            .and_then(|r| serde_json::from_str::<serde_json::Value>(r).ok())
-            .unwrap_or_else(|| serde_json::json!({}));
+    // async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
+    //     let task_info = task_run
+    //         .result
+    //         .as_ref()
+    //         .and_then(|r| serde_json::from_str::<serde_json::Value>(r).ok())
+    //         .unwrap_or_else(|| serde_json::json!({}));
 
-        let parameters = task_info
-            .get("parameters")
-            .and_then(|p| p.as_object())
-            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-            .unwrap_or_default();
+    //     let parameters = task_info
+    //         .get("parameters")
+    //         .and_then(|p| p.as_object())
+    //         .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    //         .unwrap_or_default();
 
-        let context = TaskExecutionContextTrait {
-            task_run: task_run.clone(),
-            task_type: "shell".to_string(),
-            parameters,
-            timeout_seconds: 300,
-            environment: HashMap::new(),
-            working_directory: None,
-            resource_limits: scheduler_core::ResourceLimits::default(),
-        };
+    //     let context = TaskExecutionContext {
+    //         task_run: task_run.clone(),
+    //         task_type: "shell".to_string(),
+    //         parameters,
+    //         timeout_seconds: 300,
+    //         environment: HashMap::new(),
+    //         working_directory: None,
+    //         resource_limits: ResourceLimits::default(),
+    //     };
 
-        self.execute_task(&context).await
-    }
+    //     self.execute_task(&context).await
+    // }
 
     fn supports_task_type(&self, task_type: &str) -> bool {
         task_type == "shell"
@@ -284,6 +285,30 @@ impl TaskExecutor for ShellExecutor {
         let processes = self.running_processes.read().await;
         Ok(processes.contains_key(&task_run_id))
     }
+
+    async fn get_status(&self) -> SchedulerResult<ExecutorStatus> {
+        Ok(ExecutorStatus {
+            name: self.name().to_string(),
+            version: self.version().to_string(),
+            healthy: true,
+            running_tasks: self.running_processes.read().await.len() as i32,
+            supported_task_types: self.supported_task_types(),
+            last_health_check: Utc::now(),
+            metadata: std::collections::HashMap::new(),
+        })
+    }
+
+    async fn health_check(&self) -> SchedulerResult<bool> {
+        Ok(true)
+    }
+
+    async fn warm_up(&self) -> SchedulerResult<()> {
+        Ok(())
+    }
+
+    async fn cleanup(&self) -> SchedulerResult<()> {
+        Ok(())
+    }
 }
 
 pub struct HttpExecutor {
@@ -310,7 +335,7 @@ impl Default for HttpExecutor {
 impl TaskExecutor for HttpExecutor {
     async fn execute_task(
         &self,
-        context: &TaskExecutionContextTrait,
+        context: &TaskExecutionContext,
     ) -> SchedulerResult<TaskResult> {
         let start_time = Instant::now();
         let http_params: HttpTaskParams = serde_json::from_value(
@@ -414,31 +439,31 @@ impl TaskExecutor for HttpExecutor {
         }
     }
 
-    async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        let task_info = task_run
-            .result
-            .as_ref()
-            .and_then(|r| serde_json::from_str::<serde_json::Value>(r).ok())
-            .unwrap_or_else(|| serde_json::json!({}));
+    // async fn execute(&self, task_run: &TaskRun) -> SchedulerResult<TaskResult> {
+    //     let task_info = task_run
+    //         .result
+    //         .as_ref()
+    //         .and_then(|r| serde_json::from_str::<serde_json::Value>(r).ok())
+    //         .unwrap_or_else(|| serde_json::json!({}));
 
-        let parameters = task_info
-            .get("parameters")
-            .and_then(|p| p.as_object())
-            .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
-            .unwrap_or_default();
+    //     let parameters = task_info
+    //         .get("parameters")
+    //         .and_then(|p| p.as_object())
+    //         .map(|obj| obj.iter().map(|(k, v)| (k.clone(), v.clone())).collect())
+    //         .unwrap_or_default();
 
-        let context = TaskExecutionContextTrait {
-            task_run: task_run.clone(),
-            task_type: "http".to_string(),
-            parameters,
-            timeout_seconds: 300,
-            environment: HashMap::new(),
-            working_directory: None,
-            resource_limits: scheduler_core::ResourceLimits::default(),
-        };
+    //     let context = TaskExecutionContext {
+    //         task_run: task_run.clone(),
+    //         task_type: "http".to_string(),
+    //         parameters,
+    //         timeout_seconds: 300,
+    //         environment: HashMap::new(),
+    //         working_directory: None,
+    //         resource_limits: ResourceLimits::default(),
+    //     };
 
-        self.execute_task(&context).await
-    }
+    //     self.execute_task(&context).await
+    // }
 
     fn supports_task_type(&self, task_type: &str) -> bool {
         task_type == "http"
@@ -478,6 +503,30 @@ impl TaskExecutor for HttpExecutor {
         } else {
             Ok(false)
         }
+    }
+
+    async fn get_status(&self) -> SchedulerResult<ExecutorStatus> {
+        Ok(ExecutorStatus {
+            name: self.name().to_string(),
+            version: self.version().to_string(),
+            healthy: true,
+            running_tasks: self.running_tasks.read().await.len() as i32,
+            supported_task_types: self.supported_task_types(),
+            last_health_check: Utc::now(),
+            metadata: std::collections::HashMap::new(),
+        })
+    }
+
+    async fn health_check(&self) -> SchedulerResult<bool> {
+        Ok(true)
+    }
+
+    async fn warm_up(&self) -> SchedulerResult<()> {
+        Ok(())
+    }
+
+    async fn cleanup(&self) -> SchedulerResult<()> {
+        Ok(())
     }
 }
 
@@ -519,7 +568,7 @@ impl MockTaskExecutor {
 impl TaskExecutor for MockTaskExecutor {
     async fn execute_task(
         &self,
-        _context: &TaskExecutionContextTrait,
+        _context: &TaskExecutionContext,
     ) -> SchedulerResult<TaskResult> {
         sleep(Duration::from_millis(self.execution_time_ms)).await;
 
@@ -542,27 +591,27 @@ impl TaskExecutor for MockTaskExecutor {
         }
     }
 
-    async fn execute(&self, _task_run: &TaskRun) -> SchedulerResult<TaskResult> {
-        sleep(Duration::from_millis(self.execution_time_ms)).await;
+    // async fn execute(&self, _task_run: &TaskRun) -> SchedulerResult<TaskResult> {
+    //     sleep(Duration::from_millis(self.execution_time_ms)).await;
 
-        if self.should_succeed {
-            Ok(TaskResult {
-                success: true,
-                output: Some("任务执行成功".to_string()),
-                error_message: None,
-                exit_code: Some(0),
-                execution_time_ms: self.execution_time_ms,
-            })
-        } else {
-            Ok(TaskResult {
-                success: false,
-                output: None,
-                error_message: Some("任务执行失败".to_string()),
-                exit_code: Some(1),
-                execution_time_ms: self.execution_time_ms,
-            })
-        }
-    }
+    //     if self.should_succeed {
+    //         Ok(TaskResult {
+    //             success: true,
+    //             output: Some("任务执行成功".to_string()),
+    //             error_message: None,
+    //             exit_code: Some(0),
+    //             execution_time_ms: self.execution_time_ms,
+    //         })
+    //     } else {
+    //         Ok(TaskResult {
+    //             success: false,
+    //             output: None,
+    //             error_message: Some("任务执行失败".to_string()),
+    //             exit_code: Some(1),
+    //             execution_time_ms: self.execution_time_ms,
+    //         })
+    //     }
+    // }
 
     fn supports_task_type(&self, task_type: &str) -> bool {
         task_type == self.name
@@ -590,5 +639,29 @@ impl TaskExecutor for MockTaskExecutor {
 
     async fn is_running(&self, _task_run_id: i64) -> SchedulerResult<bool> {
         Ok(false)
+    }
+
+    async fn get_status(&self) -> SchedulerResult<ExecutorStatus> {
+        Ok(ExecutorStatus {
+            name: self.name().to_string(),
+            version: self.version().to_string(),
+            healthy: true,
+            running_tasks: 0,
+            supported_task_types: self.supported_task_types(),
+            last_health_check: Utc::now(),
+            metadata: std::collections::HashMap::new(),
+        })
+    }
+
+    async fn health_check(&self) -> SchedulerResult<bool> {
+        Ok(true)
+    }
+
+    async fn warm_up(&self) -> SchedulerResult<()> {
+        Ok(())
+    }
+
+    async fn cleanup(&self) -> SchedulerResult<()> {
+        Ok(())
     }
 }

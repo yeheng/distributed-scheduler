@@ -2,10 +2,8 @@ use axum::{
     extract::{Path, Query, State},
     Json,
 };
-use scheduler_core::{
-    models::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus},
-    traits::TaskExecutionStats,
-};
+use scheduler_domain::repositories::TaskExecutionStats;
+use scheduler_domain::entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus};
 use serde::{Deserialize, Serialize};
 use std::str::FromStr;
 
@@ -269,7 +267,7 @@ pub async fn get_task(
         .await
         .unwrap_or_else(|e| {
             tracing::warn!("Failed to get execution stats for task {}: {:?}", id, e);
-            scheduler_core::traits::TaskExecutionStats {
+            scheduler_domain::repositories::TaskExecutionStats {
                 task_id: id,
                 total_runs: 0,
                 successful_runs: 0,

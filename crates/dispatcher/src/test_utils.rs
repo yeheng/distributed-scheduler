@@ -4,10 +4,10 @@ pub mod mocks {
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
     use scheduler_domain::entities::{TaskFilter, TaskStatus};
-    use scheduler_core::traits::{
-        TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerRepository,
-    };
-    use scheduler_core::{SchedulerResult, Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+    use scheduler_core::{SchedulerResult};
+    use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+    use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
+    use scheduler_domain::{TaskExecutionStats, WorkerLoadStats};
     use std::collections::HashMap;
     use std::sync::{Arc, Mutex};
 
@@ -305,7 +305,7 @@ pub mod mocks {
 
         async fn get_worker_load_stats(
             &self,
-        ) -> SchedulerResult<Vec<scheduler_core::traits::repository::WorkerLoadStats>> {
+        ) -> SchedulerResult<Vec<WorkerLoadStats>> {
             Ok(vec![])
         }
 

@@ -17,6 +17,8 @@ async-trait = { workspace = true }
 sqlx = { workspace = true }
 notify = "8.1"
 rand = "0.9"
+scheduler-domain = { path = "../domain" }
+scheduler-errors = { path = "../errors" }
 
 [dev-dependencies]
 tempfile = {workspace = true}

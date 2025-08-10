@@ -1,15 +1,10 @@
 use chrono::{Duration, Utc};
 use scheduler_core::traits::MockMessageQueue;
+use scheduler_domain::entities::*;
 use scheduler_core::{
-    models::{
-        Task, TaskRun, TaskRunStatus,
-        WorkerInfo, WorkerStatus, TaskExecutionMessage,
-    },
-    traits::{MessageQueue, TaskRepository, TaskRunRepository, WorkerRepository},
+    traits::{MessageQueue},
 };
-use scheduler_infrastructure::database::postgres::{
-    PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
-};
+use scheduler_infrastructure::database::postgres::*;
 use scheduler_infrastructure::observability::MetricsCollector;
 use sqlx::PgPool;
 use std::sync::Arc;

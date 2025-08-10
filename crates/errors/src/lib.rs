@@ -1,36 +1,49 @@
-
 use thiserror::Error;
 
-#[derive(Error, Debug, Clone)]
+#[derive(Debug, Error)]
 pub enum SchedulerError {
-    #[error("数据库操作失败: {0}")]
+    #[error("数据库错误: {0}")]
+    Database(#[from] sqlx::Error),
+    #[error("数据库操作错误: {0}")]
     DatabaseOperation(String),
-    #[error("任务不存在: id={id}")]
+    #[error("任务未找到: {id}")]
     TaskNotFound { id: i64 },
-    #[error("Worker不存在: id={id}")]
-    WorkerNotFound { id: String },
-    #[error("任务执行实例不存在: id={id}")]
+    #[error("任务运行实例未找到: {id}")]
     TaskRunNotFound { id: i64 },
-    #[error("任务参数无效: {0}")]
-    InvalidTaskParams(String),
+    #[error("Worker未找到: {id}")]
+    WorkerNotFound { id: String },
+    #[error("无效的CRON表达式: {expr} - {message}")]
+    InvalidCron { expr: String, message: String },
+    #[error("任务执行超时")]
+    ExecutionTimeout,
+    #[error("检测到循环依赖")]
+    CircularDependency,
+    #[error("无效的任务依赖: 任务 {task_id} 依赖任务 {dependency_id} - {reason}")]
+    InvalidDependency { task_id: i64, dependency_id: i64, reason: String },
+    #[error("失去领导权")]
+    LeadershipLost,
+    #[error("消息队列错误: {0}")]
+    MessageQueue(String),
+    #[error("序列化错误: {0}")]
+    Serialization(String),
     #[error("配置错误: {0}")]
     Configuration(String),
-    #[error("数据序列化错误: {0}")]
-    Serialization(String),
+    #[error("任务执行错误: {0}")]
+    TaskExecution(String),
+    #[error("网络错误: {0}")]
+    Network(String),
+    #[error("内部错误: {0}")]
+    Internal(String),
+    #[error("无效的任务参数: {0}")]
+    InvalidTaskParams(String),
     #[error("数据验证失败: {0}")]
     ValidationError(String),
-    #[error("消息队列操作失败: {0}")]
-    MessageQueue(String),
-    #[error("网络连接失败: {0}")]
-    Network(String),
-    #[error("权限不足: {0}")]
-    Permission(String),
-    #[error("系统内部错误: {0}")]
-    Internal(String),
     #[error("操作超时: {0}")]
     Timeout(String),
     #[error("资源不足: {0}")]
     ResourceExhausted(String),
+    #[error("权限不足: {0}")]
+    Permission(String),
 }
 
 pub type SchedulerResult<T> = Result<T, SchedulerError>;
@@ -86,11 +99,6 @@ impl SchedulerError {
             SchedulerError::Timeout(_) => "操作超时，请稍后重试",
             _ => "系统繁忙，请稍后重试",
         }
-    }
-}
-impl From<sqlx::Error> for SchedulerError {
-    fn from(err: sqlx::Error) -> Self {
-        SchedulerError::DatabaseOperation(err.to_string())
     }
 }
 

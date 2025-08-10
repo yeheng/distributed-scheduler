@@ -6,10 +6,12 @@ use scheduler_core::{
     config::AppConfig,
     container::ServiceLocator,
     traits::{
-        scheduler::TaskControlService, ExecutorRegistry, StateListenerService,
-        TaskSchedulerService, WorkerServiceTrait,
+        ExecutorRegistry, StateListenerService,
+        WorkerServiceTrait,
     },
 };
+use scheduler_application::interfaces::TaskSchedulerService;
+use scheduler_core::traits::scheduler::TaskControlService;
 use scheduler_dispatcher::{
     controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
 };
@@ -21,7 +23,7 @@ use scheduler_infrastructure::{
     observability::MetricsCollector,
 };
 use scheduler_worker::{
-    executors::{HttpExecutor, ShellExecutor}, refactored_service::WorkerService,
+    executors::{HttpExecutor, ShellExecutor}, WorkerService,
 };
 use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};
@@ -346,7 +348,7 @@ async fn create_message_queue(config: &AppConfig) -> Result<Arc<RabbitMQMessageQ
 }
 
 /// 创建执行器注册表
-async fn create_executor_registry() -> Result<Arc<dyn scheduler_core::traits::ExecutorRegistry>> {
+async fn create_executor_registry() -> Result<Arc<dyn ExecutorRegistry>> {
     let mut registry = scheduler_core::executor_registry::DefaultExecutorRegistry::new();
 
     // 注册Shell执行器

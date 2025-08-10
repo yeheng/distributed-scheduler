@@ -2,12 +2,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::{debug, info};
 
-use scheduler_core::{
-    config::models::{MessageQueueConfig, MessageQueueType},
-    errors::SchedulerError,
-    traits::MessageQueue,
-    SchedulerResult,
-};
+use scheduler_core::{config::models::{MessageQueueConfig, MessageQueueType}, SchedulerResult, traits::MessageQueue};
+use scheduler_errors::SchedulerError;
 
 use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};
 

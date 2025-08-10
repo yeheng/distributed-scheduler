@@ -1,4 +1,5 @@
-use scheduler_core::{errors::SchedulerError, SchedulerResult};
+use scheduler_errors::SchedulerError;
+use scheduler_core::SchedulerResult;
 use std::sync::Arc;
 use std::time::Instant;
 use tracing::{debug, info, warn};

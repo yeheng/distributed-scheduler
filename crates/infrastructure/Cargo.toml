@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 scheduler-core = { path = "../core" }
 scheduler-domain = { path = "../domain" }
+scheduler-errors = { path = "../errors" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -34,4 +35,4 @@ url = "2.4"
 testcontainers = { workspace = true }
 testcontainers-modules = { workspace = true, features = ["postgres", "rabbitmq", "redis"] }
 once_cell = "1.19"
-criterion = { version = "0.5", features = ["html_reports"] }
+criterion = { workspace = true, features = ["html_reports"] }

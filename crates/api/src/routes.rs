@@ -21,10 +21,10 @@ use crate::{
 
 #[derive(Clone)]
 pub struct AppState {
-    pub task_repo: Arc<dyn scheduler_core::traits::repository::TaskRepository>,
-    pub task_run_repo: Arc<dyn scheduler_core::traits::repository::TaskRunRepository>,
-    pub worker_repo: Arc<dyn scheduler_core::traits::repository::WorkerRepository>,
-    pub task_controller: Arc<dyn scheduler_core::traits::scheduler::TaskControlService>,
+    pub task_repo: Arc<dyn scheduler_domain::repositories::TaskRepository>,
+    pub task_run_repo: Arc<dyn scheduler_domain::repositories::TaskRunRepository>,
+    pub worker_repo: Arc<dyn scheduler_domain::repositories::WorkerRepository>,
+    pub task_controller: Arc<dyn scheduler_core::traits::TaskControlService>,
     pub auth_config: Arc<AuthConfig>,
 }
 

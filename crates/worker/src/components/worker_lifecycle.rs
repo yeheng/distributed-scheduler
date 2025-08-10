@@ -1,10 +1,8 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use scheduler_core::{
-    models::{MessageType, TaskControlMessage},
-    SchedulerError, SchedulerResult, ServiceLocator,
-};
+use scheduler_core::{SchedulerError, SchedulerResult, ServiceLocator, traits::TaskStatusUpdate};
+use scheduler_domain::entities::TaskControlMessage;
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{error, info, warn};
@@ -122,6 +120,7 @@ impl WorkerLifecycle {
         let task_queue = self.task_queue.clone();
         let task_execution_manager = Arc::clone(&self.task_execution_manager);
         let heartbeat_manager = Arc::clone(&self.heartbeat_manager);
+        let worker_id = self.worker_id.clone();
 
         tokio::spawn(async move {
             loop {
@@ -132,6 +131,7 @@ impl WorkerLifecycle {
                             &task_queue,
                             &task_execution_manager,
                             &heartbeat_manager,
+                            &worker_id,
                         ).await {
                             error!("Task polling failed: {}", e);
                         }
@@ -151,6 +151,7 @@ impl WorkerLifecycle {
         task_queue: &str,
         task_execution_manager: &TaskExecutionManager,
         heartbeat_manager: &Arc<HeartbeatManager>,
+        worker_id: &str,
     ) -> SchedulerResult<()> {
         let message_queue = service_locator.message_queue().await?;
         let messages = message_queue.consume_messages(task_queue).await?;
@@ -160,13 +161,15 @@ impl WorkerLifecycle {
                 scheduler_domain::entities::MessageType::TaskExecution(task_execution) => {
                     let task_execution = task_execution.clone();
                     let heartbeat_mgr = Arc::clone(heartbeat_manager);
+                    let worker_id = worker_id.to_string();
                     let status_callback = move |task_run_id, status, result, error_message| {
                         let heartbeat_manager = Arc::clone(&heartbeat_mgr);
+                        let worker_id = worker_id.clone();
                         async move {
-                            let update = scheduler_domain::entities::TaskStatusUpdate {
+                            let update = TaskStatusUpdate {
                                 task_run_id,
                                 status,
-                                worker_id: "worker".to_string(),
+                                worker_id,
                                 result,
                                 error_message,
                                 timestamp: chrono::Utc::now(),

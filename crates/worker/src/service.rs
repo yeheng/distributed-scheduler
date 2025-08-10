@@ -1,8 +1,7 @@
 use std::sync::Arc;
 
-use scheduler_core::{
-    models::TaskStatusUpdate, ExecutorRegistry, SchedulerResult, ServiceLocator, WorkerServiceTrait,
-};
+use scheduler_core::{SchedulerResult, ServiceLocator, traits::{TaskStatusUpdate, WorkerServiceTrait, ExecutorRegistry}};
+use scheduler_domain::entities::TaskRun;
 
 use crate::components::{
     DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
@@ -181,7 +180,7 @@ impl WorkerServiceTrait for WorkerService {
         self.task_execution_manager.cancel_task(task_run_id).await
     }
 
-    async fn get_running_tasks(&self) -> Vec<scheduler_core::TaskRun> {
+    async fn get_running_tasks(&self) -> Vec<TaskRun> {
         Vec::new()
     }
 

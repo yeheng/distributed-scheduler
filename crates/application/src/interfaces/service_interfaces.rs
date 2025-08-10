@@ -1,14 +1,12 @@
-
+// Service interfaces moved from core/service_interfaces.rs
 use std::collections::HashMap;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use crate::{
-    models::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus},
-    SchedulerResult,
-};
+use scheduler_core::SchedulerResult;
+use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
 
 pub mod task_services {
     use super::*;
@@ -164,6 +162,7 @@ pub trait ServiceFactory: Send + Sync {
         -> SchedulerResult<Box<dyn system_services::AuditService>>;
 }
 
+// Data structures
 #[derive(Debug, Clone)]
 pub struct SchedulerStats {
     pub total_tasks: i64,

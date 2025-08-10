@@ -4,11 +4,9 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tracing::{debug, error, info, warn};
 
-use scheduler_domain::entities::{Message, MessageType, StatusUpdateMessage, TaskRunStatus};
-use scheduler_core::{
-    traits::{MessageQueue, StateListenerService, TaskRunRepository, WorkerRepository},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_domain::entities::{Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus};
+use scheduler_core::{SchedulerError, SchedulerResult, traits::{MessageQueue, StateListenerService}};
+use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
 
 use crate::retry_service::RetryService;
 
@@ -74,7 +72,7 @@ impl StateListener {
                 Ok(Some(mut worker)) => {
                     worker.last_heartbeat = heartbeat.timestamp;
                     worker.current_task_count = heartbeat.current_task_count;
-                    worker.status = scheduler_core::models::WorkerStatus::Alive;
+                    worker.status = WorkerStatus::Alive;
 
                     self.worker_repo.update(&worker).await?;
                     debug!("更新了 Worker {} 的心跳信息", heartbeat.worker_id);

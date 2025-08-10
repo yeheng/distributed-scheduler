@@ -1,334 +1,23 @@
 #[cfg(test)]
 mod tests {
-    use async_trait::async_trait;
-    use chrono::{DateTime, Timelike, Utc};
+    use chrono::{Timelike, Utc};
+    use scheduler_application::interfaces::scheduler::TaskSchedulerService;
     use scheduler_core::models::*;
-    use scheduler_core::traits::*;
     use scheduler_core::*;
+    use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
+    use scheduler_domain::{TaskStatus};
     use serde_json::json;
-    use std::collections::HashMap;
-    use std::sync::{Arc, Mutex};
-
+    use std::sync::Arc;
+    
     use scheduler_dispatcher::scheduler::*;
     use scheduler_infrastructure::MetricsCollector;
+    use scheduler_testing_utils::{
+        MockMessageQueue, MockTaskRepository, MockTaskRunRepository, 
+        TaskBuilder, TaskRunBuilder
+    };
 
     fn create_test_metrics() -> Arc<MetricsCollector> {
         Arc::new(MetricsCollector::new().unwrap())
-    }
-    #[derive(Debug, Clone)]
-    struct MockMessageQueue {
-        queues: Arc<Mutex<HashMap<String, Vec<Message>>>>,
-    }
-
-    impl MockMessageQueue {
-        fn new() -> Self {
-            Self {
-                queues: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn get_queue_messages(&self, queue: &str) -> Vec<Message> {
-            self.queues
-                .lock()
-                .unwrap()
-                .get(queue)
-                .cloned()
-                .unwrap_or_default()
-        }
-    }
-
-    #[async_trait]
-    impl MessageQueue for MockMessageQueue {
-        async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues
-                .entry(queue.to_string())
-                .or_default()
-                .push(message.clone());
-            Ok(())
-        }
-
-        async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
-            let mut queues = self.queues.lock().unwrap();
-            let messages = queues.remove(queue).unwrap_or_default();
-            Ok(messages)
-        }
-
-        async fn ack_message(&self, _message_id: &str) -> SchedulerResult<()> {
-            Ok(())
-        }
-
-        async fn nack_message(&self, _message_id: &str, _requeue: bool) -> SchedulerResult<()> {
-            Ok(())
-        }
-
-        async fn create_queue(&self, queue: &str, _durable: bool) -> SchedulerResult<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues.entry(queue.to_string()).or_default();
-            Ok(())
-        }
-
-        async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
-            let mut queues = self.queues.lock().unwrap();
-            queues.remove(queue);
-            Ok(())
-        }
-
-        async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
-            let queues = self.queues.lock().unwrap();
-            let size = queues.get(queue).map(|q| q.len()).unwrap_or(0) as u32;
-            Ok(size)
-        }
-
-        async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
-            let mut queues = self.queues.lock().unwrap();
-            if let Some(queue_messages) = queues.get_mut(queue) {
-                queue_messages.clear();
-            }
-            Ok(())
-        }
-    }
-    #[derive(Debug, Clone)]
-    struct MockTaskRepository {
-        tasks: Arc<Mutex<HashMap<i64, Task>>>,
-    }
-
-    impl MockTaskRepository {
-        fn new() -> Self {
-            Self {
-                tasks: Arc::new(Mutex::new(HashMap::new())),
-            }
-        }
-
-        fn add_task(&self, task: Task) {
-            self.tasks.lock().unwrap().insert(task.id, task);
-        }
-    }
-
-    #[async_trait]
-    impl TaskRepository for MockTaskRepository {
-        async fn create(&self, task: &Task) -> SchedulerResult<Task> {
-            let mut tasks = self.tasks.lock().unwrap();
-            let mut new_task = task.clone();
-            new_task.id = (tasks.len() + 1) as i64;
-            tasks.insert(new_task.id, new_task.clone());
-            Ok(new_task)
-        }
-
-        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
-            let tasks = self.tasks.lock().unwrap();
-            Ok(tasks.get(&id).cloned())
-        }
-
-        async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
-            let tasks = self.tasks.lock().unwrap();
-            Ok(tasks.values().find(|t| t.name == name).cloned())
-        }
-
-        async fn update(&self, task: &Task) -> SchedulerResult<()> {
-            let mut tasks = self.tasks.lock().unwrap();
-            tasks.insert(task.id, task.clone());
-            Ok(())
-        }
-
-        async fn delete(&self, id: i64) -> SchedulerResult<()> {
-            let mut tasks = self.tasks.lock().unwrap();
-            tasks.remove(&id);
-            Ok(())
-        }
-
-        async fn list(
-            &self,
-            _filter: &scheduler_core::models::TaskFilter,
-        ) -> SchedulerResult<Vec<Task>> {
-            let tasks = self.tasks.lock().unwrap();
-            Ok(tasks.values().cloned().collect())
-        }
-
-        async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
-            let tasks = self.tasks.lock().unwrap();
-            Ok(tasks
-                .values()
-                .filter(|t| t.status == TaskStatus::Active)
-                .cloned()
-                .collect())
-        }
-
-        async fn get_schedulable_tasks(
-            &self,
-            _current_time: DateTime<Utc>,
-        ) -> SchedulerResult<Vec<Task>> {
-            self.get_active_tasks().await
-        }
-
-        async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
-            Ok(true)
-        }
-
-        async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
-            Ok(vec![])
-        }
-
-        async fn batch_update_status(
-            &self,
-            _task_ids: &[i64],
-            _status: TaskStatus,
-        ) -> SchedulerResult<()> {
-            Ok(())
-        }
-    }
-    #[derive(Debug, Clone)]
-    struct MockTaskRunRepository {
-        task_runs: Arc<Mutex<HashMap<i64, TaskRun>>>,
-        next_id: Arc<Mutex<i64>>,
-    }
-
-    impl MockTaskRunRepository {
-        fn new() -> Self {
-            Self {
-                task_runs: Arc::new(Mutex::new(HashMap::new())),
-                next_id: Arc::new(Mutex::new(1)),
-            }
-        }
-    }
-
-    #[async_trait]
-    impl TaskRunRepository for MockTaskRunRepository {
-        async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
-            let mut task_runs = self.task_runs.lock().unwrap();
-            let mut next_id = self.next_id.lock().unwrap();
-
-            let mut new_run = task_run.clone();
-            new_run.id = *next_id;
-            *next_id += 1;
-
-            task_runs.insert(new_run.id, new_run.clone());
-            Ok(new_run)
-        }
-
-        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            Ok(task_runs.get(&id).cloned())
-        }
-
-        async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
-            let mut task_runs = self.task_runs.lock().unwrap();
-            task_runs.insert(task_run.id, task_run.clone());
-            Ok(())
-        }
-
-        async fn delete(&self, id: i64) -> SchedulerResult<()> {
-            let mut task_runs = self.task_runs.lock().unwrap();
-            task_runs.remove(&id);
-            Ok(())
-        }
-
-        async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            Ok(task_runs
-                .values()
-                .filter(|r| r.task_id == task_id)
-                .cloned()
-                .collect())
-        }
-
-        async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            Ok(task_runs
-                .values()
-                .filter(|r| r.worker_id.as_ref() == Some(&worker_id.to_string()))
-                .cloned()
-                .collect())
-        }
-
-        async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            Ok(task_runs
-                .values()
-                .filter(|r| r.status == status)
-                .cloned()
-                .collect())
-        }
-
-        async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
-            self.get_by_status(TaskRunStatus::Pending).await
-        }
-
-        async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            Ok(task_runs
-                .values()
-                .filter(|r| r.is_running())
-                .cloned()
-                .collect())
-        }
-
-        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
-            Ok(vec![])
-        }
-
-        async fn update_status(
-            &self,
-            id: i64,
-            status: TaskRunStatus,
-            worker_id: Option<&str>,
-        ) -> SchedulerResult<()> {
-            let mut task_runs = self.task_runs.lock().unwrap();
-            if let Some(run) = task_runs.get_mut(&id) {
-                run.status = status;
-                if let Some(worker) = worker_id {
-                    run.worker_id = Some(worker.to_string());
-                }
-            }
-            Ok(())
-        }
-
-        async fn update_result(
-            &self,
-            id: i64,
-            result: Option<&str>,
-            error_message: Option<&str>,
-        ) -> SchedulerResult<()> {
-            let mut task_runs = self.task_runs.lock().unwrap();
-            if let Some(run) = task_runs.get_mut(&id) {
-                run.result = result.map(|s| s.to_string());
-                run.error_message = error_message.map(|s| s.to_string());
-            }
-            Ok(())
-        }
-
-        async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
-            let task_runs = self.task_runs.lock().unwrap();
-            let mut runs: Vec<_> = task_runs
-                .values()
-                .filter(|r| r.task_id == task_id)
-                .cloned()
-                .collect();
-
-            runs.sort_by(|a, b| b.scheduled_at.cmp(&a.scheduled_at));
-            runs.truncate(limit as usize);
-            Ok(runs)
-        }
-
-        async fn get_execution_stats(
-            &self,
-            _task_id: i64,
-            _days: i32,
-        ) -> SchedulerResult<scheduler_core::traits::repository::TaskExecutionStats> {
-            todo!()
-        }
-
-        async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
-            Ok(0)
-        }
-
-        async fn batch_update_status(
-            &self,
-            _run_ids: &[i64],
-            _status: TaskRunStatus,
-        ) -> SchedulerResult<()> {
-            Ok(())
-        }
     }
 
     #[tokio::test]
@@ -360,26 +49,28 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let task = Task {
-            id: 1,
-            name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * * *".to_string(), // 每分钟执行 (6字段格式: 秒 分 时 日 月 周)
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
 
-        task_repo.add_task(task.clone());
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("test_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
+
+        task_repo.create(&task).await.unwrap();
         let should_schedule = scheduler.should_schedule_task(&task).await.unwrap();
         assert!(should_schedule);
-        let mut inactive_task = task.clone();
-        inactive_task.status = TaskStatus::Inactive;
+
+        let inactive_task = TaskBuilder::new()
+            .with_id(task.id)
+            .with_name(&task.name)
+            .with_task_type(&task.task_type)
+            .with_schedule(&task.schedule)
+            .with_parameters(task.parameters.clone())
+            .inactive()
+            .build();
         let should_schedule = scheduler
             .should_schedule_task(&inactive_task)
             .await
@@ -400,53 +91,38 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let task_no_deps = Task {
-            id: 1,
-            name: "no_deps_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * *".to_string(),
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+
+        let task_no_deps = TaskBuilder::new()
+            .with_id(1)
+            .with_name("no_deps_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
+
         let deps_ok = scheduler.check_dependencies(&task_no_deps).await.unwrap();
         assert!(deps_ok);
-        let task_with_deps = Task {
-            id: 2,
-            name: "with_deps_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * * *".to_string(), // 6字段格式: 秒 分 时 日 月 周
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![1], // 依赖任务1
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+
+        let task_with_deps = TaskBuilder::new()
+            .with_id(2)
+            .with_name("with_deps_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * * *")
+            .with_parameters(json!({}))
+            .with_dependencies(vec![1])
+            .with_status(TaskStatus::Active)
+            .build();
+
         let deps_ok = scheduler.check_dependencies(&task_with_deps).await.unwrap();
-        assert!(!deps_ok); // 依赖任务未执行，应该返回false
-        let successful_run = TaskRun {
-            id: 1,
-            task_id: 1,
-            status: TaskRunStatus::Completed,
-            worker_id: Some("worker-001".to_string()),
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-            scheduled_at: Utc::now(),
-            started_at: Some(Utc::now()),
-            completed_at: Some(Utc::now()),
-            result: Some("success".to_string()),
-            error_message: None,
-            created_at: Utc::now(),
-        };
+        assert!(!deps_ok); // Dependency task has not run, should return false
+
+        let successful_run = TaskRunBuilder::new()
+            .with_task_id(1)
+            .with_worker_id("worker-001")
+            .completed()
+            .with_result("success")
+            .build();
 
         task_run_repo.create(&successful_run).await.unwrap();
         let deps_ok = scheduler.check_dependencies(&task_with_deps).await.unwrap();
@@ -467,20 +143,14 @@ mod tests {
             create_test_metrics(),
         );
 
-        let task = Task {
-            id: 1,
-            name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * * *".to_string(), // 6字段格式: 秒 分 时 日 月 周
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("test_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
         let task_run = scheduler.create_task_run(&task).await.unwrap();
 
@@ -505,38 +175,22 @@ mod tests {
             create_test_metrics(),
         );
 
-        let task = Task {
-            id: 1,
-            name: "test_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * *".to_string(),
-            parameters: json!({"command": "echo hello"}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("test_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * *")
+            .with_parameters(json!({"command": "echo hello"}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(task.clone());
+        task_repo.create(&task).await.unwrap();
 
-        let task_run = TaskRun {
-            id: 1,
-            task_id: 1,
-            status: TaskRunStatus::Pending,
-            worker_id: None,
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-            scheduled_at: Utc::now(),
-            started_at: None,
-            completed_at: None,
-            result: None,
-            error_message: None,
-            created_at: Utc::now(),
-        };
+        let task_run = TaskRunBuilder::new()
+            .with_id(1)
+            .with_task_id(1)
+            .with_status(TaskRunStatus::Pending)
+            .build();
 
         let created_run = task_run_repo.create(&task_run).await.unwrap();
         scheduler.dispatch_to_queue(&created_run).await.unwrap();
@@ -563,22 +217,16 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let task = Task {
-            id: 1,
-            name: "schedulable_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * * *".to_string(), // 每分钟执行 (6字段格式: 秒 分 时 日 月 周)
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("schedulable_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(task);
+        task_repo.create(&task).await.unwrap();
         let scheduled_runs = scheduler.scan_and_schedule().await.unwrap();
         assert_eq!(scheduled_runs.len(), 1);
         assert_eq!(scheduled_runs[0].task_id, 1);
@@ -599,37 +247,25 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let task = Task {
-            id: 1,
-            name: "overdue_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 * * * * *".to_string(), // 每分钟执行
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("overdue_task")
+            .with_task_type("shell")
+            .with_schedule("0 * * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(task);
-        let old_run = TaskRun {
-            id: 1,
-            task_id: 1,
-            status: TaskRunStatus::Completed,
-            worker_id: Some("worker-001".to_string()),
-            retry_count: 0,
-            shard_index: None,
-            shard_total: None,
-            scheduled_at: Utc::now() - chrono::Duration::minutes(10), // 10分钟前
-            started_at: Some(Utc::now() - chrono::Duration::minutes(10)),
-            completed_at: Some(Utc::now() - chrono::Duration::minutes(9)),
-            result: Some("success".to_string()),
-            error_message: None,
-            created_at: Utc::now() - chrono::Duration::minutes(10),
-        };
+        task_repo.create(&task).await.unwrap();
+        
+        let old_run = TaskRunBuilder::new()
+            .with_id(1)
+            .with_task_id(1)
+            .completed()
+            .with_worker_id("worker-001")
+            .with_result("success")
+            .with_scheduled_at(Utc::now() - chrono::Duration::minutes(10))
+            .build();
 
         task_run_repo.create(&old_run).await.unwrap();
         let overdue_tasks = scheduler.detect_overdue_tasks(2).await.unwrap();
@@ -650,22 +286,16 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let task = Task {
-            id: 1,
-            name: "hourly_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 0 * * * *".to_string(), // 每小时执行
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("hourly_task")
+            .with_task_type("shell")
+            .with_schedule("0 0 * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(task);
+        task_repo.create(&task).await.unwrap();
         let next_time = scheduler.get_next_execution_time(1).await.unwrap();
 
         assert!(next_time.is_some());
@@ -687,38 +317,26 @@ mod tests {
             "test_queue".to_string(),
             create_test_metrics(),
         );
-        let valid_task = Task {
-            id: 1,
-            name: "valid_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "0 0 * * * *".to_string(), // 有效的CRON表达式
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        let valid_task = TaskBuilder::new()
+            .with_id(1)
+            .with_name("valid_task")
+            .with_task_type("shell")
+            .with_schedule("0 0 * * * *")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(valid_task);
-        let invalid_task = Task {
-            id: 2,
-            name: "invalid_task".to_string(),
-            task_type: "shell".to_string(),
-            schedule: "invalid cron".to_string(), // 无效的CRON表达式
-            parameters: json!({}),
-            timeout_seconds: 300,
-            max_retries: 0,
-            status: TaskStatus::Active,
-            dependencies: vec![],
-            shard_config: None,
-            created_at: Utc::now(),
-            updated_at: Utc::now(),
-        };
+        task_repo.create(&valid_task).await.unwrap();
+        let invalid_task = TaskBuilder::new()
+            .with_id(2)
+            .with_name("invalid_task")
+            .with_task_type("shell")
+            .with_schedule("invalid cron")
+            .with_parameters(json!({}))
+            .with_status(TaskStatus::Active)
+            .build();
 
-        task_repo.add_task(invalid_task);
+        task_repo.create(&invalid_task).await.unwrap();
         let is_valid = scheduler.validate_task_schedule(1).await.unwrap();
         assert!(is_valid);
         let is_invalid = scheduler.validate_task_schedule(2).await.unwrap();

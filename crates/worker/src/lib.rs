@@ -1,14 +1,11 @@
 pub mod components;
-pub mod composed_service;
 pub mod executors;
-pub mod heartbeat;
-pub mod refactored_service;
+pub mod service;
 
 #[cfg(test)]
 mod service_test;
 
-#[cfg(test)]
-mod executors_test;
+// Re-export the main service types
+pub use service::{WorkerService, WorkerConfig, WorkerServiceBuilder};
 pub use components::*;
-pub use composed_service::{WorkerService, WorkerServiceBuilder, WorkerServiceTrait};
 pub use executors::{HttpExecutor, HttpTaskParams, ShellExecutor, ShellTaskParams};

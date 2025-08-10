@@ -1,5 +1,6 @@
 use reqwest;
-use scheduler_core::{models::WorkerInfo, SchedulerError, SchedulerResult};
+use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_domain::entities::WorkerInfo;
 use serde_json::json;
 use tracing::{debug, error, info, warn};
 

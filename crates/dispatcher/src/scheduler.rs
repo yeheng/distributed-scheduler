@@ -4,11 +4,10 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
-    models::{Message, Task, TaskExecutionMessage, TaskRun, TaskRunStatus},
-    traits::{MessageQueue, TaskRepository, TaskRunRepository, TaskSchedulerService},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_core::{SchedulerError, SchedulerResult, SchedulerStats, traits::MessageQueue};
+use scheduler_application::interfaces::TaskSchedulerService;
+use scheduler_domain::entities::{Message, Task, TaskRun, TaskRunStatus};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
@@ -90,8 +89,8 @@ impl TaskScheduler {
         &self,
         task: &Task,
         task_run: &TaskRun,
-    ) -> TaskExecutionMessage {
-        TaskExecutionMessage {
+    ) -> scheduler_domain::entities::TaskExecutionMessage {
+        scheduler_domain::entities::TaskExecutionMessage {
             task_run_id: task_run.id,
             task_id: task.id,
             task_name: task.name.clone(),
@@ -305,5 +304,57 @@ impl TaskScheduler {
                 Ok(false)
             }
         }
+    }
+
+    // Missing trait implementations
+    async fn start(&self) -> SchedulerResult<()> {
+        info!("启动任务调度器");
+        // TODO: Implement scheduler startup logic
+        Ok(())
+    }
+
+    async fn stop(&self) -> SchedulerResult<()> {
+        info!("停止任务调度器");
+        // TODO: Implement scheduler shutdown logic
+        Ok(())
+    }
+
+    async fn schedule_task(&self, task: &Task) -> SchedulerResult<()> {
+        info!("调度任务: {}", task.name);
+        if let Some(task_run) = self.schedule_task_if_needed(task).await? {
+            info!("成功创建并调度任务运行实例: {}", task_run.id);
+        }
+        Ok(())
+    }
+
+    async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()> {
+        info!("批量调度 {} 个任务", tasks.len());
+        for task in tasks {
+            self.schedule_task(task).await?;
+        }
+        Ok(())
+    }
+
+    async fn is_running(&self) -> bool {
+        // TODO: Implement proper running state tracking
+        true
+    }
+
+    async fn get_stats(&self) -> SchedulerResult<SchedulerStats> {
+        // TODO: Implement proper statistics collection
+        Ok(SchedulerStats {
+            total_tasks: 0,
+            active_tasks: 0,
+            running_task_runs: 0,
+            pending_task_runs: 0,
+            uptime_seconds: 0,
+            last_schedule_time: None,
+        })
+    }
+
+    async fn reload_config(&self) -> SchedulerResult<()> {
+        info!("重新加载调度器配置");
+        // TODO: Implement configuration reload logic
+        Ok(())
     }
 }

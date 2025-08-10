@@ -4,11 +4,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
-use scheduler_core::{
-    models::Task,
-    traits::{TaskRepository, TaskRunRepository},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_domain::entities::Task;
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 
 pub struct DependencyChecker {
     task_repo: Arc<dyn TaskRepository>,

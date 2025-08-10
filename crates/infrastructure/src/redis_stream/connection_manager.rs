@@ -1,5 +1,5 @@
 use redis::{Client, Connection, RedisResult};
-use scheduler_core::{errors::SchedulerError, SchedulerResult};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::time::sleep;

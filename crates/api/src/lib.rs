@@ -13,7 +13,7 @@ use tower::ServiceBuilder;
 use middleware::{cors_layer, request_logging, trace_layer};
 use routes::{create_routes, AppState};
 use scheduler_core::config::models::api_observability::AuthConfig as CoreAuthConfig;
-use scheduler_core::traits::repository::*;
+use scheduler_domain::repositories::*;
 use scheduler_core::traits::scheduler::*;
 use scheduler_core::config::models::api_observability::ApiConfig;
 
@@ -100,11 +100,15 @@ fn convert_auth_config(core_config: &CoreAuthConfig) -> Arc<auth::AuthConfig> {
 
 #[cfg(test)]
 mod tests {
-    use super::*;
+    use std::sync::Arc;
+    use super::create_simple_app;
+    use async_trait::async_trait;
     use axum::{
         body::Body,
         http::{Request, StatusCode},
     };
+    use scheduler_core::TaskControlService;
+    use scheduler_domain::*;
     use tower::ServiceExt;
     struct MockTaskRepository;
     struct MockTaskRunRepository;
@@ -394,7 +398,7 @@ mod tests {
         }
     }
 
-    #[async_trait::async_trait]
+    #[async_trait]
     impl TaskControlService for MockTaskController {
         async fn trigger_task(
             &self,
@@ -419,6 +423,22 @@ mod tests {
         }
 
         async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_core::SchedulerResult<()> {
+            unimplemented!()
+        }
+
+        async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_core::SchedulerResult<usize> {
+            unimplemented!()
+        }
+
+        async fn has_running_instances(&self, _task_id: i64) -> scheduler_core::SchedulerResult<bool> {
+            unimplemented!()
+        }
+
+        async fn get_recent_executions(
+            &self,
+            _task_id: i64,
+            _limit: i64,
+        ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
     }

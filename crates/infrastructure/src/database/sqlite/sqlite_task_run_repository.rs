@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::{
-    errors::SchedulerError,
-    models::{TaskRun, TaskRunStatus},
-    traits::{TaskExecutionStats, TaskRunRepository},
-    SchedulerResult,
+use scheduler_core::SchedulerResult;
+use scheduler_domain::{
+    entities::{TaskRun, TaskRunStatus},
+    repositories::{TaskExecutionStats, TaskRunRepository},
 };
+use scheduler_errors::SchedulerError;
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 

@@ -13,10 +13,12 @@ path = "src/main.rs"
 # 工作区内部crates
 scheduler-core = { path = "crates/core" }
 scheduler-domain = { path = "crates/domain" }
+scheduler-application = { path = "crates/application" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
 scheduler-worker = { path = "crates/worker" }
 scheduler-api = { path = "crates/api" }
 scheduler-infrastructure = { path = "crates/infrastructure" }
+scheduler-errors = { path = "crates/errors" }
 
 # 异步运行时和基础工具
 tokio = { workspace = true }
@@ -59,10 +61,13 @@ resolver = "2"
 members = [
     "crates/core",
     "crates/domain",
+    "crates/application",
     "crates/dispatcher",
     "crates/worker",
     "crates/api",
     "crates/infrastructure",
+    "crates/errors",
+    "crates/testing-utils",
 ]
 
 [workspace.dependencies]
@@ -112,6 +117,7 @@ tower = "0.5"
 hyper = { version = "1.6", features = ["full"] }
 reqwest = { version = "0.12", features = ["json"] }
 tower-http = { version = "0.6", features = ["cors", "trace"] }
+parking_lot = "0.12.4"
 
 # 测试相关
 testcontainers = { version = "0.24", features = ["blocking"] }
@@ -123,3 +129,4 @@ redis = { version = "0.32.4", features = ["tokio-comp", "connection-manager"] }
 tempfile = "3.0"
 rand = "0.9"
 hostname = "0.4"
+criterion = { version = "0.7", features = ["html_reports"] }

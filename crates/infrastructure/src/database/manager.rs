@@ -1,8 +1,5 @@
-use scheduler_core::{
-    errors::SchedulerError,
-    traits::{TaskRepository, TaskRunRepository, WorkerRepository},
-    SchedulerResult,
-};
+use scheduler_errors::{SchedulerError, SchedulerResult};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 use super::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };

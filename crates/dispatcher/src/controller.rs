@@ -4,11 +4,36 @@ use async_trait::async_trait;
 use chrono::Utc;
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
-    models::{Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus},
-    traits::{MessageQueue, TaskControlService, TaskRepository, TaskRunRepository},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_core::{SchedulerError, SchedulerResult, traits::{MessageQueue, scheduler::TaskControlService}};
+use scheduler_domain::entities::{Message, TaskRun, TaskRunStatus, TaskStatus, TaskControlAction, TaskControlMessage};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
+
+#[derive(Debug, Default, Clone)]
+pub struct TaskStatusSummary {
+    pub pending: usize,
+    pub dispatched: usize,
+    pub running: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub cancelled: usize,
+}
+
+impl TaskStatusSummary {
+    pub fn total(&self) -> usize {
+        self.pending
+            + self.dispatched
+            + self.running
+            + self.completed
+            + self.failed
+            + self.cancelled
+    }
+    pub fn active(&self) -> usize {
+        self.pending + self.dispatched + self.running
+    }
+    pub fn finished(&self) -> usize {
+        self.completed + self.failed + self.cancelled
+    }
+}
 
 pub struct TaskController {
     task_repo: Arc<dyn TaskRepository>,
@@ -239,31 +264,8 @@ impl TaskControlService for TaskController {
 
         Ok(())
     }
-}
 
-impl TaskController {
-    pub async fn get_task_status_summary(
-        &self,
-        task_id: i64,
-    ) -> SchedulerResult<TaskStatusSummary> {
-        let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
-
-        let mut summary = TaskStatusSummary::default();
-
-        for run in task_runs {
-            match run.status {
-                TaskRunStatus::Pending => summary.pending += 1,
-                TaskRunStatus::Dispatched => summary.dispatched += 1,
-                TaskRunStatus::Running => summary.running += 1,
-                TaskRunStatus::Completed => summary.completed += 1,
-                TaskRunStatus::Failed => summary.failed += 1,
-                TaskRunStatus::Timeout => summary.cancelled += 1,
-            }
-        }
-
-        Ok(summary)
-    }
-    pub async fn cancel_all_task_runs(&self, task_id: i64) -> SchedulerResult<usize> {
+    async fn cancel_all_task_runs(&self, task_id: i64) -> SchedulerResult<usize> {
         info!("取消任务 {} 的所有运行实例", task_id);
 
         let running_runs = self.task_run_repo.get_by_task_id(task_id).await?;
@@ -288,12 +290,14 @@ impl TaskController {
 
         Ok(cancel_count)
     }
-    pub async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool> {
+
+    async fn has_running_instances(&self, task_id: i64) -> SchedulerResult<bool> {
         let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
         let has_running = task_runs.iter().any(|run| run.is_running());
         Ok(has_running)
     }
-    pub async fn get_recent_executions(
+
+    async fn get_recent_executions(
         &self,
         task_id: i64,
         limit: usize,
@@ -306,29 +310,26 @@ impl TaskController {
     }
 }
 
-#[derive(Debug, Default, Clone)]
-pub struct TaskStatusSummary {
-    pub pending: usize,
-    pub dispatched: usize,
-    pub running: usize,
-    pub completed: usize,
-    pub failed: usize,
-    pub cancelled: usize,
-}
+impl TaskController {
+    pub async fn get_task_status_summary(
+        &self,
+        task_id: i64,
+    ) -> SchedulerResult<TaskStatusSummary> {
+        let task_runs = self.task_run_repo.get_by_task_id(task_id).await?;
 
-impl TaskStatusSummary {
-    pub fn total(&self) -> usize {
-        self.pending
-            + self.dispatched
-            + self.running
-            + self.completed
-            + self.failed
-            + self.cancelled
-    }
-    pub fn active(&self) -> usize {
-        self.pending + self.dispatched + self.running
-    }
-    pub fn finished(&self) -> usize {
-        self.completed + self.failed + self.cancelled
+        let mut summary = TaskStatusSummary::default();
+
+        for run in task_runs {
+            match run.status {
+                TaskRunStatus::Pending => summary.pending += 1,
+                TaskRunStatus::Dispatched => summary.dispatched += 1,
+                TaskRunStatus::Running => summary.running += 1,
+                TaskRunStatus::Completed => summary.completed += 1,
+                TaskRunStatus::Failed => summary.failed += 1,
+                TaskRunStatus::Timeout => summary.cancelled += 1,
+            }
+        }
+
+        Ok(summary)
     }
 }

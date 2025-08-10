@@ -5,11 +5,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
-    models::{Message, TaskExecutionMessage, TaskRun, TaskRunStatus},
-    traits::{MessageQueue, TaskRepository, TaskRunRepository},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_core::{SchedulerError, SchedulerResult, traits::MessageQueue};
+use scheduler_domain::entities::{Message, TaskRun, TaskRunStatus, TaskExecutionMessage};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 
 #[derive(Debug, Clone)]
 pub struct RetryConfig {
@@ -304,7 +302,8 @@ impl RetryService for TaskRetryService {
 
 #[cfg(test)]
 mod tests {
-    use scheduler_core::traits::MockMessageQueue;
+
+    use scheduler_core::MockMessageQueue;
 
     use super::*;
     use crate::test_utils::mocks::{MockTaskRepository, MockTaskRunRepository};

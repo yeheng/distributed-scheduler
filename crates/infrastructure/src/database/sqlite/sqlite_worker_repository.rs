@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::{
-    errors::SchedulerError,
-    models::{WorkerInfo, WorkerStatus},
-    traits::{WorkerLoadStats, WorkerRepository},
-    SchedulerResult,
+use scheduler_core::SchedulerResult;
+use scheduler_domain::{
+    entities::{WorkerInfo, WorkerStatus},
+    repositories::{WorkerLoadStats, WorkerRepository},
 };
+use scheduler_errors::SchedulerError;
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
