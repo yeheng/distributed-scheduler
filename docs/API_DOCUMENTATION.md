@@ -16,6 +16,7 @@
 所有API响应都遵循统一格式：
 
 #### 成功响应
+
 ```json
 {
   "success": true,
@@ -28,6 +29,7 @@
 ```
 
 #### 带消息的成功响应
+
 ```json
 {
   "success": true,
@@ -40,6 +42,7 @@
 ```
 
 #### 空响应
+
 ```json
 {
   "success": true,
@@ -50,6 +53,7 @@
 ```
 
 #### 错误响应
+
 ```json
 {
   "success": false,

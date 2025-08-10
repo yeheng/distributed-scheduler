@@ -48,8 +48,12 @@ impl HeartbeatManager {
         let worker_id = self.worker_id.clone();
 
         tokio::spawn(async move {
+            // Reset the interval to prevent immediate first tick
+            heartbeat_interval.reset();
+            
             loop {
                 tokio::select! {
+                    // Handle heartbeat interval tick
                     _ = heartbeat_interval.tick() => {
                         if let Err(e) = Self::send_message_queue_heartbeat(&service_locator, &worker_id).await {
                             error!("Failed to send message queue heartbeat: {}", e);
@@ -59,6 +63,7 @@ impl HeartbeatManager {
                             error!("Failed to send dispatcher heartbeat: {}", e);
                         }
                     }
+                    // Handle shutdown signal
                     _ = shutdown_rx.recv() => {
                         info!("Heartbeat task shutting down");
                         break;
