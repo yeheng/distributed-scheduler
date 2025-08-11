@@ -268,16 +268,6 @@ fn parse_permission_string(permission: &str) -> Result<Permission, ()> {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use std::collections::HashMap;
-
-    fn create_test_auth_config() -> crate::auth::AuthConfig {
-        crate::auth::AuthConfig {
-            jwt_secret: "test-secret".to_string(),
-            api_keys: HashMap::new(),
-            jwt_expiration_hours: 24,
-            enabled: true,
-        }
-    }
 
     #[tokio::test]
     async fn test_validate_user_credentials() {

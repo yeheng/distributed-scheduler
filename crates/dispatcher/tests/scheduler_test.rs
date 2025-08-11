@@ -2,7 +2,6 @@
 mod tests {
     use chrono::{Timelike, Utc};
     use scheduler_application::interfaces::scheduler::TaskSchedulerService;
-    use scheduler_core::models::*;
     use scheduler_core::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
     use scheduler_domain::TaskStatus;
