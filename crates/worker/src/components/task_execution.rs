@@ -104,9 +104,20 @@ impl TaskExecutionManager {
             error_message: None,
             created_at: Utc::now(),
         };
-        let parameters =
-            serde_json::from_value::<HashMap<String, serde_json::Value>>(message.parameters)
-                .unwrap_or_default();
+        // Clone the parameters for error logging
+        let raw_parameters = message.parameters.clone();
+        let parameters = match serde_json::from_value::<HashMap<String, serde_json::Value>>(message.parameters) {
+            Ok(params) => params,
+            Err(e) => {
+                error!(
+                    "Failed to deserialize task parameters for task_run_id={}, task_type={}: {}",
+                    task_run_id, task_type, e
+                );
+                // Log the raw parameters for debugging
+                error!("Raw parameters: {}", raw_parameters);
+                HashMap::new() // Return empty parameters as fallback
+            }
+        };
 
         let context = TaskExecutionContext {
             task_run: task_run.clone(),

@@ -19,6 +19,7 @@ tracing = { workspace = true }
 tracing-opentelemetry = { workspace = true }
 cron = { workspace = true }
 rand = { workspace = true }
+futures = { workspace = true }
 
 [dev-dependencies]
 scheduler-testing-utils = { path = "../testing-utils" }

@@ -4,6 +4,7 @@ pub mod handlers;
 pub mod middleware;
 pub mod response;
 pub mod routes;
+pub mod validation;
 
 use axum::Router;
 use std::sync::Arc;

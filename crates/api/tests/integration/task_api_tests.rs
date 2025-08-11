@@ -281,7 +281,7 @@ async fn test_get_task_not_found() {
 async fn test_update_task() {
     let app = TestApp::spawn().await;
     let task_data = json!({
-        "name": "update-test-task",
+        "name": "test-task-modify",
         "task_type": "shell",
         "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}
@@ -301,7 +301,7 @@ async fn test_update_task() {
         .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
     let update_data = json!({
-        "name": "updated-task-name",
+        "name": "modified-task-name",
         "schedule": "0 0 1 * * *",
         "timeout_seconds": 600
     });
@@ -328,7 +328,7 @@ async fn test_update_task() {
 
     let response_body: Value = response.json().await.expect("Failed to parse response");
     let task = &response_body["data"];
-    assert_eq!(task["name"], "updated-task-name");
+    assert_eq!(task["name"], "modified-task-name");
     assert_eq!(task["schedule"], "0 0 1 * * *");
     assert_eq!(task["timeout_seconds"], 600);
 
@@ -339,7 +339,7 @@ async fn test_update_task() {
 async fn test_delete_task() {
     let app = TestApp::spawn().await;
     let task_data = json!({
-        "name": "delete-test-task",
+        "name": "test-task-remove",
         "task_type": "shell",
         "schedule": "0 0 0 * * *",
         "parameters": {"command": "echo test"}

@@ -10,6 +10,18 @@ jwt_secret = "your-super-secret-jwt-key-at-least-32-characters-long"
 # JWT 过期时间（小时）
 jwt_expiration_hours = 24
 
+# Refresh token 过期时间（天）
+refresh_token_expiration_days = 30
+
+# 密码哈希配置
+password_hash_cost = 12
+
+# 用户会话配置
+session_timeout_hours = 24
+
+# 最大并发登录数
+max_concurrent_sessions = 5
+
 # 需要认证的端点列表
 require_auth_endpoints = [
     "/api/tasks",

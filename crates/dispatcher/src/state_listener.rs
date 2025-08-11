@@ -154,10 +154,17 @@ impl StateListener {
                 );
             }
             TaskRunStatus::Completed => {
-                let result_str = status_msg
-                    .result
-                    .as_ref()
-                    .and_then(|r| serde_json::to_string(r).ok());
+                let result_str = if let Some(result) = &status_msg.result {
+                    match serde_json::to_string(result) {
+                        Ok(json_str) => Some(json_str),
+                        Err(e) => {
+                            error!("Failed to serialize task result for task_run_id={}: {}", status_msg.task_run_id, e);
+                            None
+                        }
+                    }
+                } else {
+                    None
+                };
 
                 self.task_run_repo
                     .update_result(status_msg.task_run_id, result_str.as_deref(), None)
@@ -189,7 +196,10 @@ impl StateListener {
                     "任务运行 {} 在 Worker {} 上执行失败: {}",
                     status_msg.task_run_id,
                     status_msg.worker_id,
-                    status_msg.error_message.as_deref().unwrap_or("未知错误")
+                    status_msg.error_message.as_deref().unwrap_or_else(|| {
+                        error!("No error message provided for failed task_run_id={}", status_msg.task_run_id);
+                        "未知错误"
+                    })
                 );
                 if let Some(retry_service) = &self.retry_service {
                     match retry_service

@@ -1,3 +1,7 @@
+pub mod models;
+pub mod service;
+pub mod guards;
+
 use axum::{
     extract::{FromRequestParts, Request, State},
     http::{header::AUTHORIZATION, request::Parts, StatusCode},
@@ -31,7 +35,7 @@ pub struct ApiKeyInfo {
     pub is_active: bool,
 }
 
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize, serde::Deserialize)]
 pub enum Permission {
     TaskRead,
     TaskWrite,
@@ -298,7 +302,7 @@ fn validate_jwt_token(token: &str, config: &AuthConfig) -> Result<AuthenticatedU
     })
 }
 
-fn parse_permission(permission_str: &str) -> Option<Permission> {
+pub fn parse_permission(permission_str: &str) -> Option<Permission> {
     match permission_str {
         "TaskRead" => Some(Permission::TaskRead),
         "TaskWrite" => Some(Permission::TaskWrite),

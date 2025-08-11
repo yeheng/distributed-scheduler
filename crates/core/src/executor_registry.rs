@@ -78,7 +78,13 @@ impl DefaultExecutorRegistry {
         let mut results = HashMap::new();
 
         for (name, executor) in registry.iter() {
-            let is_healthy = executor.health_check().await.unwrap_or(false);
+            let is_healthy = match executor.health_check().await {
+                Ok(healthy) => healthy,
+                Err(e) => {
+                    eprintln!("Health check failed for executor '{}': {}", name, e);
+                    false
+                }
+            };
             results.insert(name.clone(), is_healthy);
         }
 
@@ -169,7 +175,13 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         let mut results = HashMap::new();
 
         for (name, executor) in registry.iter() {
-            let is_healthy = executor.health_check().await.unwrap_or(false);
+            let is_healthy = match executor.health_check().await {
+                Ok(healthy) => healthy,
+                Err(e) => {
+                    eprintln!("Health check failed for executor '{}': {}", name, e);
+                    false
+                }
+            };
             results.insert(name.clone(), is_healthy);
         }
 

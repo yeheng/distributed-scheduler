@@ -12,7 +12,10 @@ pub enum ApiError {
     Scheduler(#[from] SchedulerError),
 
     #[error("验证错误: {0}")]
-    Validation(String),
+    Validation(#[from] validator::ValidationErrors),
+
+    #[error("验证错误: {0}")]
+    ValidationError(#[from] validator::ValidationError),
 
     #[error("序列化错误: {0}")]
     Serialization(#[from] serde_json::Error),
@@ -58,6 +61,7 @@ impl IntoResponse for ApiError {
                 (StatusCode::BAD_REQUEST, self.to_string())
             }
             ApiError::Validation(_) => (StatusCode::BAD_REQUEST, self.to_string()),
+            ApiError::ValidationError(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             ApiError::BadRequest(_) => (StatusCode::BAD_REQUEST, self.to_string()),
             ApiError::Authentication(_) => (StatusCode::UNAUTHORIZED, self.to_string()),
             ApiError::Forbidden => (StatusCode::FORBIDDEN, "权限不足".to_string()),

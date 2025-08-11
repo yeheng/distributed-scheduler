@@ -25,11 +25,11 @@ async fn test_message_queue_ack_nack() {
     let mq = MockMessageQueue::new();
     let message_id = "test_message_123";
     mq.ack_message(message_id).await.unwrap();
-    let acked = mq.get_acked_messages();
+    let acked = mq.get_acked_messages().await;
     assert_eq!(acked.len(), 1);
     assert_eq!(acked[0], message_id);
     mq.nack_message(message_id, true).await.unwrap();
-    let nacked = mq.get_nacked_messages();
+    let nacked = mq.get_nacked_messages().await;
     assert_eq!(nacked.len(), 1);
     assert_eq!(nacked[0], message_id);
 }

@@ -241,9 +241,9 @@ pub struct TaskStatusUpdate {
 // Mock implementation for testing
 #[derive(Debug, Clone)]
 pub struct MockMessageQueue {
-    queues: Arc<std::sync::Mutex<HashMap<String, Vec<scheduler_domain::entities::Message>>>>,
-    acked_messages: Arc<std::sync::Mutex<Vec<String>>>,
-    nacked_messages: Arc<std::sync::Mutex<Vec<String>>>,
+    queues: Arc<tokio::sync::Mutex<HashMap<String, Vec<scheduler_domain::entities::Message>>>>,
+    acked_messages: Arc<tokio::sync::Mutex<Vec<String>>>,
+    nacked_messages: Arc<tokio::sync::Mutex<Vec<String>>>,
 }
 
 impl Default for MockMessageQueue {
@@ -255,24 +255,24 @@ impl Default for MockMessageQueue {
 impl MockMessageQueue {
     pub fn new() -> Self {
         Self {
-            queues: Arc::new(std::sync::Mutex::new(HashMap::new())),
-            acked_messages: Arc::new(std::sync::Mutex::new(Vec::new())),
-            nacked_messages: Arc::new(std::sync::Mutex::new(Vec::new())),
+            queues: Arc::new(tokio::sync::Mutex::new(HashMap::new())),
+            acked_messages: Arc::new(tokio::sync::Mutex::new(Vec::new())),
+            nacked_messages: Arc::new(tokio::sync::Mutex::new(Vec::new())),
         }
     }
 
-    pub fn get_acked_messages(&self) -> Vec<String> {
-        self.acked_messages.lock().unwrap().clone()
+    pub async fn get_acked_messages(&self) -> Vec<String> {
+        self.acked_messages.lock().await.clone()
     }
 
-    pub fn get_nacked_messages(&self) -> Vec<String> {
-        self.nacked_messages.lock().unwrap().clone()
+    pub async fn get_nacked_messages(&self) -> Vec<String> {
+        self.nacked_messages.lock().await.clone()
     }
 
-    pub fn get_queue_messages(&self, queue: &str) -> Vec<scheduler_domain::entities::Message> {
+    pub async fn get_queue_messages(&self, queue: &str) -> Vec<scheduler_domain::entities::Message> {
         self.queues
             .lock()
-            .unwrap()
+            .await
             .get(queue)
             .cloned()
             .unwrap_or_default()
@@ -282,7 +282,7 @@ impl MockMessageQueue {
         &self,
         message: scheduler_domain::entities::Message,
     ) -> SchedulerResult<()> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         queues
             .entry("default".to_string())
             .or_default()
@@ -291,7 +291,7 @@ impl MockMessageQueue {
     }
 
     pub async fn get_messages(&self) -> Vec<scheduler_domain::entities::Message> {
-        let queues = self.queues.lock().unwrap();
+        let queues = self.queues.lock().await;
         queues.values().flatten().cloned().collect()
     }
 }
@@ -303,7 +303,7 @@ impl MessageQueue for MockMessageQueue {
         queue: &str,
         message: &scheduler_domain::entities::Message,
     ) -> SchedulerResult<()> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         queues
             .entry(queue.to_string())
             .or_default()
@@ -315,7 +315,7 @@ impl MessageQueue for MockMessageQueue {
         &self,
         queue: &str,
     ) -> SchedulerResult<Vec<scheduler_domain::entities::Message>> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         let messages = queues.remove(queue).unwrap_or_default();
         Ok(messages)
     }
@@ -323,7 +323,7 @@ impl MessageQueue for MockMessageQueue {
     async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         self.acked_messages
             .lock()
-            .unwrap()
+            .await
             .push(message_id.to_string());
         Ok(())
     }
@@ -331,31 +331,31 @@ impl MessageQueue for MockMessageQueue {
     async fn nack_message(&self, message_id: &str, _requeue: bool) -> SchedulerResult<()> {
         self.nacked_messages
             .lock()
-            .unwrap()
+            .await
             .push(message_id.to_string());
         Ok(())
     }
 
     async fn create_queue(&self, queue: &str, _durable: bool) -> SchedulerResult<()> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         queues.entry(queue.to_string()).or_default();
         Ok(())
     }
 
     async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         queues.remove(queue);
         Ok(())
     }
 
     async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
-        let queues = self.queues.lock().unwrap();
+        let queues = self.queues.lock().await;
         let size = queues.get(queue).map(|q| q.len()).unwrap_or(0) as u32;
         Ok(size)
     }
 
     async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
-        let mut queues = self.queues.lock().unwrap();
+        let mut queues = self.queues.lock().await;
         if let Some(queue_messages) = queues.get_mut(queue) {
             queue_messages.clear();
         }

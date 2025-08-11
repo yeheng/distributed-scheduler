@@ -31,6 +31,13 @@ tracing.workspace = true
 uuid = { workspace = true, features = ["v4", "serde"] }
 parking_lot = { workspace = true }
 
+# Cron scheduling
+cron = "0.12"
+
+# Additional dependencies
+scheduler-infrastructure = { path = "../infrastructure" }
+tracing-opentelemetry = "0.28"
+
 [dev-dependencies]
 tokio-test = "0.4.4"
 mockall.workspace = true

@@ -6,11 +6,13 @@ use scheduler_domain::{
     repositories::TaskRepository,
     task_query_builder::{TaskQueryBuilder, TaskQueryParam},
 };
-use scheduler_errors::SchedulerError;
 use sqlx::{PgPool, Row};
-use tracing::debug;
+use tracing::{debug, instrument};
 
 use super::task_dependency_checker::TaskDependencyChecker;
+use crate::{task_context, error_handling::{
+    RepositoryErrorHelpers, RepositoryOperation,
+}};
 
 pub struct PostgresTaskRepository {
     pool: PgPool,
@@ -76,13 +78,23 @@ impl PostgresTaskRepository {
 
 #[async_trait]
 impl TaskRepository for PostgresTaskRepository {
+    #[instrument(skip(self, task), fields(
+        task_id = %task.id,
+        task_name = %task.name,
+        task_type = %task.task_type,
+    ))]
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
+        let context = task_context!(RepositoryOperation::Create, 
+            task_id = task.id, 
+            task_name = &task.name)
+            .with_task_type(task.task_type.clone());
+
         let shard_config_json = task
             .shard_config
             .as_ref()
             .map(serde_json::to_value)
             .transpose()
-            .map_err(|e| SchedulerError::Serialization(format!("序列化分片配置失败: {e}")))?;
+            .map_err(|e| RepositoryErrorHelpers::task_serialization_error(context.clone(), e))?;
 
         let row = sqlx::query(
             r#"
@@ -102,50 +114,81 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(shard_config_json)
         .fetch_one(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         let created_task = Self::row_to_task(&row)?;
-        debug!(
-            "创建任务成功: {} (ID: {})",
-            created_task.name, created_task.id
+        RepositoryErrorHelpers::log_operation_success(
+            context, 
+            &created_task.entity_description(), 
+            Some(&format!("ID: {}, 类型: {}", created_task.id, created_task.task_type))
         );
         Ok(created_task)
     }
+    #[instrument(skip(self), fields(task_id = %id))]
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
+        let context = task_context!(RepositoryOperation::Read, task_id = id);
+
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
         )
         .bind(id)
         .fetch_optional(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         match row {
-            Some(row) => Ok(Some(Self::row_to_task(&row)?)),
-            None => Ok(None),
+            Some(row) => {
+                let task = Self::row_to_task(&row)?;
+                debug!("查询任务成功: ID {}, 名称: {}", task.id, task.name);
+                Ok(Some(task))
+            }
+            None => {
+                debug!("查询任务不存在: ID {}", id);
+                Ok(None)
+            }
         }
     }
+    #[instrument(skip(self), fields(task_name = %name))]
     async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
+        let context = task_context!(RepositoryOperation::Read, task_name = name);
+
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE name = $1"
         )
         .bind(name)
         .fetch_optional(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         match row {
-            Some(row) => Ok(Some(Self::row_to_task(&row)?)),
-            None => Ok(None),
+            Some(row) => {
+                let task = Self::row_to_task(&row)?;
+                debug!("按名称查询任务成功: {} (ID: {})", task.name, task.id);
+                Ok(Some(task))
+            }
+            None => {
+                debug!("按名称查询任务不存在: {}", name);
+                Ok(None)
+            }
         }
     }
+    #[instrument(skip(self, task), fields(
+        task_id = %task.id,
+        task_name = %task.name,
+        task_type = %task.task_type,
+    ))]
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
+        let context = task_context!(RepositoryOperation::Update, 
+            task_id = task.id, 
+            task_name = &task.name)
+            .with_task_type(task.task_type.clone());
+
         let shard_config_json = task
             .shard_config
             .as_ref()
             .map(serde_json::to_value)
             .transpose()
-            .map_err(|e| SchedulerError::Serialization(format!("序列化分片配置失败: {e}")))?;
+            .map_err(|e| RepositoryErrorHelpers::task_serialization_error(context.clone(), e))?;
 
         let result = sqlx::query(
             r#"
@@ -168,30 +211,50 @@ impl TaskRepository for PostgresTaskRepository {
         .bind(shard_config_json)
         .execute(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         if result.rows_affected() == 0 {
-            return Err(SchedulerError::TaskNotFound { id: task.id });
+            return Err(RepositoryErrorHelpers::task_not_found(context));
         }
 
-        debug!("更新任务成功: {} (ID: {})", task.name, task.id);
+        RepositoryErrorHelpers::log_operation_success(
+            context, 
+            &task.entity_description(), 
+            Some(&format!("状态: {:?}, 类型: {}", task.status, task.task_type))
+        );
         Ok(())
     }
+    #[instrument(skip(self), fields(task_id = %id))]
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
+        let context = task_context!(RepositoryOperation::Delete, task_id = id);
+
         let result = sqlx::query("DELETE FROM tasks WHERE id = $1")
             .bind(id)
             .execute(&self.pool)
             .await
-            .map_err(SchedulerError::Database)?;
+            .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         if result.rows_affected() == 0 {
-            return Err(SchedulerError::TaskNotFound { id });
+            return Err(RepositoryErrorHelpers::task_not_found(context));
         }
 
-        debug!("删除任务成功: ID {}", id);
+        RepositoryErrorHelpers::log_operation_success(
+            context, 
+            &format!("任务 (ID: {})", id), 
+            None
+        );
         Ok(())
     }
+    #[instrument(skip(self, filter), fields(
+        task_status = ?filter.status,
+        task_type = ?filter.task_type,
+        name_pattern = ?filter.name_pattern,
+        limit = ?filter.limit,
+    ))]
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
+        let context = task_context!(RepositoryOperation::Query)
+            .with_additional_info(format!("过滤器: {:?}", filter));
+
         let (query, params) = TaskQueryBuilder::build_select_query(filter);
 
         let mut sqlx_query = sqlx::query(&query);
@@ -200,10 +263,12 @@ impl TaskRepository for PostgresTaskRepository {
         let rows = sqlx_query
             .fetch_all(&self.pool)
             .await
-            .map_err(SchedulerError::Database)?;
+            .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         let tasks: SchedulerResult<Vec<Task>> = rows.iter().map(Self::row_to_task).collect();
-        tasks
+        let result = tasks?;
+        debug!("查询任务列表成功，返回 {} 个任务", result.len());
+        Ok(result)
     }
     async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
         let filter = TaskFilter {
@@ -224,14 +289,22 @@ impl TaskRepository for PostgresTaskRepository {
     async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         self.dependency_checker.get_dependencies(task_id).await
     }
+    #[instrument(skip(self, task_ids), fields(
+        task_count = %task_ids.len(),
+        target_status = ?status,
+    ))]
     async fn batch_update_status(
         &self,
         task_ids: &[i64],
         status: TaskStatus,
     ) -> SchedulerResult<()> {
         if task_ids.is_empty() {
+            debug!("批量更新任务状态: 任务ID列表为空，跳过操作");
             return Ok(());
         }
+
+        let context = task_context!(RepositoryOperation::BatchUpdate)
+            .with_additional_info(format!("批量更新 {} 个任务状态为 {:?}", task_ids.len(), status));
 
         let query = TaskQueryBuilder::build_batch_update_query();
         let status_str = match status {
@@ -244,12 +317,12 @@ impl TaskRepository for PostgresTaskRepository {
             .bind(task_ids)
             .execute(&self.pool)
             .await
-            .map_err(SchedulerError::Database)?;
+            .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
-        debug!(
-            "批量更新 {} 个任务状态为 {}",
-            result.rows_affected(),
-            status_str
+        RepositoryErrorHelpers::log_operation_success(
+            context, 
+            &format!("批量任务状态更新"), 
+            Some(&format!("更新了 {} 个任务的状态为 {}", result.rows_affected(), status_str))
         );
         Ok(())
     }

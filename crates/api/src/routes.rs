@@ -30,26 +30,33 @@ pub struct AppState {
 
 pub fn create_routes(state: AppState) -> Router {
     let router = Router::new()
+        // Health check - no authentication required
         .route("/health", get(health_check))
+        
+        // Authentication endpoints - no authentication required
         .route("/api/auth/login", post(login))
-        .route("/api/auth/validate", get(validate_token))
         .route("/api/auth/refresh", post(refresh_token))
         .route("/api/auth/logout", post(logout))
+        .route("/api/auth/validate", get(validate_token))
         .route("/api/auth/api-keys", post(create_api_key))
+        
+        // Task endpoints - require authentication
         .route("/api/tasks", get(list_tasks).post(create_task))
-        .route(
-            "/api/tasks/{id}",
-            get(get_task).put(update_task).delete(delete_task),
-        )
+        .route("/api/tasks/{id}", get(get_task).put(update_task).delete(delete_task))
         .route("/api/tasks/{id}/trigger", post(trigger_task))
         .route("/api/tasks/{id}/runs", get(get_task_runs))
-        .route("/api/task-runs/{id}", get(get_task_run))
+        .route("/api/tasks/{id}/stats", get(get_task_execution_stats))
+        
+        // Worker endpoints - require authentication
         .route("/api/workers", get(list_workers))
         .route("/api/workers/{id}", get(get_worker))
         .route("/api/workers/{id}/stats", get(get_worker_stats))
+        
+        // System endpoints - require authentication
         .route("/api/system/stats", get(get_system_stats))
         .route("/api/system/health", get(get_system_health))
-        .route("/api/tasks/{id}/stats", get(get_task_execution_stats))
+        
+        .route("/api/task-runs/{id}", get(get_task_run))
         .with_state(state.clone());
 
     if state.auth_config.enabled {

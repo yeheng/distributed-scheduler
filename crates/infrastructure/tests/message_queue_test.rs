@@ -55,7 +55,8 @@ mod message_queue_test {
             timestamp: Utc::now(),
         };
 
-        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
+        let payload = serde_json::to_value(&message)
+            .expect("Failed to serialize message in test");
         Message {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::StatusUpdate(message),

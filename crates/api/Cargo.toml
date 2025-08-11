@@ -28,6 +28,11 @@ base64 = "0.22"
 sha2 = "0.10"
 headers = "0.4"
 rand = { workspace = true }
+validator = { version = "0.20", features = ["derive"] }
+# 密码哈希
+bcrypt = "0.17"
+# 用户认证
+axum-extra = { version = "0.10", features = ["typed-header"] }
 
 [dev-dependencies]
 reqwest = { workspace = true}

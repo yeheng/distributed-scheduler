@@ -1,11 +1,14 @@
-use scheduler_core::SchedulerResult;
+use scheduler_core::{SchedulerResult, SchedulerError};
 use scheduler_domain::{
     entities::{Task, TaskRunStatus},
     task_dependency_service::TaskDependencyService,
 };
-use scheduler_errors::SchedulerError;
 use sqlx::{PgPool, Row};
-use tracing::debug;
+use tracing::{debug, instrument};
+
+use crate::{task_context, error_handling::{
+    RepositoryErrorHelpers, RepositoryOperation,
+}};
 
 /// Infrastructure implementation of task dependency checking
 /// Delegates business logic to domain service and handles data access
@@ -53,12 +56,16 @@ impl TaskDependencyChecker {
     }
 
     /// Get the dependency IDs for a given task
+    #[instrument(skip(self), fields(task_id = %task_id))]
     async fn get_task_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<i64>> {
+        let context = task_context!(RepositoryOperation::Read, task_id = task_id)
+            .with_additional_info("查询任务依赖关系".to_string());
+
         let task_row = sqlx::query("SELECT dependencies FROM tasks WHERE id = $1")
             .bind(task_id)
             .fetch_optional(&self.pool)
             .await
-            .map_err(SchedulerError::Database)?;
+            .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         match task_row {
             Some(row) => {
@@ -71,7 +78,9 @@ impl TaskDependencyChecker {
                 );
                 Ok(dependencies)
             }
-            None => Err(SchedulerError::TaskNotFound { id: task_id }),
+            None => {
+                Err(RepositoryErrorHelpers::task_not_found(context))
+            }
         }
     }
 
@@ -91,17 +100,21 @@ impl TaskDependencyChecker {
     }
 
     /// Get the latest run status for a specific task
+    #[instrument(skip(self), fields(task_id = %task_id))]
     async fn get_latest_task_run_status(
         &self,
         task_id: i64,
     ) -> SchedulerResult<Option<TaskRunStatus>> {
+        let context = task_context!(RepositoryOperation::Read, task_id = task_id)
+            .with_additional_info("查询任务最新运行状态".to_string());
+
         let recent_run = sqlx::query(
             "SELECT status FROM task_runs WHERE task_id = $1 ORDER BY created_at DESC LIMIT 1",
         )
         .bind(task_id)
         .fetch_optional(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         match recent_run {
             Some(row) => {
@@ -133,14 +146,18 @@ impl TaskDependencyChecker {
     }
 
     /// Get task by ID - used internally for dependency resolution
+    #[instrument(skip(self), fields(task_id = %id))]
     async fn get_task_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
+        let context = task_context!(RepositoryOperation::Read, task_id = id)
+            .with_additional_info("内部查询任务详情".to_string());
+
         let row = sqlx::query(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
         )
         .bind(id)
         .fetch_optional(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         match row {
             Some(row) => Ok(Some(Self::row_to_task(&row)?)),

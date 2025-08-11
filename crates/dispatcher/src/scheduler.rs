@@ -2,6 +2,7 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
+use futures::stream::{self, StreamExt};
 use tracing::{debug, error, info, warn};
 
 use scheduler_application::interfaces::TaskSchedulerService;
@@ -110,33 +111,51 @@ impl TaskSchedulerService for TaskScheduler {
         let start_time = std::time::Instant::now();
         info!("开始扫描需要调度的任务");
         let active_tasks = self.task_repo.get_active_tasks().await?;
-        let mut scheduled_runs = Vec::new();
+        
+        // 配置并发参数
+        let concurrency_limit = 10; // 限制并发数，避免资源耗尽
+        let task_count = active_tasks.len();
+        info!("发现 {} 个活跃任务，开始并发调度（并发限制: {}）", task_count, concurrency_limit);
 
-        for task in active_tasks {
-            let task_span = TaskTracer::schedule_task_span(task.id, &task.name, &task.task_type);
-            let _task_guard = task_span.enter();
+        // 使用 futures::stream 进行并发处理
+        let scheduled_runs: Vec<TaskRun> = stream::iter(active_tasks)
+            .map(|task| {
+                let task_scheduler = self;
+                async move {
+                    let task_span = TaskTracer::schedule_task_span(task.id, &task.name, &task.task_type);
+                    let _task_guard = task_span.enter();
+                    
+                    match task_scheduler.schedule_task_if_needed(&task).await {
+                        Ok(Some(task_run)) => {
+                            StructuredLogger::log_task_scheduled(
+                                task.id,
+                                &task.name,
+                                &task.task_type,
+                                task_run.scheduled_at,
+                            );
+                            Some(task_run)
+                        }
+                        Ok(None) => None,
+                        Err(e) => {
+                            StructuredLogger::log_system_error("dispatcher", "schedule_task", &e);
+                            TaskTracer::record_error(&e);
+                            None
+                        }
+                    }
+                }
+            })
+            .buffer_unordered(concurrency_limit) // 控制并发数
+            .filter_map(|result| async { result }) // 过滤掉 None 结果
+            .collect()
+            .await;
 
-            match self.schedule_task_if_needed(&task).await {
-                Ok(Some(task_run)) => {
-                    StructuredLogger::log_task_scheduled(
-                        task.id,
-                        &task.name,
-                        &task.task_type,
-                        task_run.scheduled_at,
-                    );
-                    scheduled_runs.push(task_run);
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    StructuredLogger::log_system_error("dispatcher", "schedule_task", &e);
-                    TaskTracer::record_error(&e);
-                }
-            }
-        }
         let duration = start_time.elapsed().as_secs_f64();
         self.metrics.record_scheduling_duration(duration);
-
-        info!("本次调度完成，共调度了 {} 个任务", scheduled_runs.len());
+        let success_count = scheduled_runs.len();
+        
+        info!("本次调度完成，共调度了 {}/{} 个任务，耗时 {:.3} 秒", 
+              success_count, task_count, duration);
+        
         Ok(scheduled_runs)
     }
     async fn check_dependencies(&self, task: &Task) -> SchedulerResult<bool> {
@@ -242,26 +261,50 @@ impl TaskScheduler {
         info!("开始检测过期任务，宽限期: {}分钟", grace_period_minutes);
 
         let active_tasks = self.task_repo.get_active_tasks().await?;
-        let mut overdue_tasks = Vec::new();
+        let task_count = active_tasks.len();
         let now = Utc::now();
+        
+        // 配置并发参数
+        let concurrency_limit = 15; // 过期检测可以稍微提高并发数
+        
+        info!("开始并发检测 {} 个任务的过期状态", task_count);
 
-        for task in active_tasks {
-            if let Ok(cron_scheduler) = CronScheduler::new(&task.schedule) {
-                let recent_runs = self.task_run_repo.get_recent_runs(task.id, 1).await?;
-                let last_run_time = recent_runs.first().map(|run| run.scheduled_at);
-                if cron_scheduler.is_task_overdue(last_run_time, now, grace_period_minutes) {
-                    warn!(
-                        "检测到过期任务: {} (ID: {}), 上次执行: {:?}",
-                        task.name,
-                        task.id,
-                        last_run_time.map(|t| t.format("%Y-%m-%d %H:%M:%S UTC").to_string())
-                    );
-                    overdue_tasks.push(task);
+        // 使用 futures::stream 进行并发处理
+        let overdue_tasks: Vec<Task> = stream::iter(active_tasks)
+            .map(|task| {
+                let task_scheduler = self;
+                async move {
+                    if let Ok(cron_scheduler) = CronScheduler::new(&task.schedule) {
+                        let recent_runs = task_scheduler.task_run_repo.get_recent_runs(task.id, 1).await?;
+                        let last_run_time = recent_runs.first().map(|run| run.scheduled_at);
+                        if cron_scheduler.is_task_overdue(last_run_time, now, grace_period_minutes) {
+                            warn!(
+                                "检测到过期任务: {} (ID: {}), 上次执行: {:?}",
+                                task.name,
+                                task.id,
+                                last_run_time.map(|t| t.format("%Y-%m-%d %H:%M:%S UTC").to_string())
+                            );
+                            return Ok(Some(task));
+                        }
+                    } else {
+                        warn!("任务 {} 的CRON表达式无效: {}", task.name, task.schedule);
+                    }
+                    Ok(None)
                 }
-            } else {
-                warn!("任务 {} 的CRON表达式无效: {}", task.name, task.schedule);
-            }
-        }
+            })
+            .buffer_unordered(concurrency_limit)
+            .filter_map(|result: SchedulerResult<Option<Task>>| async move {
+                match result {
+                    Ok(Some(task)) => Some(task),
+                    Ok(None) => None,
+                    Err(e) => {
+                        error!("检测任务过期状态时发生错误: {}", e);
+                        None
+                    }
+                }
+            })
+            .collect()
+            .await;
 
         info!("检测完成，发现 {} 个过期任务", overdue_tasks.len());
         Ok(overdue_tasks)
@@ -301,24 +344,20 @@ impl TaskScheduler {
                 Ok(false)
             }
         }
-    }
+      }
 
-    // Missing trait implementations
-    #[allow(dead_code)]
     async fn start(&self) -> SchedulerResult<()> {
         info!("启动任务调度器");
         // TODO: Implement scheduler startup logic
         Ok(())
     }
 
-    #[allow(dead_code)]
     async fn stop(&self) -> SchedulerResult<()> {
         info!("停止任务调度器");
         // TODO: Implement scheduler shutdown logic
         Ok(())
     }
 
-    #[allow(dead_code)]
     async fn schedule_task(&self, task: &Task) -> SchedulerResult<()> {
         info!("调度任务: {}", task.name);
         if let Some(task_run) = self.schedule_task_if_needed(task).await? {
@@ -327,22 +366,42 @@ impl TaskScheduler {
         Ok(())
     }
 
-    #[allow(dead_code)]
     async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()> {
-        info!("批量调度 {} 个任务", tasks.len());
-        for task in tasks {
-            self.schedule_task(task).await?;
+        let task_count = tasks.len();
+        info!("批量调度 {} 个任务", task_count);
+        
+        // 配置并发参数
+        let concurrency_limit = 10;
+        
+        // 使用 futures::stream 进行并发处理
+        let results: Vec<SchedulerResult<()>> = stream::iter(tasks.iter())
+            .map(|task| {
+                let task_scheduler = self;
+                async move {
+                    task_scheduler.schedule_task(task).await
+                }
+            })
+            .buffer_unordered(concurrency_limit)
+            .collect()
+            .await;
+        
+        // 检查是否有错误发生
+        let error_count = results.iter().filter(|result| result.is_err()).count();
+        if error_count > 0 {
+            warn!("批量调度完成，但有 {} 个任务调度失败", error_count);
+        } else {
+            info!("批量调度完成，所有 {} 个任务调度成功", task_count);
         }
-        Ok(())
+        
+        // 返回第一个错误（如果有），否则返回成功
+        results.into_iter().find(|result| result.is_err()).unwrap_or(Ok(()))
     }
 
-    #[allow(dead_code)]
     async fn is_running(&self) -> bool {
         // TODO: Implement proper running state tracking
         true
     }
 
-    #[allow(dead_code)]
     async fn get_stats(&self) -> SchedulerResult<SchedulerStats> {
         // TODO: Implement proper statistics collection
         Ok(SchedulerStats {
@@ -355,7 +414,6 @@ impl TaskScheduler {
         })
     }
 
-    #[allow(dead_code)]
     async fn reload_config(&self) -> SchedulerResult<()> {
         info!("重新加载调度器配置");
         // TODO: Implement configuration reload logic

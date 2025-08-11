@@ -130,6 +130,9 @@ impl Task {
     pub fn has_dependencies(&self) -> bool {
         !self.dependencies.is_empty()
     }
+    pub fn entity_description(&self) -> String {
+        format!("任务 '{}' (ID: {}, 类型: {})", self.name, self.id, self.task_type)
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -326,6 +329,12 @@ impl TaskRun {
             Some((completed - started).num_milliseconds())
         } else {
             None
+        }
+    }
+    pub fn entity_description(&self) -> String {
+        match &self.worker_id {
+            Some(worker_id) => format!("任务执行实例 (ID: {}, 任务ID: {}, Worker: {})", self.id, self.task_id, worker_id),
+            None => format!("任务执行实例 (ID: {}, 任务ID: {})", self.id, self.task_id),
         }
     }
 }
@@ -538,7 +547,13 @@ pub enum TaskControlAction {
 
 impl Message {
     pub fn task_execution(message: TaskExecutionMessage) -> Self {
-        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
+        let payload = match serde_json::to_value(&message) {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::error!("Failed to serialize TaskExecutionMessage: {}", e);
+                serde_json::Value::Null
+            }
+        };
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskExecution(message),
@@ -549,7 +564,13 @@ impl Message {
         }
     }
     pub fn status_update(message: StatusUpdateMessage) -> Self {
-        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
+        let payload = match serde_json::to_value(&message) {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::error!("Failed to serialize StatusUpdateMessage: {}", e);
+                serde_json::Value::Null
+            }
+        };
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::StatusUpdate(message),
@@ -560,7 +581,13 @@ impl Message {
         }
     }
     pub fn worker_heartbeat(message: WorkerHeartbeatMessage) -> Self {
-        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
+        let payload = match serde_json::to_value(&message) {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::error!("Failed to serialize WorkerHeartbeatMessage: {}", e);
+                serde_json::Value::Null
+            }
+        };
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::WorkerHeartbeat(message),
@@ -571,7 +598,13 @@ impl Message {
         }
     }
     pub fn task_control(message: TaskControlMessage) -> Self {
-        let payload = serde_json::to_value(&message).unwrap_or(serde_json::Value::Null);
+        let payload = match serde_json::to_value(&message) {
+            Ok(value) => value,
+            Err(e) => {
+                tracing::error!("Failed to serialize TaskControlMessage: {}", e);
+                serde_json::Value::Null
+            }
+        };
         Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskControl(message),

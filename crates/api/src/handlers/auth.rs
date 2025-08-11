@@ -4,23 +4,14 @@ use tracing::info;
 
 use crate::{
     auth::{JwtService, Permission},
+    auth::models::{LoginRequest, LoginResponse},
     error::{ApiError, ApiResult},
     response::ApiResponse,
 };
 
 #[derive(Debug, Deserialize)]
-pub struct LoginRequest {
-    pub username: String,
-    pub password: String,
-}
-
-#[derive(Debug, Serialize)]
-pub struct LoginResponse {
-    pub access_token: String,
-    pub token_type: String,
-    pub expires_in: i64,
-    pub user_id: String,
-    pub permissions: Vec<String>,
+pub struct RefreshTokenRequest {
+    pub refresh_token: String,
 }
 
 #[derive(Debug, Deserialize)]
@@ -52,6 +43,8 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     info!("User login attempt: {}", request.username);
+    
+    // For now, use the existing credential validation for backward compatibility
     let (user_id, permissions) = validate_user_credentials(&request.username, &request.password)?;
 
     let jwt_service = JwtService::new(
@@ -65,10 +58,22 @@ pub async fn login(
 
     let response = LoginResponse {
         access_token,
+        refresh_token: "dummy_refresh_token".to_string(), // TODO: Implement proper refresh tokens
         token_type: "Bearer".to_string(),
-        expires_in: state.auth_config.jwt_expiration_hours * 3600, // convert to seconds
-        user_id: user_id.clone(),
-        permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
+        expires_in: state.auth_config.jwt_expiration_hours * 3600,
+        user: crate::auth::models::UserResponse {
+            id: uuid::Uuid::new_v4(),
+            username: user_id.clone(),
+            email: format!("{}@example.com", user_id),
+            role: if permissions.contains(&Permission::Admin) {
+                crate::auth::models::UserRole::Admin
+            } else if permissions.contains(&Permission::TaskWrite) {
+                crate::auth::models::UserRole::Operator
+            } else {
+                crate::auth::models::UserRole::Viewer
+            },
+            permissions,
+        },
     };
 
     info!("User {} logged in successfully", user_id);
@@ -78,29 +83,47 @@ pub async fn login(
 
 pub async fn refresh_token(
     State(state): State<crate::routes::AppState>,
-    current_user: crate::auth::AuthenticatedUser,
+    Json(request): Json<RefreshTokenRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
-    info!("Token refresh for user: {}", current_user.user_id);
+    info!("Token refresh request received");
 
     let jwt_service = JwtService::new(
         &state.auth_config.jwt_secret,
         state.auth_config.jwt_expiration_hours,
     );
 
+    // Validate the refresh token (simplified for now)
+    let claims = jwt_service.validate_token(&request.refresh_token)
+        .map_err(|_| ApiError::Authentication(crate::auth::AuthError::InvalidToken))?;
+
+    // Generate new access token
+    let permissions: Vec<Permission> = claims.permissions
+        .iter()
+        .filter_map(|p| crate::auth::parse_permission(p))
+        .collect();
+
     let access_token = jwt_service
-        .generate_token(&current_user.user_id, &current_user.permissions)
+        .generate_token(&claims.user_id, &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
 
     let response = LoginResponse {
         access_token,
+        refresh_token: request.refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600,
-        user_id: current_user.user_id.clone(),
-        permissions: current_user
-            .permissions
-            .iter()
-            .map(|p| format!("{p:?}"))
-            .collect(),
+        user: crate::auth::models::UserResponse {
+            id: uuid::Uuid::new_v4(),
+            username: claims.user_id.clone(),
+            email: format!("{}@example.com", claims.user_id),
+            role: if permissions.contains(&Permission::Admin) {
+                crate::auth::models::UserRole::Admin
+            } else if permissions.contains(&Permission::TaskWrite) {
+                crate::auth::models::UserRole::Operator
+            } else {
+                crate::auth::models::UserRole::Viewer
+            },
+            permissions,
+        },
     };
 
     Ok(Json(ApiResponse::success(response)))
