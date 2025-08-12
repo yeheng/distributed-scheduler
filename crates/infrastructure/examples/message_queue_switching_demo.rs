@@ -1,6 +1,8 @@
 use scheduler_core::{
-    config::models::{MessageQueueConfig, MessageQueueType, RedisConfig},
     traits::MessageQueue,
+};
+use scheduler_config::models::{
+     MessageQueueConfig, MessageQueueType, RedisConfig,
 };
 use scheduler_domain::entities::*;
 use scheduler_infrastructure::{MessageQueueFactory, MessageQueueManager};

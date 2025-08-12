@@ -12,8 +12,8 @@ use tower::ServiceBuilder;
 
 use middleware::{cors_layer, request_logging, trace_layer, create_rate_limiting_layer, RateLimitConfig};
 use routes::{create_routes, AppState};
-use scheduler_core::config::models::api_observability::ApiConfig;
-use scheduler_core::config::models::api_observability::AuthConfig as CoreAuthConfig;
+use scheduler_config::models::api_observability::ApiConfig;
+use scheduler_config::models::api_observability::AuthConfig;
 use scheduler_core::traits::scheduler::*;
 use scheduler_domain::repositories::*;
 
@@ -69,8 +69,8 @@ pub fn create_simple_app(
         cors_origins: vec!["*".to_string()],
         request_timeout_seconds: 30,
         max_request_size_mb: 10,
-        auth: CoreAuthConfig::default(),
-        rate_limiting: scheduler_core::config::models::api_observability::RateLimitingConfig::default(),
+        auth: AuthConfig::default(),
+        rate_limiting: scheduler_config::models::api_observability::RateLimitingConfig::default(),
     };
 
     create_app(
@@ -81,7 +81,38 @@ pub fn create_simple_app(
         default_api_config,
     )
 }
-fn convert_auth_config(core_config: &CoreAuthConfig) -> Arc<auth::AuthConfig> {
+
+pub fn create_test_app(
+    task_repo: Arc<dyn TaskRepository>,
+    task_run_repo: Arc<dyn TaskRunRepository>,
+    worker_repo: Arc<dyn WorkerRepository>,
+    task_controller: Arc<dyn TaskControlService>,
+) -> Router {
+    let test_api_config = ApiConfig {
+        enabled: true,
+        bind_address: "0.0.0.0:8080".to_string(),
+        cors_enabled: true,
+        cors_origins: vec!["*".to_string()],
+        request_timeout_seconds: 30,
+        max_request_size_mb: 10,
+        auth: AuthConfig {
+            enabled: false, // Disable auth for tests
+            jwt_secret: "test-secret".to_string(),
+            api_keys: std::collections::HashMap::new(),
+            jwt_expiration_hours: 24,
+        },
+        rate_limiting: scheduler_config::models::api_observability::RateLimitingConfig::default(),
+    };
+
+    create_app(
+        task_repo,
+        task_run_repo,
+        worker_repo,
+        task_controller,
+        test_api_config,
+    )
+}
+fn convert_auth_config(core_config: &AuthConfig) -> Arc<auth::AuthConfig> {
     let mut auth_api_keys = std::collections::HashMap::new();
 
     for (hash, key_config) in &core_config.api_keys {
@@ -115,13 +146,13 @@ fn convert_auth_config(core_config: &CoreAuthConfig) -> Arc<auth::AuthConfig> {
         enabled: core_config.enabled,
         jwt_secret: core_config.jwt_secret.clone(),
         api_keys: auth_api_keys,
-        jwt_expiration_hours: core_config.jwt_expiration_hours,
+        jwt_expiration_hours: core_config.jwt_expiration_hours as i64,
     })
 }
 
 #[cfg(test)]
 mod tests {
-    use super::create_simple_app;
+    use super::{create_simple_app, create_test_app};
     use async_trait::async_trait;
     use axum::{
         body::Body,
@@ -498,7 +529,7 @@ mod tests {
         let worker_repo = Arc::new(MockWorkerRepository) as Arc<dyn WorkerRepository>;
         let task_controller = Arc::new(MockTaskController) as Arc<dyn TaskControlService>;
 
-        let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
+        let app = create_test_app(task_repo, task_run_repo, worker_repo, task_controller);
         let response = app
             .clone()
             .oneshot(

@@ -1,4 +1,4 @@
-use scheduler_core::config::{MessageQueueConfig, MessageQueueType, RedisConfig};
+use scheduler_config::{MessageQueueConfig, MessageQueueType, RedisConfig};
 use scheduler_core::MessageQueue;
 use scheduler_domain::entities::*;
 use scheduler_infrastructure::{MessageQueueFactory, MessageQueueManager};

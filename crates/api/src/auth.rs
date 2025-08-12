@@ -232,6 +232,14 @@ pub async fn optional_auth_middleware(
 ) -> Result<Response, StatusCode> {
     if let Ok(user) = extract_auth_info(&req, &state.auth_config) {
         req.extensions_mut().insert(user);
+    } else if !state.auth_config.enabled {
+        // When auth is disabled, insert a default admin user
+        let default_user = AuthenticatedUser {
+            user_id: "test-user".to_string(),
+            permissions: vec![Permission::Admin], // Grant all permissions
+            auth_type: AuthType::ApiKey("test-key".to_string()),
+        };
+        req.extensions_mut().insert(default_user);
     }
     Ok(next.run(req).await)
 }

@@ -1,7 +1,8 @@
 use std::sync::Arc;
 
 use scheduler_core::{
-    traits::{ExecutorRegistry, TaskStatusUpdate, WorkerServiceTrait},
+    models::task_status_update::TaskStatusUpdate,
+    traits::{ExecutorRegistry, WorkerServiceTrait},
     SchedulerResult, ServiceLocator,
 };
 use scheduler_domain::entities::TaskRun;

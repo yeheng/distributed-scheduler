@@ -1,0 +1,28 @@
+[package]
+name = "scheduler-config"
+version = "0.1.0"
+edition = "2021"
+description = "Configuration management for the distributed task scheduler system"
+authors = ["Scheduler Team"]
+
+[dependencies]
+# Serialization and configuration
+serde = { version = "1.0", features = ["derive"] }
+serde_json = "1.0"
+toml = "0.9.4"
+config = "0.15"
+anyhow = "1.0"
+thiserror = "2.0"
+
+# Time handling
+chrono = { version = "0.4", features = ["serde"] }
+
+# URL parsing
+url = "2.5"
+
+# UUID generation
+uuid = { version = "1.0", features = ["v4", "serde"] }
+
+[dev-dependencies]
+# Testing
+tokio-test = "0.4"

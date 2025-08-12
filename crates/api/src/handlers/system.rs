@@ -2,7 +2,12 @@ use axum::extract::State;
 use scheduler_domain::entities::{TaskFilter, TaskRunStatus, TaskStatus, WorkerStatus};
 use serde::Serialize;
 
-use crate::{error::ApiResult, response::success, routes::AppState};
+use crate::{
+    auth::{AuthenticatedUser, Permission},
+    error::ApiResult,
+    response::success,
+    routes::AppState,
+};
 
 #[derive(Debug, Serialize)]
 pub struct SystemStats {
@@ -26,7 +31,10 @@ pub struct SystemHealth {
 
 pub async fn get_system_stats(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for system stats reading
+    current_user.require_permission(Permission::SystemRead)?;
     let all_tasks = state.task_repo.list(&TaskFilter::default()).await?;
     let total_tasks = all_tasks.len() as i64;
     let active_tasks = all_tasks
@@ -86,7 +94,10 @@ pub async fn get_system_stats(
 
 pub async fn get_system_health(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for system health reading
+    current_user.require_permission(Permission::SystemRead)?;
     let database_status;
     let message_queue_status = "healthy".to_string(); // 暂时设为健康，实际应该检查消息队列连接
     let mut overall_status = "healthy".to_string();

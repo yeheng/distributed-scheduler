@@ -2,8 +2,8 @@ use async_trait::async_trait;
 use std::sync::Arc;
 use tracing::{debug, info};
 
+use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
 use scheduler_core::{
-    config::models::{MessageQueueConfig, MessageQueueType},
     traits::MessageQueue,
     SchedulerResult,
 };
@@ -38,7 +38,7 @@ impl MessageQueueFactory {
             return Ok(RedisStreamConfig {
                 host: redis_config.host.clone(),
                 port: redis_config.port,
-                database: redis_config.database,
+                database: redis_config.database as i64,
                 password: redis_config.password.clone(),
                 connection_timeout_seconds: redis_config.connection_timeout_seconds,
                 max_retry_attempts: redis_config.max_retry_attempts,
@@ -230,7 +230,7 @@ impl MessageQueue for MessageQueueManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use scheduler_core::config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
+    use scheduler_config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
 
     #[test]
     fn test_validate_rabbitmq_config() {

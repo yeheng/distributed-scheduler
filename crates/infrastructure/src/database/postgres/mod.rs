@@ -8,7 +8,7 @@ pub use postgres_task_run_repository::*;
 pub use postgres_worker_repository::*;
 
 use anyhow::Result;
-use scheduler_core::config::models::DatabaseConfig;
+use scheduler_config::models::DatabaseConfig;
 use sqlx::{PgPool, Pool, Postgres};
 use std::time::Duration;
 

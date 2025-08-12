@@ -1,3 +1,5 @@
+pub mod cache;
+pub mod circuit_breaker;
 pub mod circuit_breaker_wrapper;
 pub mod database;
 pub mod error_handling;
@@ -7,6 +9,7 @@ pub mod observability;
 pub mod redis_stream;
 pub mod timeout_handler;
 
+pub use cache::*;
 pub use circuit_breaker_wrapper::*;
 pub use database::*;
 pub use error_handling::*;

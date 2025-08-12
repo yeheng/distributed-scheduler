@@ -7,10 +7,9 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::{
-    circuit_breaker::{CircuitBreaker, CircuitBreakerConfig, CircuitBreakerMiddleware},
-    SchedulerResult,
-};
+use scheduler_config::CircuitBreakerConfig;
+use scheduler_core::SchedulerResult;
+use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerMiddleware};
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
     repositories::{TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerLoadStats, WorkerRepository},

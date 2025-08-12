@@ -8,6 +8,7 @@ use serde::{Deserialize, Serialize};
 use validator::Validate;
 
 use crate::{
+    auth::{AuthenticatedUser, Permission},
     error::{ApiError, ApiResult},
     response::{created, success, PaginatedResponse},
     routes::AppState,
@@ -160,8 +161,11 @@ pub struct TaskRunQueryParams {
 
 pub async fn create_task(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Json(request): Json<CreateTaskRequest>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task creation
+    current_user.require_permission(Permission::TaskWrite)?;
     tracing::debug!("Creating task with request: {:?}", request);
     
     // 输入验证
@@ -222,8 +226,11 @@ pub async fn create_task(
 
 pub async fn list_tasks(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Query(params): Query<TaskQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task reading
+    current_user.require_permission(Permission::TaskRead)?;
     // 输入验证
     if let Err(validation_errors) = params.validate() {
         return Err(ApiError::Validation(validation_errors));
@@ -275,8 +282,11 @@ pub async fn list_tasks(
 
 pub async fn get_task(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task reading
+    current_user.require_permission(Permission::TaskRead)?;
     tracing::debug!("Getting task with id: {}", id);
     
     // 验证ID格式
@@ -331,9 +341,12 @@ pub async fn get_task(
 
 pub async fn update_task(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
     Json(request): Json<UpdateTaskRequest>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task updating
+    current_user.require_permission(Permission::TaskWrite)?;
     // 验证ID格式
     if id <= 0 {
         return Err(ApiError::BadRequest("无效的任务ID".to_string()));
@@ -407,8 +420,11 @@ pub async fn update_task(
 
 pub async fn delete_task(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task deletion
+    current_user.require_permission(Permission::TaskDelete)?;
     // 验证ID格式
     if id <= 0 {
         return Err(ApiError::BadRequest("无效的任务ID".to_string()));
@@ -454,8 +470,11 @@ pub async fn delete_task(
 
 pub async fn trigger_task(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task triggering
+    current_user.require_permission(Permission::TaskWrite)?;
     // 验证ID格式
     if id <= 0 {
         return Err(ApiError::BadRequest("无效的任务ID".to_string()));
@@ -485,9 +504,12 @@ pub async fn trigger_task(
 
 pub async fn get_task_runs(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(task_id): Path<i64>,
     Query(params): Query<TaskRunQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task run reading
+    current_user.require_permission(Permission::TaskRead)?;
     // 验证任务ID
     if task_id <= 0 {
         return Err(ApiError::BadRequest("无效的任务ID".to_string()));
@@ -545,8 +567,11 @@ pub async fn get_task_runs(
 
 pub async fn get_task_run(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task run reading
+    current_user.require_permission(Permission::TaskRead)?;
     // 验证ID格式
     if id <= 0 {
         return Err(ApiError::BadRequest("无效的任务运行实例ID".to_string()));
@@ -564,9 +589,12 @@ pub async fn get_task_run(
 
 pub async fn get_task_execution_stats(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<i64>,
     Query(params): Query<TaskStatsQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task stats reading
+    current_user.require_permission(Permission::TaskRead)?;
     // 验证任务ID
     if id <= 0 {
         return Err(ApiError::BadRequest("无效的任务ID".to_string()));

@@ -1,9 +1,7 @@
 use std::collections::HashMap;
 use std::str::FromStr;
-
 use serde::{Deserialize, Serialize};
-
-use crate::SchedulerError;
+use crate::{ConfigError, ConfigResult};
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 pub enum Environment {
@@ -14,7 +12,7 @@ pub enum Environment {
 }
 
 impl FromStr for Environment {
-    type Err = SchedulerError;
+    type Err = ConfigError;
 
     fn from_str(env: &str) -> Result<Self, Self::Err> {
         match env.to_lowercase().as_str() {
@@ -22,7 +20,7 @@ impl FromStr for Environment {
             "testing" | "test" => Ok(Environment::Testing),
             "staging" | "stage" => Ok(Environment::Staging),
             "production" | "prod" => Ok(Environment::Production),
-            _ => Err(SchedulerError::Configuration(format!(
+            _ => Err(ConfigError::Environment(format!(
                 "Invalid environment: {env}"
             ))),
         }
@@ -30,11 +28,12 @@ impl FromStr for Environment {
 }
 
 impl Environment {
-    pub fn current() -> Result<Self, SchedulerError> {
+    pub fn current() -> Result<Self, ConfigError> {
         std::env::var("APP_ENV")
             .map(|s| s.parse())
             .unwrap_or(Ok(Environment::Development))
     }
+    
     pub fn get_defaults(&self) -> HashMap<String, serde_json::Value> {
         let mut defaults = HashMap::new();
 
@@ -87,12 +86,15 @@ impl Environment {
 
         defaults
     }
+    
     pub fn is_production(&self) -> bool {
         matches!(self, Environment::Production)
     }
+    
     pub fn is_development(&self) -> bool {
         matches!(self, Environment::Development)
     }
+    
     pub fn display_name(&self) -> &'static str {
         match self {
             Environment::Development => "Development",
@@ -126,14 +128,17 @@ impl ConfigProfile {
             features: HashMap::new(),
         }
     }
+    
     pub fn with_override(mut self, key: String, value: serde_json::Value) -> Self {
         self.overrides.insert(key, value);
         self
     }
+    
     pub fn with_feature(mut self, feature: String, enabled: bool) -> Self {
         self.features.insert(feature, enabled);
         self
     }
+    
     pub fn get_merged_config(&self) -> HashMap<String, serde_json::Value> {
         let mut config = self.environment.get_defaults();
         for (key, value) in &self.overrides {
@@ -150,6 +155,7 @@ impl ConfigProfile {
 
         config
     }
+    
     pub fn is_feature_enabled(&self, feature: &str) -> bool {
         self.features.get(feature).copied().unwrap_or(false)
     }
@@ -167,13 +173,15 @@ impl ProfileRegistry {
             active_profile: None,
         }
     }
+    
     pub fn add_profile(mut self, profile: ConfigProfile) -> Self {
         self.profiles.insert(profile.name.clone(), profile);
         self
     }
-    pub fn set_active_profile(&mut self, profile_name: &str) -> Result<(), SchedulerError> {
+    
+    pub fn set_active_profile(&mut self, profile_name: &str) -> ConfigResult<()> {
         if !self.profiles.contains_key(profile_name) {
-            return Err(SchedulerError::Configuration(format!(
+            return Err(ConfigError::Configuration(format!(
                 "Profile '{profile_name}' not found"
             )));
         }
@@ -181,17 +189,21 @@ impl ProfileRegistry {
         self.active_profile = Some(profile_name.to_string());
         Ok(())
     }
+    
     pub fn get_active_profile(&self) -> Option<&ConfigProfile> {
         self.active_profile
             .as_ref()
             .and_then(|name| self.profiles.get(name))
     }
+    
     pub fn get_profile(&self, name: &str) -> Option<&ConfigProfile> {
         self.profiles.get(name)
     }
+    
     pub fn list_profiles(&self) -> Vec<&str> {
         self.profiles.keys().map(|s| s.as_str()).collect()
     }
+    
     pub fn get_active_config(&self) -> Option<HashMap<String, serde_json::Value>> {
         self.get_active_profile()
             .map(|profile| profile.get_merged_config())
@@ -218,6 +230,7 @@ impl Default for ProfileRegistry {
                 .with_feature("monitoring".to_string(), true)
                 .with_feature("circuit_breaker".to_string(), true),
         );
+        
         if let Ok(env) = Environment::current() {
             let profile_name = match env {
                 Environment::Development => "development",

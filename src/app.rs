@@ -4,8 +4,8 @@ use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::interfaces::TaskSchedulerService;
 use scheduler_core::traits::scheduler::TaskControlService;
+use scheduler_config::AppConfig;
 use scheduler_core::{
-    config::AppConfig,
     container::ServiceLocator,
     traits::{ExecutorRegistry, StateListenerService, WorkerServiceTrait},
 };

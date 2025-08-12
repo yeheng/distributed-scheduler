@@ -4,9 +4,9 @@ mod message_queue_test {
 
     use chrono::Utc;
     use scheduler_core::{
-        config::models::{MessageQueueConfig, MessageQueueType},
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
+    use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
     use scheduler_domain::entities::*;
     use scheduler_infrastructure::RabbitMQMessageQueue;
     use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
@@ -17,7 +17,7 @@ mod message_queue_test {
         pub const TEST_WORKER_ID: &str = "worker-001";
         pub const TEST_EXECUTION_TIME_MS: u64 = 1000;
         pub const TEST_EXIT_CODE: i32 = 0;
-        pub const DEFAULT_MAX_RETRIES: i32 = 3;
+        pub const DEFAULT_MAX_RETRIES: u32 = 3;
         pub const DEFAULT_RETRY_DELAY_SECONDS: u64 = 1;
         pub const DEFAULT_CONNECTION_TIMEOUT_SECONDS: u64 = 30;
     }

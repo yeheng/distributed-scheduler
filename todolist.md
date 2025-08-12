@@ -36,7 +36,7 @@ This prioritized todo list combines critical bug fixes with architectural improv
 - **Issue**: Missing input sanitization for task parameters
 - **Action**: Implement proper validation for task parameters in API handlers
 - **Priority**: High
-- **Status**: Pending
+- **Status**: Completed
 
 ### 5. Parallelize Task Scheduling
 
@@ -60,7 +60,7 @@ This prioritized todo list combines critical bug fixes with architectural improv
 - **Issue**: No authentication/authorization visible in API handlers
 - **Action**: Implement JWT-based authentication and role-based authorization
 - **Priority**: High
-- **Status**: pending
+- **Status**: Completed
 
 ### 8. Enhance Error Handling
 

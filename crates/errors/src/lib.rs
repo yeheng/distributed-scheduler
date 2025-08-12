@@ -48,6 +48,8 @@ pub enum SchedulerError {
     ResourceExhausted(String),
     #[error("权限不足: {0}")]
     Permission(String),
+    #[error("缓存错误: {0}")]
+    CacheError(String),
 }
 
 pub type SchedulerResult<T> = Result<T, SchedulerError>;

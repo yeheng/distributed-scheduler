@@ -7,7 +7,7 @@ pub use sqlite_task_run_repository::SqliteTaskRunRepository;
 pub use sqlite_worker_repository::SqliteWorkerRepository;
 
 use anyhow::Result;
-use scheduler_core::config::models::DatabaseConfig;
+use scheduler_config::models::DatabaseConfig;
 use sqlx::{Pool, Sqlite, SqlitePool};
 use std::time::Duration;
 

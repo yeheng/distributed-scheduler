@@ -4,6 +4,7 @@ use scheduler_domain::repositories::WorkerLoadStats;
 use serde::{Deserialize, Serialize};
 
 use crate::{
+    auth::{AuthenticatedUser, Permission},
     error::{ApiError, ApiResult},
     response::{success, PaginatedResponse},
     routes::AppState,
@@ -51,8 +52,11 @@ impl From<WorkerInfo> for WorkerDetailResponse {
 
 pub async fn list_workers(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Query(params): Query<WorkerQueryParams>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for worker reading
+    current_user.require_permission(Permission::WorkerRead)?;
     // 验证分页参数
     let (page, page_size) = validate_pagination(params.page, params.page_size)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
@@ -105,8 +109,11 @@ pub async fn list_workers(
 
 pub async fn get_worker(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<String>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for worker reading
+    current_user.require_permission(Permission::WorkerRead)?;
     // 验证worker ID
     validate_worker_id(&id)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
@@ -124,8 +131,11 @@ pub async fn get_worker(
 
 pub async fn get_worker_stats(
     State(state): State<AppState>,
+    current_user: AuthenticatedUser,
     Path(id): Path<String>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for worker reading
+    current_user.require_permission(Permission::WorkerRead)?;
     // 验证worker ID
     validate_worker_id(&id)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;

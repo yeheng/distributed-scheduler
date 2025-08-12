@@ -1,4 +1,5 @@
-use scheduler_core::config::{AppConfig, Environment};
+use scheduler_config::validation::ConfigValidator;
+use scheduler_config::{AppConfig, Environment};
 use std::env;
 use std::sync::Mutex;
 static ENV_MUTEX: Mutex<()> = Mutex::new(());

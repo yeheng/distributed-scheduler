@@ -8,6 +8,8 @@ use scheduler_domain::entities::{
     Message, Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
 };
 
+
+// Core service interfaces that remain in core for backward compatibility
 #[async_trait]
 pub trait TaskControlService: Send + Sync {
     async fn trigger_task(&self, task_id: i64) -> SchedulerResult<TaskRun>;
@@ -79,7 +81,7 @@ pub trait WorkerServiceTrait: Send + Sync {
     async fn start(&self) -> SchedulerResult<()>;
     async fn stop(&self) -> SchedulerResult<()>;
     async fn poll_and_execute_tasks(&self) -> SchedulerResult<()>;
-    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()>;
+    async fn send_status_update(&self, update: crate::models::task_status_update::TaskStatusUpdate) -> SchedulerResult<()>;
     async fn get_current_task_count(&self) -> i32;
     async fn can_accept_task(&self, task_type: &str) -> bool;
     async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()>;
@@ -160,7 +162,7 @@ pub trait ExecutorRegistry: Send + Sync {
     ) -> SchedulerResult<Vec<std::sync::Arc<dyn TaskExecutor>>>;
 }
 
-// Data structures
+// Data structures that remain in core for backward compatibility
 #[derive(Debug, Clone)]
 pub struct SchedulerStats {
     pub total_tasks: i64,
@@ -226,16 +228,6 @@ pub struct ExecutorStatus {
     pub supported_task_types: Vec<String>,
     pub last_health_check: DateTime<Utc>,
     pub metadata: HashMap<String, Value>,
-}
-
-#[derive(Debug, Clone)]
-pub struct TaskStatusUpdate {
-    pub task_run_id: i64,
-    pub status: TaskRunStatus,
-    pub result: Option<String>,
-    pub error_message: Option<String>,
-    pub timestamp: DateTime<Utc>,
-    pub worker_id: String,
 }
 
 // Mock implementation for testing

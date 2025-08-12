@@ -7,6 +7,7 @@ edition = "2021"
 scheduler-core = { path = "../core" }
 scheduler-domain = { path = "../domain" }
 scheduler-errors = { path = "../errors" }
+scheduler-config = { path = "../config" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
@@ -29,6 +30,7 @@ tracing-subscriber = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 redis = { workspace = true, features = ["tokio-comp", "connection-manager"] }
+prometheus = { workspace = true }
 url = "2.4"
 
 [dev-dependencies]

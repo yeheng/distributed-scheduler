@@ -1,8 +1,5 @@
-pub mod circuit_breaker;
-pub mod config;
 pub mod container;
 pub mod executor_registry;
-pub mod logging;
 pub mod models;
 pub mod traits;
 pub use container::ServiceLocator;
@@ -13,9 +10,6 @@ pub use scheduler_domain::entities::{
 pub use scheduler_errors::{SchedulerError, SchedulerResult};
 pub use traits::*;
 pub mod prelude {
-    pub use crate::circuit_breaker::*;
-    pub use crate::config::*;
     pub use crate::container::*;
     pub use crate::executor_registry::*;
-    pub use crate::logging::*;
 }

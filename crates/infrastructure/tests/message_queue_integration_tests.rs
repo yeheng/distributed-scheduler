@@ -2,7 +2,7 @@ use std::sync::Arc;
 
 use anyhow::Result;
 use chrono::Utc;
-use scheduler_core::config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
+use scheduler_config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
 use scheduler_core::traits::MessageQueue;
 use scheduler_domain::entities::*;
 use scheduler_infrastructure::MessageQueueFactory;

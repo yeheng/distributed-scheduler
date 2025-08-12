@@ -81,7 +81,7 @@ impl DefaultExecutorRegistry {
             let is_healthy = match executor.health_check().await {
                 Ok(healthy) => healthy,
                 Err(e) => {
-                    eprintln!("Health check failed for executor '{}': {}", name, e);
+                    eprintln!("Health check failed for executor '{name}': {e}");
                     false
                 }
             };
@@ -178,7 +178,7 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
             let is_healthy = match executor.health_check().await {
                 Ok(healthy) => healthy,
                 Err(e) => {
-                    eprintln!("Health check failed for executor '{}': {}", name, e);
+                    eprintln!("Health check failed for executor '{name}': {e}");
                     false
                 }
             };
