@@ -76,6 +76,7 @@ impl TestApp {
             worker_repo,
             task_controller,
             auth_config,
+            rate_limiter: None,
         };
         let app = create_routes(app_state);
         let listener = TcpListener::bind("127.0.0.1:0")

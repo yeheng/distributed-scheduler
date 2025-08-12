@@ -98,6 +98,7 @@ async fn test_protected_endpoint_without_auth() {
         worker_repo,
         task_controller,
         auth_config: std::sync::Arc::new(auth_config),
+        rate_limiter: None,
     };
     
     let app = scheduler_api::routes::create_routes(state);

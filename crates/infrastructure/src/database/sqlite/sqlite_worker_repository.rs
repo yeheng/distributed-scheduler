@@ -9,6 +9,8 @@ use scheduler_errors::SchedulerError;
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
+use crate::database::mapping::MappingHelpers;
+
 pub struct SqliteWorkerRepository {
     pool: SqlitePool,
 }
@@ -18,12 +20,7 @@ impl SqliteWorkerRepository {
         Self { pool }
     }
     fn row_to_worker_info(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<WorkerInfo> {
-        let supported_task_types_json: Option<String> = row.try_get("supported_task_types")?;
-        let supported_task_types = if let Some(json_str) = supported_task_types_json {
-            serde_json::from_str(&json_str).unwrap_or_default()
-        } else {
-            Vec::new()
-        };
+        let supported_task_types = MappingHelpers::parse_supported_task_types_sqlite(row, "supported_task_types")?;
 
         Ok(WorkerInfo {
             id: row.try_get("id")?,

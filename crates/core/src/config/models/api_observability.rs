@@ -18,6 +18,68 @@ pub struct ApiConfig {
     pub request_timeout_seconds: u64,
     pub max_request_size_mb: usize,
     pub auth: AuthConfig,
+    pub rate_limiting: RateLimitingConfig,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RateLimitingConfig {
+    pub enabled: bool,
+    pub max_requests_per_minute: u32,
+    pub burst_size: u32,
+    pub refill_rate_per_second: f64,
+    /// Different rate limits for different endpoint patterns
+    pub endpoint_limits: HashMap<String, EndpointRateLimit>,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct EndpointRateLimit {
+    pub max_requests_per_minute: u32,
+    pub burst_size: u32,
+    pub refill_rate_per_second: f64,
+}
+
+impl Default for RateLimitingConfig {
+    fn default() -> Self {
+        let mut endpoint_limits = HashMap::new();
+        
+        // More restrictive limits for authentication endpoints
+        endpoint_limits.insert(
+            "/api/auth/*".to_string(),
+            EndpointRateLimit {
+                max_requests_per_minute: 10,
+                burst_size: 5,
+                refill_rate_per_second: 0.2, // 12 per minute
+            },
+        );
+        
+        // More permissive limits for read operations
+        endpoint_limits.insert(
+            "/api/tasks".to_string(),
+            EndpointRateLimit {
+                max_requests_per_minute: 120,
+                burst_size: 30,
+                refill_rate_per_second: 2.0,
+            },
+        );
+        
+        // Stricter limits for write operations
+        endpoint_limits.insert(
+            "/api/tasks/*".to_string(),
+            EndpointRateLimit {
+                max_requests_per_minute: 60,
+                burst_size: 15,
+                refill_rate_per_second: 1.0,
+            },
+        );
+
+        Self {
+            enabled: true,
+            max_requests_per_minute: 100,
+            burst_size: 20,
+            refill_rate_per_second: 1.67, // ~100 per minute
+            endpoint_limits,
+        }
+    }
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

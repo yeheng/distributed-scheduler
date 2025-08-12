@@ -19,6 +19,7 @@ pub enum RepositoryOperation {
     Delete,
     Query,
     BatchUpdate,
+    BatchRead,
     Validate,
     Execute,
 }
@@ -32,6 +33,7 @@ impl fmt::Display for RepositoryOperation {
             RepositoryOperation::Delete => write!(f, "删除"),
             RepositoryOperation::Query => write!(f, "查询"),
             RepositoryOperation::BatchUpdate => write!(f, "批量更新"),
+            RepositoryOperation::BatchRead => write!(f, "批量查询"),
             RepositoryOperation::Validate => write!(f, "验证"),
             RepositoryOperation::Execute => write!(f, "执行"),
         }
@@ -261,6 +263,18 @@ impl MessageQueueOperationContext {
 pub struct RepositoryErrorHelpers;
 
 impl RepositoryErrorHelpers {
+    /// Create a database error with task context for batch operations
+    #[instrument(skip_all)]
+    pub fn database_error(context: TaskOperationContext, error: SqlxError) -> SchedulerError {
+        let entity_desc = context.entity_description();
+        let operation_desc = context.operation.to_string();
+        
+        let error_msg = format!("{}{}时发生数据库错误: {}", operation_desc, entity_desc, error);
+        error!(error = %error, "{}", error_msg);
+        
+        SchedulerError::database_error(error_msg)
+    }
+
     /// Create a database error with task context
     #[instrument(skip_all, fields(
         operation = %context.operation,

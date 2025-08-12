@@ -26,10 +26,11 @@ pub struct AppState {
     pub worker_repo: Arc<dyn scheduler_domain::repositories::WorkerRepository>,
     pub task_controller: Arc<dyn scheduler_core::traits::TaskControlService>,
     pub auth_config: Arc<AuthConfig>,
+    pub rate_limiter: Option<Arc<crate::middleware::RateLimiter>>,
 }
 
 pub fn create_routes(state: AppState) -> Router {
-    let router = Router::new()
+    let mut router = Router::new()
         // Health check - no authentication required
         .route("/health", get(health_check))
         
@@ -59,6 +60,13 @@ pub fn create_routes(state: AppState) -> Router {
         .route("/api/task-runs/{id}", get(get_task_run))
         .with_state(state.clone());
 
+    // Add rate limiting middleware if available
+    if let Some(rate_limiter) = state.rate_limiter.clone() {
+        router = router
+            .layer(middleware::from_fn_with_state(rate_limiter, crate::middleware::rate_limiting_middleware))
+    }
+
+    // Add authentication middleware
     if state.auth_config.enabled {
         router.layer(middleware::from_fn_with_state(state, auth_middleware))
     } else {

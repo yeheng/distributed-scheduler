@@ -546,72 +546,167 @@ pub enum TaskControlAction {
 }
 
 impl Message {
-    pub fn task_execution(message: TaskExecutionMessage) -> Self {
-        let payload = match serde_json::to_value(&message) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!("Failed to serialize TaskExecutionMessage: {}", e);
-                serde_json::Value::Null
-            }
-        };
-        Self {
+    /// 创建任务执行消息（可能失败版本）
+    pub fn try_task_execution(message: TaskExecutionMessage) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_value(&message)?;
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskExecution(message),
             payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+        })
+    }
+
+    /// 创建任务执行消息（兼容性版本，但会记录更详细的错误）
+    pub fn task_execution(message: TaskExecutionMessage) -> Self {
+        match Self::try_task_execution(message.clone()) {
+            Ok(msg) => msg,
+            Err(e) => {
+                // 记录详细的错误信息而不是吞没错误
+                let task_name = message.task_name.clone();
+                let task_id = message.task_id;
+                tracing::error!(
+                    "Critical: Failed to serialize TaskExecutionMessage for task {}: {}. This may cause message loss!",
+                    task_name, e
+                );
+                // 创建一个错误消息而不是空值
+                Self {
+                    id: Uuid::new_v4().to_string(),
+                    message_type: MessageType::TaskExecution(message),
+                    payload: serde_json::json!({
+                        "error": "Serialization failed",
+                        "message": e.to_string(),
+                        "task_name": task_name,
+                        "task_id": task_id
+                    }),
+                    timestamp: Utc::now(),
+                    retry_count: 0,
+                    correlation_id: None,
+                }
+            }
         }
     }
-    pub fn status_update(message: StatusUpdateMessage) -> Self {
-        let payload = match serde_json::to_value(&message) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!("Failed to serialize StatusUpdateMessage: {}", e);
-                serde_json::Value::Null
-            }
-        };
-        Self {
+
+    /// 创建状态更新消息（可能失败版本）
+    pub fn try_status_update(message: StatusUpdateMessage) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_value(&message)?;
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::StatusUpdate(message),
             payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+        })
+    }
+
+    /// 创建状态更新消息（兼容性版本，但会记录更详细的错误）
+    pub fn status_update(message: StatusUpdateMessage) -> Self {
+        match Self::try_status_update(message.clone()) {
+            Ok(msg) => msg,
+            Err(e) => {
+                // 记录详细的错误信息而不是吞没错误
+                let task_run_id = message.task_run_id;
+                tracing::error!(
+                    "Critical: Failed to serialize StatusUpdateMessage for task_run {}: {}. This may cause message loss!",
+                    task_run_id, e
+                );
+                // 创建一个错误消息而不是空值
+                Self {
+                    id: Uuid::new_v4().to_string(),
+                    message_type: MessageType::StatusUpdate(message),
+                    payload: serde_json::json!({
+                        "error": "Serialization failed",
+                        "message": e.to_string(),
+                        "task_run_id": task_run_id
+                    }),
+                    timestamp: Utc::now(),
+                    retry_count: 0,
+                    correlation_id: None,
+                }
+            }
         }
     }
-    pub fn worker_heartbeat(message: WorkerHeartbeatMessage) -> Self {
-        let payload = match serde_json::to_value(&message) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!("Failed to serialize WorkerHeartbeatMessage: {}", e);
-                serde_json::Value::Null
-            }
-        };
-        Self {
+    
+    /// 创建工作节点心跳消息（可能失败版本）
+    pub fn try_worker_heartbeat(message: WorkerHeartbeatMessage) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_value(&message)?;
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::WorkerHeartbeat(message),
             payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+        })
+    }
+
+    /// 创建工作节点心跳消息（兼容性版本，但会记录更详细的错误）
+    pub fn worker_heartbeat(message: WorkerHeartbeatMessage) -> Self {
+        match Self::try_worker_heartbeat(message.clone()) {
+            Ok(msg) => msg,
+            Err(e) => {
+                let worker_id = message.worker_id.clone();
+                tracing::error!(
+                    "Critical: Failed to serialize WorkerHeartbeatMessage for worker {}: {}. This may cause heartbeat loss!",
+                    worker_id, e
+                );
+                Self {
+                    id: Uuid::new_v4().to_string(),
+                    message_type: MessageType::WorkerHeartbeat(message),
+                    payload: serde_json::json!({
+                        "error": "Serialization failed",
+                        "message": e.to_string(),
+                        "worker_id": worker_id
+                    }),
+                    timestamp: Utc::now(),
+                    retry_count: 0,
+                    correlation_id: None,
+                }
+            }
         }
     }
-    pub fn task_control(message: TaskControlMessage) -> Self {
-        let payload = match serde_json::to_value(&message) {
-            Ok(value) => value,
-            Err(e) => {
-                tracing::error!("Failed to serialize TaskControlMessage: {}", e);
-                serde_json::Value::Null
-            }
-        };
-        Self {
+
+    /// 创建任务控制消息（可能失败版本）
+    pub fn try_task_control(message: TaskControlMessage) -> Result<Self, serde_json::Error> {
+        let payload = serde_json::to_value(&message)?;
+        Ok(Self {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::TaskControl(message),
             payload,
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+        })
+    }
+
+    /// 创建任务控制消息（兼容性版本，但会记录更详细的错误）
+    pub fn task_control(message: TaskControlMessage) -> Self {
+        match Self::try_task_control(message.clone()) {
+            Ok(msg) => msg,
+            Err(e) => {
+                let task_run_id = message.task_run_id;
+                let action = format!("{:?}", message.action);
+                tracing::error!(
+                    "Critical: Failed to serialize TaskControlMessage for task_run {}: {}. This may cause control message loss!",
+                    task_run_id, e
+                );
+                Self {
+                    id: Uuid::new_v4().to_string(),
+                    message_type: MessageType::TaskControl(message),
+                    payload: serde_json::json!({
+                        "error": "Serialization failed",
+                        "message": e.to_string(),
+                        "task_run_id": task_run_id,
+                        "action": action
+                    }),
+                    timestamp: Utc::now(),
+                    retry_count: 0,
+                    correlation_id: None,
+                }
+            }
         }
     }
     pub fn increment_retry(&mut self) {

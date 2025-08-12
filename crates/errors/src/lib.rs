@@ -74,6 +74,9 @@ impl SchedulerError {
     pub fn validation_error<S: Into<String>>(msg: S) -> Self {
         Self::ValidationError(msg.into())
     }
+    pub fn timeout_error<S: Into<String>>(msg: S) -> Self {
+        Self::Timeout(msg.into())
+    }
     pub fn is_fatal(&self) -> bool {
         matches!(
             self,

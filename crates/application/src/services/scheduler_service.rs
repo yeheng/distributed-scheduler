@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use chrono::Utc;
 use tracing::{debug, error, info};
+use futures::stream::{self, StreamExt};
 
 use crate::interfaces::service_interfaces::{task_services::TaskSchedulerService, SchedulerStats};
 use scheduler_core::{traits::MessageQueue, SchedulerError, SchedulerResult};
@@ -96,27 +97,44 @@ impl TaskSchedulerService for SchedulerService {
         info!("开始扫描需要调度的任务");
         
         let active_tasks = self.task_repo.get_active_tasks().await?;
-        let mut scheduled_runs = Vec::new();
-
-        for task in active_tasks {
-            // TODO: 添加tracing支持
-
-            match self.schedule_task_if_needed(&task).await {
-                Ok(Some(task_run)) => {
-                    // TODO: 添加logging支持
-                    scheduled_runs.push(task_run);
-                }
-                Ok(None) => {}
-                Err(e) => {
-                    error!("调度任务 {} 失败: {}", task.name, e);
-                }
-            }
-        }
+        let task_count = active_tasks.len();
         
-        let _duration = start_time.elapsed().as_secs_f64();
-        // TODO: 添加metrics记录
+        // 配置并发参数
+        let concurrency_limit = 10; // 限制并发数，避免资源耗尽
+        info!("发现 {} 个活跃任务，开始并发调度（并发限制: {}）", task_count, concurrency_limit);
+        
+        // 使用 futures::stream 进行并发处理
+        let scheduled_runs: Vec<TaskRun> = stream::iter(active_tasks)
+            .map(|task| {
+                let scheduler_service = self;
+                async move {
+                    match scheduler_service.schedule_task_if_needed(&task).await {
+                        Ok(Some(task_run)) => {
+                            info!("成功调度任务: {} -> 运行实例: {}", task.name, task_run.id);
+                            Some(task_run)
+                        }
+                        Ok(None) => {
+                            debug!("任务 {} 不需要调度", task.name);
+                            None
+                        }
+                        Err(e) => {
+                            error!("调度任务 {} 失败: {}", task.name, e);
+                            None
+                        }
+                    }
+                }
+            })
+            .buffer_unordered(concurrency_limit) // 控制并发数
+            .filter_map(|result| async { result }) // 过滤掉 None 结果
+            .collect()
+            .await;
 
-        info!("本次调度完成，共调度了 {} 个任务", scheduled_runs.len());
+        let duration = start_time.elapsed().as_secs_f64();
+        let success_count = scheduled_runs.len();
+        
+        info!("本次调度完成，共调度了 {}/{} 个任务，耗时 {:.3} 秒", 
+              success_count, task_count, duration);
+        
         Ok(scheduled_runs)
     }
 

@@ -8,6 +8,7 @@ use super::{
     database::DatabaseConfig,
     dispatcher_worker::{DispatcherConfig, WorkerConfig},
     message_queue::MessageQueueConfig,
+    resilience::ResilienceConfig,
 };
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -18,6 +19,7 @@ pub struct AppConfig {
     pub worker: WorkerConfig,
     pub api: ApiConfig,
     pub observability: ObservabilityConfig,
+    pub resilience: ResilienceConfig,
 }
 
 impl Default for AppConfig {
@@ -56,6 +58,7 @@ impl Default for AppConfig {
                 request_timeout_seconds: 30,
                 max_request_size_mb: 10,
                 auth: super::api_observability::AuthConfig::default(),
+                rate_limiting: super::api_observability::RateLimitingConfig::default(),
             },
             observability: ObservabilityConfig {
                 tracing_enabled: true,
@@ -64,6 +67,7 @@ impl Default for AppConfig {
                 log_level: "info".to_string(),
                 jaeger_endpoint: None,
             },
+            resilience: ResilienceConfig::default(),
         }
     }
 }

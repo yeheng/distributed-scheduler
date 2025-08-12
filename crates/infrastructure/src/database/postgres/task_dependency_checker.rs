@@ -1,3 +1,4 @@
+use std::collections::HashSet;
 use scheduler_core::{SchedulerResult, SchedulerError};
 use scheduler_domain::{
     entities::{Task, TaskRunStatus},
@@ -37,7 +38,7 @@ impl TaskDependencyChecker {
         )
     }
 
-    /// Get dependency tasks as full Task entities
+    /// Get dependency tasks as full Task entities (optimized batch query)
     pub async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         let task_dependencies = self.get_task_dependencies(task_id).await?;
 
@@ -45,14 +46,48 @@ impl TaskDependencyChecker {
             return Ok(vec![]);
         }
 
-        let mut dependency_tasks = Vec::new();
-        for dep_id in &task_dependencies {
-            if let Some(dep_task) = self.get_task_by_id(*dep_id).await? {
-                dependency_tasks.push(dep_task);
-            }
+        // Use batch query to get all dependency tasks in one call
+        self.get_tasks_by_ids(&task_dependencies).await
+    }
+
+    /// Get multiple tasks by their IDs using a single batch query
+    async fn get_tasks_by_ids(&self, task_ids: &[i64]) -> SchedulerResult<Vec<Task>> {
+        if task_ids.is_empty() {
+            return Ok(vec![]);
         }
 
-        Ok(dependency_tasks)
+        let context = task_context!(RepositoryOperation::BatchRead)
+            .with_additional_info(format!("批量查询{}个任务详情", task_ids.len()));
+
+        // Create placeholders for the IN clause
+        let placeholders: Vec<String> = (1..=task_ids.len())
+            .map(|i| format!("${}", i))
+            .collect();
+        let sql = format!(
+            "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at 
+             FROM tasks 
+             WHERE id IN ({}) 
+             ORDER BY id",
+            placeholders.join(", ")
+        );
+
+        let mut query = sqlx::query(&sql);
+        for &task_id in task_ids {
+            query = query.bind(task_id);
+        }
+
+        let rows = query
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryErrorHelpers::database_error(context.clone(), e))?;
+
+        let mut tasks = Vec::new();
+        for row in rows {
+            tasks.push(Self::row_to_task(&row)?);
+        }
+
+        debug!("批量查询到 {} 个任务", tasks.len());
+        Ok(tasks)
     }
 
     /// Get the dependency IDs for a given task
@@ -84,18 +119,67 @@ impl TaskDependencyChecker {
         }
     }
 
-    /// Get the latest run status for each dependency task
+    /// Get the latest run status for each dependency task (optimized batch query)
     async fn get_dependency_run_statuses(
         &self,
         dependency_ids: &[i64],
     ) -> SchedulerResult<Vec<(i64, Option<TaskRunStatus>)>> {
-        let mut statuses = Vec::new();
-
-        for &dep_id in dependency_ids {
-            let status = self.get_latest_task_run_status(dep_id).await?;
-            statuses.push((dep_id, status));
+        if dependency_ids.is_empty() {
+            return Ok(vec![]);
         }
 
+        let context = task_context!(RepositoryOperation::BatchRead)
+            .with_additional_info(format!("批量查询{}个任务的最新运行状态", dependency_ids.len()));
+
+        // Create placeholders for the IN clause
+        let placeholders: Vec<String> = (1..=dependency_ids.len())
+            .map(|i| format!("${}", i))
+            .collect();
+
+        // Use window function to get the latest run status for each task
+        let sql = format!(
+            "SELECT DISTINCT 
+                tr.task_id,
+                FIRST_VALUE(tr.status) OVER (PARTITION BY tr.task_id ORDER BY tr.created_at DESC) as status
+             FROM task_runs tr 
+             WHERE tr.task_id IN ({})
+             ORDER BY tr.task_id",
+            placeholders.join(", ")
+        );
+
+        let mut query = sqlx::query(&sql);
+        for &task_id in dependency_ids {
+            query = query.bind(task_id);
+        }
+
+        let rows = query
+            .fetch_all(&self.pool)
+            .await
+            .map_err(|e| RepositoryErrorHelpers::database_error(context.clone(), e))?;
+
+        let mut statuses = Vec::new();
+        let mut found_task_ids = HashSet::new();
+
+        // Parse results
+        for row in rows {
+            let task_id: i64 = row.try_get("task_id")?;
+            let status_str: String = row.try_get("status")?;
+            let status = self.parse_task_run_status(&status_str)?;
+            statuses.push((task_id, Some(status)));
+            found_task_ids.insert(task_id);
+        }
+
+        // Add None status for tasks that have never been executed
+        for &dep_id in dependency_ids {
+            if !found_task_ids.contains(&dep_id) {
+                statuses.push((dep_id, None));
+            }
+        }
+
+        // Sort by task_id for consistent ordering
+        statuses.sort_by_key(|(task_id, _)| *task_id);
+
+        debug!("批量查询到 {} 个任务的运行状态", statuses.len());
         Ok(statuses)
     }
 

@@ -13,7 +13,7 @@ use tracing::{debug, instrument};
 
 use crate::{message_queue_context, error_handling::{
     RepositoryErrorHelpers, RepositoryOperation,
-}};
+}, timeout_handler::TimeoutUtils};
 
 pub struct RabbitMQMessageQueue {
     connection: Connection,
@@ -27,14 +27,26 @@ impl RabbitMQMessageQueue {
         let context = message_queue_context!(RepositoryOperation::Create)
             .with_additional_info(format!("连接到RabbitMQ: {}", config.url));
 
-        let connection = Connection::connect(&config.url, ConnectionProperties::default())
-            .await
-            .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
+        let connection = TimeoutUtils::message_queue(
+            async {
+                Connection::connect(&config.url, ConnectionProperties::default())
+                    .await
+                    .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))
+            },
+            &format!("连接到RabbitMQ: {}", config.url),
+        )
+        .await?;
 
-        let channel = connection
-            .create_channel()
-            .await
-            .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
+        let channel = TimeoutUtils::message_queue(
+            async {
+                connection
+                    .create_channel()
+                    .await
+                    .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))
+            },
+            "创建RabbitMQ通道",
+        )
+        .await?;
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
@@ -204,20 +216,26 @@ impl MessageQueue for RabbitMQMessageQueue {
         let channel = self.channel.lock().await;
         let payload = self.serialize_message(message)?;
 
-        let confirm = channel
-            .basic_publish(
-                "",
-                queue,
-                BasicPublishOptions::default(),
-                &payload,
-                BasicProperties::default().with_delivery_mode(2), // 2 = persistent
-            )
-            .await
-            .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
-        
-        confirm
-            .await
-            .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
+        TimeoutUtils::message_queue(
+            async {
+                let confirm = channel
+                    .basic_publish(
+                        "",
+                        queue,
+                        BasicPublishOptions::default(),
+                        &payload,
+                        BasicProperties::default().with_delivery_mode(2), // 2 = persistent
+                    )
+                    .await
+                    .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
+                
+                confirm
+                    .await
+                    .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))
+            },
+            &format!("发布消息到队列 '{}'", queue),
+        )
+        .await?;
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,

@@ -12,7 +12,7 @@ use tracing::{debug, instrument};
 use super::task_dependency_checker::TaskDependencyChecker;
 use crate::{task_context, error_handling::{
     RepositoryErrorHelpers, RepositoryOperation,
-}};
+}, timeout_handler::TimeoutUtils};
 
 pub struct PostgresTaskRepository {
     pool: PgPool,
@@ -96,25 +96,31 @@ impl TaskRepository for PostgresTaskRepository {
             .transpose()
             .map_err(|e| RepositoryErrorHelpers::task_serialization_error(context.clone(), e))?;
 
-        let row = sqlx::query(
-            r#"
-            INSERT INTO tasks (name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config)
-            VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
-            RETURNING id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at
-            "#,
+        let row = TimeoutUtils::database(
+            async {
+                sqlx::query(
+                    r#"
+                    INSERT INTO tasks (name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config)
+                    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9)
+                    RETURNING id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at
+                    "#,
+                )
+                .bind(&task.name)
+                .bind(&task.task_type)
+                .bind(&task.schedule)
+                .bind(&task.parameters)
+                .bind(task.timeout_seconds)
+                .bind(task.max_retries)
+                .bind(task.status)
+                .bind(&task.dependencies)
+                .bind(shard_config_json)
+                .fetch_one(&self.pool)
+                .await
+                .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))
+            },
+            &format!("创建任务 '{}'", task.name),
         )
-        .bind(&task.name)
-        .bind(&task.task_type)
-        .bind(&task.schedule)
-        .bind(&task.parameters)
-        .bind(task.timeout_seconds)
-        .bind(task.max_retries)
-        .bind(task.status)
-        .bind(&task.dependencies)
-        .bind(shard_config_json)
-        .fetch_one(&self.pool)
-        .await
-        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
+        .await?;
 
         let created_task = Self::row_to_task(&row)?;
         RepositoryErrorHelpers::log_operation_success(
@@ -128,13 +134,19 @@ impl TaskRepository for PostgresTaskRepository {
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
         let context = task_context!(RepositoryOperation::Read, task_id = id);
 
-        let row = sqlx::query(
-            "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
+        let row = TimeoutUtils::database(
+            async {
+                sqlx::query(
+                    "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE id = $1"
+                )
+                .bind(id)
+                .fetch_optional(&self.pool)
+                .await
+                .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))
+            },
+            &format!("查询任务 ID {}", id),
         )
-        .bind(id)
-        .fetch_optional(&self.pool)
-        .await
-        .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
+        .await?;
 
         match row {
             Some(row) => {

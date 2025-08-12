@@ -7,7 +7,11 @@ use scheduler_domain::{
 };
 use scheduler_errors::SchedulerError;
 use sqlx::{Row, SqlitePool};
-use tracing::debug;
+use tracing::{debug, instrument};
+
+use crate::{task_run_context, error_handling::{
+    RepositoryErrorHelpers, RepositoryOperation,
+}};
 
 pub struct SqliteTaskRunRepository {
     pool: SqlitePool,
@@ -38,7 +42,19 @@ impl SqliteTaskRunRepository {
 
 #[async_trait]
 impl TaskRunRepository for SqliteTaskRunRepository {
+    #[instrument(skip(self, task_run), fields(
+        task_run_id = %task_run.id,
+        task_id = %task_run.task_id,
+        worker_id = ?task_run.worker_id,
+        status = ?task_run.status,
+    ))]
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
+        let context = task_run_context!(RepositoryOperation::Create, 
+            run_id = task_run.id, 
+            task_id = task_run.task_id)
+            .with_status(task_run.status)
+            .with_worker_id(task_run.worker_id.clone().unwrap_or_default());
+
         let row = sqlx::query(
             r#"
             INSERT INTO task_runs (task_id, status, worker_id, retry_count, shard_index, shard_total, 
@@ -61,12 +77,13 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         .bind(&task_run.error_message)
         .fetch_one(&self.pool)
         .await
-        .map_err(SchedulerError::Database)?;
+        .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
 
         let created_task_run = Self::row_to_task_run(&row)?;
-        debug!(
-            "创建任务运行成功: Task {} (Run ID: {})",
-            created_task_run.task_id, created_task_run.id
+        RepositoryErrorHelpers::log_operation_success_task_run(
+            context, 
+            &created_task_run.entity_description(), 
+            Some(&format!("状态: {:?}, Worker: {:?}", created_task_run.status, created_task_run.worker_id))
         );
         Ok(created_task_run)
     }

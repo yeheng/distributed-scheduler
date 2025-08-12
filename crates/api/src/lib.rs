@@ -10,7 +10,7 @@ use axum::Router;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 
-use middleware::{cors_layer, request_logging, trace_layer};
+use middleware::{cors_layer, request_logging, trace_layer, create_rate_limiting_layer, RateLimitConfig};
 use routes::{create_routes, AppState};
 use scheduler_core::config::models::api_observability::ApiConfig;
 use scheduler_core::config::models::api_observability::AuthConfig as CoreAuthConfig;
@@ -26,19 +26,33 @@ pub fn create_app(
 ) -> Router {
     let auth_config = convert_auth_config(&api_config.auth);
 
+    // Create rate limiter if enabled
+    let rate_limiter = if api_config.rate_limiting.enabled {
+        let rate_limit_config = RateLimitConfig {
+            max_requests: api_config.rate_limiting.max_requests_per_minute,
+            window_duration: std::time::Duration::from_secs(60),
+            refill_rate: api_config.rate_limiting.refill_rate_per_second,
+            burst_size: api_config.rate_limiting.burst_size,
+        };
+        Some(create_rate_limiting_layer(rate_limit_config))
+    } else {
+        None
+    };
+
     let state = AppState {
         task_repo,
         task_run_repo,
         worker_repo,
         task_controller,
         auth_config,
+        rate_limiter,
     };
 
     create_routes(state).layer(
         ServiceBuilder::new()
             .layer(trace_layer())
             .layer(cors_layer())
-            .layer(axum::middleware::from_fn(request_logging)),
+            .layer(axum::middleware::from_fn(request_logging))
     )
 }
 
@@ -56,6 +70,7 @@ pub fn create_simple_app(
         request_timeout_seconds: 30,
         max_request_size_mb: 10,
         auth: CoreAuthConfig::default(),
+        rate_limiting: scheduler_core::config::models::api_observability::RateLimitingConfig::default(),
     };
 
     create_app(
