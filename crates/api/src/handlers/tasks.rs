@@ -653,6 +653,18 @@ pub async fn trigger_task(
     current_user: AuthenticatedUser,
     Path(id): Path<i64>,
 ) -> ApiResult<impl axum::response::IntoResponse> {
+    use scheduler_observability::CrossComponentTracer;
+    
+    let span = CrossComponentTracer::instrument_service_call(
+        "api",
+        "trigger_task",
+        vec![
+            ("task.id".to_string(), id.to_string()),
+            ("user.id".to_string(), current_user.user_id.to_string()),
+        ],
+    );
+    let _guard = span.enter();
+    
     // Check permissions for task triggering
     current_user.require_permission(Permission::TaskWrite)?;
     // 验证ID格式

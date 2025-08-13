@@ -64,6 +64,7 @@ mod message_queue_test {
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+            trace_headers: None,
         }
     }
     fn create_test_message_with_id(id: &str) -> Message {

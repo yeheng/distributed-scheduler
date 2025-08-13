@@ -28,6 +28,11 @@ anyhow = { workspace = true }
 async-trait = "0.1"
 futures = "0.3"
 
+# 时间和序列化
+chrono = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+
 # Web框架和HTTP相关
 axum = "0.8"
 tower = "0.5"

@@ -486,6 +486,8 @@ pub struct Message {
     pub timestamp: DateTime<Utc>,
     pub retry_count: i32,
     pub correlation_id: Option<String>,
+    /// Distributed tracing headers for context propagation
+    pub trace_headers: Option<std::collections::HashMap<String, String>>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -556,6 +558,7 @@ impl Message {
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+            trace_headers: None,
         })
     }
 
@@ -584,6 +587,7 @@ impl Message {
                     timestamp: Utc::now(),
                     retry_count: 0,
                     correlation_id: None,
+                    trace_headers: None,
                 }
             }
         }
@@ -599,6 +603,7 @@ impl Message {
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+            trace_headers: None,
         })
     }
 
@@ -625,6 +630,7 @@ impl Message {
                     timestamp: Utc::now(),
                     retry_count: 0,
                     correlation_id: None,
+                    trace_headers: None,
                 }
             }
         }
@@ -640,6 +646,7 @@ impl Message {
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+            trace_headers: None,
         })
     }
 
@@ -664,6 +671,7 @@ impl Message {
                     timestamp: Utc::now(),
                     retry_count: 0,
                     correlation_id: None,
+                    trace_headers: None,
                 }
             }
         }
@@ -679,6 +687,7 @@ impl Message {
             timestamp: Utc::now(),
             retry_count: 0,
             correlation_id: None,
+            trace_headers: None,
         })
     }
 
@@ -705,6 +714,7 @@ impl Message {
                     timestamp: Utc::now(),
                     retry_count: 0,
                     correlation_id: None,
+                    trace_headers: None,
                 }
             }
         }
@@ -716,6 +726,26 @@ impl Message {
         self.correlation_id = Some(correlation_id);
         self
     }
+    
+    /// 设置分布式追踪头部信息
+    pub fn with_trace_headers(mut self, headers: std::collections::HashMap<String, String>) -> Self {
+        self.trace_headers = Some(headers);
+        self
+    }
+    
+    /// 获取分布式追踪头部信息
+    pub fn get_trace_headers(&self) -> Option<&std::collections::HashMap<String, String>> {
+        self.trace_headers.as_ref()
+    }
+    
+    /// 注入当前tracing span的上下文到消息中
+    /// 注意：此方法需要在有observability依赖的crate中使用具体实现
+    pub fn inject_current_trace_context(self) -> Self {
+        // This is a placeholder - actual implementation should be done
+        // in crates that have observability dependencies
+        self
+    }
+    
     pub fn is_retry_exhausted(&self, max_retries: i32) -> bool {
         self.retry_count >= max_retries
     }

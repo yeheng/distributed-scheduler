@@ -1,11 +1,11 @@
 //! Cache metrics collection and reporting
 
 use super::CacheStats;
-use prometheus::{Counter, Gauge, Histogram, Opts, Registry, TextEncoder, Encoder};
+use prometheus::{Counter, Gauge, Histogram, Opts, Registry};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
+use tracing::warn;
 
 /// Cache metrics collector
 #[derive(Clone)]

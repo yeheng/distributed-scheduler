@@ -329,6 +329,7 @@ impl MessageBuilder {
                 payload: serde_json::json!({}),
                 retry_count: 0,
                 correlation_id: None,
+                trace_headers: None,
             },
         }
     }
@@ -355,6 +356,11 @@ impl MessageBuilder {
 
     pub fn with_retry_count(mut self, retry_count: i32) -> Self {
         self.message.retry_count = retry_count;
+        self
+    }
+
+    pub fn with_trace_headers(mut self, headers: std::collections::HashMap<String, String>) -> Self {
+        self.message.trace_headers = Some(headers);
         self
     }
 

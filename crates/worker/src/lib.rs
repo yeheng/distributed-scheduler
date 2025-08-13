@@ -6,6 +6,9 @@ pub mod service;
 #[cfg(test)]
 mod service_test;
 
+#[cfg(test)]
+mod executors_test;
+
 // Re-export the main service types
 pub use components::*;
 pub use executor_factory::ExecutorFactory;

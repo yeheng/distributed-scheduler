@@ -122,12 +122,28 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
 
     async fn unregister(&mut self, name: &str) -> SchedulerResult<bool> {
         let mut registry = self.executors.write().await;
-        Ok(registry.remove(name).is_some())
+        if let Some(executor) = registry.remove(name) {
+            // Call cleanup on the executor before removing it
+            if let Err(e) = executor.cleanup().await {
+                eprintln!("Warning: Cleanup failed for executor '{}': {}", name, e);
+                // Continue with unregistration even if cleanup fails
+            }
+            Ok(true)
+        } else {
+            Ok(false)
+        }
     }
 
     async fn clear(&mut self) {
         let mut registry = self.executors.write().await;
-        registry.clear();
+        
+        // Call cleanup on all executors before clearing
+        for (name, executor) in registry.drain() {
+            if let Err(e) = executor.cleanup().await {
+                eprintln!("Warning: Cleanup failed for executor '{}': {}", name, e);
+                // Continue with clearing even if cleanup fails
+            }
+        }
     }
 
     async fn contains(&self, name: &str) -> bool {
@@ -202,6 +218,32 @@ impl ExecutorRegistry for DefaultExecutorRegistry {
         }
 
         Ok(matching_executors)
+    }
+}
+
+impl DefaultExecutorRegistry {
+    /// Gracefully shutdown all executors by calling their cleanup methods
+    pub async fn shutdown(&mut self) -> SchedulerResult<()> {
+        let registry = self.executors.read().await;
+        let executor_names: Vec<String> = registry.keys().cloned().collect();
+        drop(registry); // Release read lock
+        
+        println!("Shutting down {} executors gracefully...", executor_names.len());
+        
+        for name in executor_names {
+            let mut registry = self.executors.write().await;
+            if let Some(executor) = registry.remove(&name) {
+                drop(registry); // Release write lock during cleanup
+                
+                println!("Cleaning up executor: {}", name);
+                if let Err(e) = executor.cleanup().await {
+                    eprintln!("Warning: Cleanup failed for executor '{}': {}", name, e);
+                }
+            }
+        }
+        
+        println!("All executors have been shut down");
+        Ok(())
     }
 }
 

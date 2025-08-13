@@ -157,6 +157,11 @@ impl WorkerLifecycle {
         let messages = message_queue.consume_messages(task_queue).await?;
 
         for message in messages {
+            // Create span from message trace context
+            use scheduler_observability::MessageTracingExt;
+            let span = message.create_span("consume");
+            let _guard = span.enter();
+            
             match &message.message_type {
                 scheduler_domain::entities::MessageType::TaskExecution(task_execution) => {
                     let task_execution = task_execution.clone();

@@ -75,6 +75,19 @@ impl HeartbeatManager {
         Ok(())
     }
     pub async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
+        use scheduler_observability::CrossComponentTracer;
+        
+        let span = CrossComponentTracer::instrument_service_call(
+            "worker",
+            "send_status_update",
+            vec![
+                ("task_run_id".to_string(), update.task_run_id.to_string()),
+                ("status".to_string(), format!("{:?}", update.status)),
+                ("worker_id".to_string(), update.worker_id.clone()),
+            ],
+        );
+        let _guard = span.enter();
+        
         let message_queue = self.service_locator.message_queue().await?;
         let status_message = StatusUpdateMessage {
             task_run_id: update.task_run_id,
@@ -91,7 +104,10 @@ impl HeartbeatManager {
             timestamp: update.timestamp,
         };
 
-        let message = Message::status_update(status_message);
+        let message = {
+            use scheduler_observability::MessageTracingExt;
+            Message::status_update(status_message).inject_current_trace_context()
+        };
         message_queue
             .publish_message(&self.status_queue, &message)
             .await

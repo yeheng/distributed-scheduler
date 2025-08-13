@@ -784,6 +784,7 @@ fn create_test_status_message(id: i64) -> Message {
         timestamp: Utc::now(),
         retry_count: 0,
         correlation_id: Some(format!("status-correlation-{}", id)),
+        trace_headers: None,
     }
 }
 

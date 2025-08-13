@@ -1,10 +1,12 @@
 pub mod cross_component_tracer;
+pub mod message_tracing;
 pub mod metrics_collector;
 pub mod structured_logger;
 pub mod task_tracer;
 pub mod telemetry_setup;
 
 pub use cross_component_tracer::CrossComponentTracer;
+pub use message_tracing::MessageTracingExt;
 pub use metrics_collector::MetricsCollector;
 pub use structured_logger::{LoggingConfig, StructuredLogger};
 pub use task_tracer::TaskTracer;

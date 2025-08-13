@@ -17,12 +17,23 @@ use tracing::{error, info, warn};
 
 pub struct ShellExecutor {
     running_processes: Arc<RwLock<HashMap<i64, u32>>>,
+    /// Maximum time to wait for process termination during cleanup (in milliseconds)
+    cleanup_timeout_ms: u64,
 }
 
 impl ShellExecutor {
     pub fn new() -> Self {
         Self {
             running_processes: Arc::new(RwLock::new(HashMap::new())),
+            cleanup_timeout_ms: 5000, // Default 5 second timeout for graceful termination
+        }
+    }
+    
+    /// Create a new ShellExecutor with custom cleanup timeout
+    pub fn with_cleanup_timeout(cleanup_timeout_ms: u64) -> Self {
+        Self {
+            running_processes: Arc::new(RwLock::new(HashMap::new())),
+            cleanup_timeout_ms,
         }
     }
 }
@@ -304,7 +315,111 @@ impl TaskExecutor for ShellExecutor {
     }
 
     async fn cleanup(&self) -> SchedulerResult<()> {
+        info!("开始清理ShellExecutor资源");
+        
+        let mut processes = self.running_processes.write().await;
+        let running_process_count = processes.len();
+        
+        if running_process_count > 0 {
+            warn!("发现 {} 个未完成的Shell进程，开始强制终止", running_process_count);
+            
+            // Force kill all running processes
+            for (task_run_id, pid) in processes.iter() {
+                info!("强制终止进程: task_run_id={}, pid={}", task_run_id, pid);
+                
+                #[cfg(unix)]
+                {
+                    // Try SIGTERM first, then SIGKILL if needed
+                    let term_result = std::process::Command::new("kill")
+                        .arg("-TERM")
+                        .arg(pid.to_string())
+                        .output();
+                    
+                    if term_result.is_ok() {
+                        // Wait with timeout for graceful termination
+                        let timeout_duration = Duration::from_millis(self.cleanup_timeout_ms);
+                        let start_time = Instant::now();
+                        
+                        // Check if process is still running
+                        let mut process_terminated = false;
+                        while start_time.elapsed() < timeout_duration {
+                            // Check if process still exists (sending signal 0)
+                            let check_result = std::process::Command::new("kill")
+                                .arg("-0")
+                                .arg(pid.to_string())
+                                .output();
+                                
+                            if check_result.is_err() || !check_result.unwrap().status.success() {
+                                process_terminated = true;
+                                break;
+                            }
+                            
+                            tokio::time::sleep(Duration::from_millis(100)).await;
+                        }
+                        
+                        // Force kill if still running after timeout
+                        if !process_terminated {
+                            warn!("进程 {} 在 {}ms 内未响应SIGTERM，发送SIGKILL", pid, self.cleanup_timeout_ms);
+                            let _ = std::process::Command::new("kill")
+                                .arg("-KILL")
+                                .arg(pid.to_string())
+                                .output();
+                        } else {
+                            info!("进程 {} 已优雅终止", pid);
+                        }
+                    } else {
+                        // If SIGTERM failed, try SIGKILL immediately
+                        let _ = std::process::Command::new("kill")
+                            .arg("-KILL")
+                            .arg(pid.to_string())
+                            .output();
+                    }
+                }
+                
+                #[cfg(windows)]
+                {
+                    let _ = std::process::Command::new("taskkill")
+                        .args(&["/PID", &pid.to_string(), "/F"])
+                        .output();
+                }
+            }
+            
+            // Clear the tracking map
+            processes.clear();
+            info!("已清理所有Shell进程追踪记录");
+        }
+        
+        info!("ShellExecutor资源清理完成");
         Ok(())
+    }
+}
+
+impl Drop for ShellExecutor {
+    fn drop(&mut self) {
+        // Emergency cleanup if executor is dropped without proper cleanup
+        if let Ok(processes) = self.running_processes.try_read() {
+            if !processes.is_empty() {
+                warn!("ShellExecutor被丢弃时发现 {} 个未清理的进程，执行紧急清理", processes.len());
+                for (task_run_id, pid) in processes.iter() {
+                    warn!("紧急终止进程: task_run_id={}, pid={}", task_run_id, pid);
+                    
+                    #[cfg(unix)]
+                    {
+                        let _ = std::process::Command::new("kill")
+                            .arg("-KILL")
+                            .arg(pid.to_string())
+                            .output();
+                    }
+                    
+                    #[cfg(windows)]
+                    {
+                        let _ = std::process::Command::new("taskkill")
+                            .args(&["/PID", &pid.to_string(), "/F"])
+                            .output();
+                    }
+                }
+            }
+        }
     }
 }
 
@@ -379,12 +494,20 @@ impl TaskExecutor for HttpExecutor {
         if let Some(body_content) = body {
             request_builder = request_builder.body(body_content);
         }
-        let response_result = request_builder.send().await;
+        
+        // Track the running task
+        let task_run_id = context.task_run.id;
+        
+        // Execute the request with timeout
+        let response_result = tokio::time::timeout(
+            Duration::from_secs(timeout_seconds),
+            request_builder.send()
+        ).await;
 
         let execution_time = start_time.elapsed();
 
         match response_result {
-            Ok(response) => {
+            Ok(Ok(response)) => {
                 let status_code = response.status().as_u16();
                 let success = response.status().is_success();
                 let response_body = response
@@ -413,7 +536,8 @@ impl TaskExecutor for HttpExecutor {
 
                 Ok(result)
             }
-            Err(e) => {
+            Ok(Err(e)) => {
+                // HTTP request failed
                 let error_message = format!("HTTP请求失败: {e}");
                 error!(
                     "HTTP任务执行失败: task_run_id={}, error={}",
@@ -425,6 +549,24 @@ impl TaskExecutor for HttpExecutor {
                     output: None,
                     error_message: Some(error_message),
                     exit_code: None,
+                    execution_time_ms: execution_time.as_millis() as u64,
+                };
+
+                Ok(result)
+            }
+            Err(_) => {
+                // Timeout occurred
+                let error_message = format!("HTTP请求超时: 请求在 {} 秒内未完成", timeout_seconds);
+                error!(
+                    "HTTP任务执行超时: task_run_id={}, timeout={}s",
+                    context.task_run.id, timeout_seconds
+                );
+
+                let result = TaskResult {
+                    success: false,
+                    output: None,
+                    error_message: Some(error_message),
+                    exit_code: Some(408), // HTTP 408 Request Timeout
                     execution_time_ms: execution_time.as_millis() as u64,
                 };
 
@@ -520,7 +662,43 @@ impl TaskExecutor for HttpExecutor {
     }
 
     async fn cleanup(&self) -> SchedulerResult<()> {
+        info!("开始清理HttpExecutor资源");
+        
+        let mut tasks = self.running_tasks.write().await;
+        let running_task_count = tasks.len();
+        
+        if running_task_count > 0 {
+            warn!("发现 {} 个未完成的HTTP任务，开始取消", running_task_count);
+            
+            // Cancel all running HTTP tasks
+            for (task_run_id, handle) in tasks.drain() {
+                info!("取消HTTP任务: task_run_id={}", task_run_id);
+                handle.abort();
+                
+                // Wait a brief moment for task to abort
+                tokio::time::sleep(Duration::from_millis(10)).await;
+            }
+            
+            info!("已取消所有HTTP任务");
+        }
+        
+        info!("HttpExecutor资源清理完成");
         Ok(())
+    }
+}
+
+impl Drop for HttpExecutor {
+    fn drop(&mut self) {
+        // Emergency cleanup if executor is dropped without proper cleanup
+        if let Ok(tasks) = self.running_tasks.try_read() {
+            if !tasks.is_empty() {
+                warn!("HttpExecutor被丢弃时发现 {} 个未清理的HTTP任务，执行紧急清理", tasks.len());
+                for (task_run_id, handle) in tasks.iter() {
+                    warn!("紧急取消HTTP任务: task_run_id={}", task_run_id);
+                    handle.abort();
+                }
+            }
+        }
     }
 }
 
