@@ -1,7 +1,7 @@
 use chrono::{Duration, Utc};
 use std::sync::Arc;
 
-use scheduler_core::*;
+use scheduler_foundation::*;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_domain::{TaskRunStatus, TaskStatus, WorkerStatus};
 use scheduler_testing_utils::{

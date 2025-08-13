@@ -1,14 +1,12 @@
 //! Cached repository implementations for performance optimization
 
 use super::{CacheService, CacheServiceExt, task_cache_key, task_name_cache_key, worker_cache_key, system_stats_cache_key, task_run_cache_key, task_dependencies_cache_key};
-use async_trait::async_trait;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
-use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use std::time::Duration;
-use tracing::{debug, info, instrument, warn};
+use tracing::{debug, instrument};
 
 /// Cached task repository wrapper
 pub struct CachedTaskRepository {

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Core dependencies for testing utilities
-scheduler-core = { path = "../core" }
+scheduler-foundation = { path = "../foundation" }
 scheduler-domain = { path = "../domain" }
 scheduler-errors = { path = "../errors" }
 

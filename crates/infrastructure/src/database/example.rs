@@ -1,5 +1,5 @@
 use crate::database::{DatabaseManager, DatabaseType};
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 
 pub struct ApplicationService {

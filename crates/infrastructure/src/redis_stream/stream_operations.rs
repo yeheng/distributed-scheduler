@@ -1,4 +1,4 @@
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
 use std::sync::Arc;
 use std::time::Instant;

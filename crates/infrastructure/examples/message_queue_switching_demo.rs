@@ -1,4 +1,4 @@
-use scheduler_core::{
+use scheduler_foundation::{
     traits::MessageQueue,
 };
 use scheduler_config::models::{

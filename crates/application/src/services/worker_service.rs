@@ -1,6 +1,6 @@
 // Worker service implementation placeholder
 use crate::interfaces::WorkerServiceTrait;
-use scheduler_core::{models::TaskStatusUpdate, SchedulerResult};
+use scheduler_foundation::{models::TaskStatusUpdate, SchedulerResult};
 use scheduler_domain::entities::TaskRun;
 
 pub struct WorkerService;

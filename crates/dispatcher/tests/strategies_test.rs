@@ -3,7 +3,7 @@ mod strategies_tests {
     use std::sync::Arc;
 
     use chrono::Utc;
-    use scheduler_core::{traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus};
+    use scheduler_foundation::{traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus};
     use scheduler_dispatcher::strategies::*;
     use scheduler_domain::TaskStatus;
     use serde_json::json;

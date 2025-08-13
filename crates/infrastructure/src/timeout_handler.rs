@@ -4,11 +4,11 @@
 //! including database calls, message queue operations, and external service calls.
 
 use std::time::Duration;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
-use tokio::time::{timeout, Timeout};
+use tokio::time::timeout;
 use std::future::Future;
-use tracing::{warn, error, instrument};
+use tracing::{error, instrument};
 
 /// Default timeout values for different operation types
 pub struct TimeoutConfig {

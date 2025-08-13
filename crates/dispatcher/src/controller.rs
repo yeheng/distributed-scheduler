@@ -4,7 +4,7 @@ use async_trait::async_trait;
 use chrono::Utc;
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
+use scheduler_foundation::{
     traits::{scheduler::TaskControlService, MessageQueue},
     SchedulerError, SchedulerResult,
 };

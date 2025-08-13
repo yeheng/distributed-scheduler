@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
-use scheduler_core::{traits::TaskDispatchStrategy, SchedulerResult};
+use scheduler_foundation::{traits::TaskDispatchStrategy, SchedulerResult};
 use scheduler_domain::entities::{Task, WorkerInfo};
 
 pub struct RoundRobinStrategy {

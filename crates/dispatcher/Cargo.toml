@@ -4,10 +4,11 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-scheduler-core = { path = "../core" }
+scheduler-foundation = { path = "../foundation" }
 scheduler-domain = { path = "../domain" }
 scheduler-infrastructure = { path = "../infrastructure" }
 scheduler-application = { path = "../application" }
+scheduler-observability = { path = "../observability" }
 tokio = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }

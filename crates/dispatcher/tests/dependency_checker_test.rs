@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod dependency_checker_tests {
-    use scheduler_core::*;
+    use scheduler_foundation::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
     use scheduler_testing_utils::{
         MockTaskRepository, MockTaskRunRepository, TaskBuilder, TaskRunBuilder,

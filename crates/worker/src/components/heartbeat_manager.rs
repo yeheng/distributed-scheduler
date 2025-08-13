@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use scheduler_core::{models::task_status_update::TaskStatusUpdate, SchedulerResult, ServiceLocator};
+use scheduler_foundation::{models::task_status_update::TaskStatusUpdate, SchedulerResult, ServiceLocator};
 use scheduler_domain::entities::{Message, StatusUpdateMessage, TaskResult, TaskRunStatus};
 use tokio::sync::broadcast;
 use tokio::time::interval;

@@ -2,14 +2,14 @@
 mod tests {
     use chrono::{Timelike, Utc};
     use scheduler_application::interfaces::scheduler::TaskSchedulerService;
-    use scheduler_core::*;
+    use scheduler_foundation::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
     use scheduler_domain::TaskStatus;
     use serde_json::json;
     use std::sync::Arc;
 
     use scheduler_dispatcher::scheduler::*;
-    use scheduler_infrastructure::MetricsCollector;
+    use scheduler_observability::MetricsCollector;
     use scheduler_testing_utils::{
         MockMessageQueue, MockTaskRepository, MockTaskRunRepository, TaskBuilder, TaskRunBuilder,
     };

@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskStatus},
     repositories::TaskRepository,

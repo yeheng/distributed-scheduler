@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_core::traits::scheduler::TaskControlService;
+use scheduler_foundation::traits::scheduler::TaskControlService;
 use scheduler_config::AppConfig;
-use scheduler_core::{
+use scheduler_foundation::{
     container::ServiceLocator,
     traits::{ExecutorRegistry, StateListenerService, WorkerServiceTrait},
 };
@@ -17,12 +17,9 @@ use scheduler_infrastructure::{
         PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
     },
     message_queue::RabbitMQMessageQueue,
-    observability::MetricsCollector,
 };
-use scheduler_worker::{
-    executors::{HttpExecutor, ShellExecutor},
-    WorkerService,
-};
+use scheduler_observability::MetricsCollector;
+use scheduler_worker::WorkerService;
 use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};
 use tracing::{error, info};
@@ -65,13 +62,13 @@ impl Application {
         let worker_repo = Arc::new(PostgresWorkerRepository::new(db_pool.clone()));
 
         // 创建应用上下文
-        let mut app_context = scheduler_core::container::ApplicationContext::new();
+        let mut app_context = scheduler_foundation::container::ApplicationContext::new();
         app_context
             .register_core_services(task_repo, task_run_repo, worker_repo, message_queue)
             .await?;
 
         // 创建服务定位器
-        let service_locator = Arc::new(scheduler_core::container::ServiceLocator::new(Arc::new(
+        let service_locator = Arc::new(scheduler_foundation::container::ServiceLocator::new(Arc::new(
             app_context,
         )));
 
@@ -166,8 +163,10 @@ impl Application {
     async fn run_worker(&self, mut shutdown_rx: broadcast::Receiver<()>) -> Result<()> {
         info!("启动Worker服务: {}", self.config.worker.worker_id);
 
-        // 创建执行器注册表
-        let executor_registry = create_executor_registry().await?;
+        // 创建执行器工厂
+        let executor_factory = Arc::new(scheduler_worker::ExecutorFactory::new(self.config.executor.clone()));
+        executor_factory.initialize().await?;
+        let executor_registry: Arc<dyn ExecutorRegistry> = executor_factory;
 
         // 创建Worker服务
         let worker_service = WorkerService::builder(
@@ -345,22 +344,6 @@ async fn create_message_queue(config: &AppConfig) -> Result<Arc<RabbitMQMessageQ
     Ok(Arc::new(message_queue))
 }
 
-/// 创建执行器注册表
-async fn create_executor_registry() -> Result<Arc<dyn ExecutorRegistry>> {
-    let mut registry = scheduler_core::executor_registry::DefaultExecutorRegistry::new();
-
-    // 注册Shell执行器
-    registry
-        .register("shell".to_string(), Arc::new(ShellExecutor::new()))
-        .await?;
-
-    // 注册HTTP执行器
-    registry
-        .register("http".to_string(), Arc::new(HttpExecutor::new()))
-        .await?;
-
-    Ok(Arc::new(registry))
-}
 
 /// 运行调度器循环
 async fn run_scheduler_loop(

@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 use scheduler_domain::repositories::WorkerRepository;
 

@@ -4,7 +4,7 @@ use super::{
     config::CacheConfig, manager::RedisCacheManager, metrics::CacheMetrics, repository::*,
     CacheService,
 };
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::repositories::*;
 use std::sync::Arc;
 use tokio::sync::RwLock;

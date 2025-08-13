@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 # 工作区内部crates
-scheduler-core = { path = "crates/core" }
+scheduler-foundation = { path = "crates/foundation" }
 scheduler-domain = { path = "crates/domain" }
 scheduler-application = { path = "crates/application" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
@@ -20,6 +20,7 @@ scheduler-api = { path = "crates/api" }
 scheduler-infrastructure = { path = "crates/infrastructure" }
 scheduler-errors = { path = "crates/errors" }
 scheduler-config = { path = "crates/config" }
+scheduler-observability = { path = "crates/observability" }
 
 # 异步运行时和基础工具
 tokio = { workspace = true }
@@ -60,7 +61,7 @@ tempfile = "3.0"
 [workspace]
 resolver = "2"
 members = [
-    "crates/core",
+    "crates/foundation",
     "crates/domain",
     "crates/application",
     "crates/dispatcher",
@@ -69,6 +70,7 @@ members = [
     "crates/infrastructure",
     "crates/errors",
     "crates/config",
+    "crates/observability",
     "crates/testing-utils",
 ]
 

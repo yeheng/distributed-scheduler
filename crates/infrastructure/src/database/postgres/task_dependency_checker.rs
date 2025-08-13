@@ -1,5 +1,5 @@
 use std::collections::HashSet;
-use scheduler_core::{SchedulerResult, SchedulerError};
+use scheduler_foundation::{SchedulerResult, SchedulerError};
 use scheduler_domain::{
     entities::{Task, TaskRunStatus},
     task_dependency_service::TaskDependencyService,

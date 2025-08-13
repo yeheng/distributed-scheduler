@@ -12,6 +12,8 @@ use crate::{
     error::{ApiError, ApiResult},
     response::{created, success, PaginatedResponse},
     routes::AppState,
+    types::{UpdateValue, NumericUpdateValue},
+    update_request,
     validation::task::{validate_create_task_request, validate_update_task_request},
 };
 
@@ -129,6 +131,19 @@ pub struct UpdateTaskRequest {
     pub dependencies: Option<Vec<i64>>,
     
     pub status: Option<scheduler_domain::entities::TaskStatus>,
+}
+
+update_request! {
+    #[derive(Debug, Deserialize)]
+    pub struct PatchTaskRequest {
+        pub name: UpdateValue<String>,
+        pub schedule: UpdateValue<String>,
+        pub parameters: UpdateValue<serde_json::Value>,
+        pub timeout_seconds: NumericUpdateValue<i32>,
+        pub max_retries: NumericUpdateValue<i32>,
+        pub dependencies: UpdateValue<Vec<i64>>,
+        pub status: UpdateValue<scheduler_domain::entities::TaskStatus>,
+    }
 }
 
 #[derive(Debug, Deserialize, Validate)]
@@ -416,6 +431,171 @@ pub async fn update_task(
 
     let response = TaskResponse::from(task);
     Ok(success(response))
+}
+
+pub async fn patch_task(
+    State(state): State<AppState>,
+    current_user: AuthenticatedUser,
+    Path(id): Path<i64>,
+    Json(request): Json<PatchTaskRequest>,
+) -> ApiResult<impl axum::response::IntoResponse> {
+    // Check permissions for task updating
+    current_user.require_permission(Permission::TaskWrite)?;
+    
+    // Validate ID format
+    if id <= 0 {
+        return Err(ApiError::BadRequest("无效的任务ID".to_string()));
+    }
+    
+    // Check if the request has any actual changes
+    if !request.has_changes() {
+        return Err(ApiError::BadRequest("PATCH请求必须包含至少一个要修改的字段".to_string()));
+    }
+    
+    // Manual validation for PATCH request
+    validate_patch_request_fields(&request)?;
+    
+    // Custom validation for provided fields
+    if let Some(Some(name)) = request.name.as_option() {
+        crate::validation::task::validate_task_name(name)?;
+    }
+    if let Some(Some(schedule)) = request.schedule.as_option() {
+        crate::validation::task::validate_cron_expression(schedule)?;
+    }
+    if let Some(Some(parameters)) = request.parameters.as_option() {
+        crate::validation::task::validate_task_parameters(parameters)?;
+    }
+    if let Some(Some(deps)) = request.dependencies.as_option() {
+        crate::validation::task::validate_dependencies(&Some(deps.clone()))?;
+    }
+    
+    // Business logic validation
+    validate_patch_task_request(&request, id, &state).await?;
+    
+    let mut task = state
+        .task_repo
+        .get_by_id(id)
+        .await?
+        .ok_or(ApiError::NotFound)?;
+
+    // Apply PATCH updates
+    apply_patch_updates(&mut task, &request, &state).await?;
+
+    task.updated_at = chrono::Utc::now();
+    state.task_repo.update(&task).await?;
+
+    let response = TaskResponse::from(task);
+    Ok(success(response))
+}
+
+/// Apply PATCH updates to a task
+async fn apply_patch_updates(
+    task: &mut Task,
+    request: &PatchTaskRequest,
+    state: &AppState,
+) -> ApiResult<()> {
+    // Update name if provided
+    if let Some(Some(name)) = request.name.as_option() {
+        // Check name uniqueness
+        if let Some(existing_task) = state.task_repo.get_by_name(name).await? {
+            if existing_task.id != task.id {
+                return Err(ApiError::Conflict(format!("任务名称 '{}' 已存在", name)));
+            }
+        }
+        task.name = name.to_string();
+    }
+
+    // Update schedule if provided
+    if let Some(Some(schedule)) = request.schedule.as_option() {
+        task.schedule = schedule.to_string();
+    }
+
+    // Update parameters if provided
+    if let Some(parameters_opt) = request.parameters.as_option() {
+        task.parameters = parameters_opt.cloned().unwrap_or(serde_json::Value::Null);
+    }
+
+    // Update timeout_seconds if provided
+    if let Some(timeout_opt) = request.timeout_seconds.as_option() {
+        task.timeout_seconds = *timeout_opt.unwrap_or(&task.timeout_seconds);
+    }
+
+    // Update max_retries if provided
+    if let Some(retries_opt) = request.max_retries.as_option() {
+        task.max_retries = *retries_opt.unwrap_or(&task.max_retries);
+    }
+
+    // Update dependencies if provided
+    if let Some(Some(deps)) = request.dependencies.as_option() {
+        task.dependencies = deps.clone();
+    }
+
+    // Update status if provided
+    if let Some(Some(status)) = request.status.as_option() {
+        task.status = *status;
+    }
+
+    Ok(())
+}
+
+/// Validate PATCH task request fields
+fn validate_patch_request_fields(request: &PatchTaskRequest) -> ApiResult<()> {
+    // Validate name field if provided
+    if let Some(Some(name)) = request.name.as_option() {
+        if name.len() < 1 || name.len() > 255 {
+            return Err(ApiError::BadRequest("任务名称长度必须在1-255个字符之间".to_string()));
+        }
+    }
+    
+    // Validate schedule field if provided
+    if let Some(Some(schedule)) = request.schedule.as_option() {
+        if schedule.len() < 1 || schedule.len() > 255 {
+            return Err(ApiError::BadRequest("调度表达式长度必须在1-255个字符之间".to_string()));
+        }
+    }
+    
+    // Validate timeout_seconds field if provided
+    if let Some(Some(timeout)) = request.timeout_seconds.as_option() {
+        if *timeout < 1 || *timeout > 86400 {
+            return Err(ApiError::BadRequest("超时时间必须在1-86400秒之间".to_string()));
+        }
+    }
+    
+    // Validate max_retries field if provided
+    if let Some(Some(retries)) = request.max_retries.as_option() {
+        if *retries < 0 || *retries > 10 {
+            return Err(ApiError::BadRequest("重试次数必须在0-10次之间".to_string()));
+        }
+    }
+    
+    Ok(())
+}
+
+/// Validate PATCH task request business logic
+async fn validate_patch_task_request(
+    request: &PatchTaskRequest,
+    task_id: i64,
+    state: &AppState,
+) -> ApiResult<()> {
+    // Similar validation logic as update_task_request but adapted for PATCH
+    
+    // Check dependencies if they're being updated
+    if let Some(Some(deps)) = request.dependencies.as_option() {
+        // Check if dependency tasks exist
+        for &dep_id in deps {
+            if dep_id == task_id {
+                return Err(ApiError::BadRequest("任务不能依赖自己".to_string()));
+            }
+            
+            if state.task_repo.get_by_id(dep_id).await?.is_none() {
+                return Err(ApiError::BadRequest(format!("依赖的任务ID {} 不存在", dep_id)));
+            }
+        }
+    }
+    
+    // Check if task exists (already done in the main function)
+    
+    Ok(())
 }
 
 pub async fn delete_task(

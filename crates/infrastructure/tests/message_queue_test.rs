@@ -3,7 +3,7 @@ mod message_queue_test {
     use std::env;
 
     use chrono::Utc;
-    use scheduler_core::{
+    use scheduler_foundation::{
         MessageQueue as _, TaskResult, TaskRunStatus,
     };
     use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
@@ -72,7 +72,7 @@ mod message_queue_test {
         message
     }
 
-    async fn create_rabbit_mqmessage_queue() -> scheduler_core::SchedulerResult<RabbitMQMessageQueue>
+    async fn create_rabbit_mqmessage_queue() -> scheduler_foundation::SchedulerResult<RabbitMQMessageQueue>
     {
         let rabbitmq_image = GenericImage::new("rabbitmq", "3-management")
             .with_exposed_port(5672.tcp())

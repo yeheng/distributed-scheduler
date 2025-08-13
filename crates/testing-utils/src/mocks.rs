@@ -6,8 +6,8 @@
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_core::traits::MessageQueue;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::traits::MessageQueue;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::{
     Message, Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus,
 };

@@ -8,7 +8,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_config::CircuitBreakerConfig;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerMiddleware};
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
@@ -510,7 +510,7 @@ mod tests {
         async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
             // Simulate network delay
             tokio::time::sleep(Duration::from_millis(10)).await;
-            Err(scheduler_core::SchedulerError::Internal("Mock database error".to_string()))
+            Err(scheduler_foundation::SchedulerError::Internal("Mock database error".to_string()))
         }
 
         async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<Task>> {

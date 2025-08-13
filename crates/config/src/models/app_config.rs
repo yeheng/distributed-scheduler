@@ -7,6 +7,7 @@ use super::{
     api_observability::{ApiConfig, ObservabilityConfig},
     database::DatabaseConfig,
     dispatcher_worker::{DispatcherConfig, WorkerConfig},
+    executor::ExecutorConfig,
     message_queue::MessageQueueConfig,
     resilience::ResilienceConfig,
 };
@@ -20,6 +21,7 @@ pub struct AppConfig {
     pub worker: WorkerConfig,
     pub api: ApiConfig,
     pub observability: ObservabilityConfig,
+    pub executor: ExecutorConfig,
     pub resilience: ResilienceConfig,
 }
 
@@ -68,6 +70,7 @@ impl Default for AppConfig {
                 log_level: "info".to_string(),
                 jaeger_endpoint: None,
             },
+            executor: ExecutorConfig::default(),
             resilience: ResilienceConfig::default(),
         }
     }
@@ -142,7 +145,9 @@ impl AppConfig {
                     .set_default("observability.tracing_enabled", true)?
                     .set_default("observability.metrics_enabled", true)?
                     .set_default("observability.metrics_endpoint", "/metrics")?
-                    .set_default("observability.log_level", "info")?;
+                    .set_default("observability.log_level", "info")?
+                    .set_default("executor.enabled", true)?
+                    .set_default("executor.default_executor", "shell")?;
             }
         }
         
@@ -182,6 +187,7 @@ impl ConfigValidator for AppConfig {
         self.worker.validate()?;
         self.api.validate()?;
         self.observability.validate()?;
+        self.executor.validate()?;
         self.resilience.validate()?;
         Ok(())
     }

@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
-use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_foundation::{SchedulerError, SchedulerResult};
 use scheduler_domain::entities::Task;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 

@@ -2,42 +2,7 @@ use anyhow::Result;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-#[derive(Debug, Clone)]
-pub struct LoggingConfig {
-    pub level: String,
-    pub format: LogFormat,
-    pub output: LogOutput,
-    pub include_location: bool,
-    pub include_thread_id: bool,
-    pub include_thread_name: bool,
-}
-
-#[derive(Debug, Clone)]
-pub enum LogFormat {
-    Json,
-    Pretty,
-    Compact,
-}
-
-#[derive(Debug, Clone)]
-pub enum LogOutput {
-    Stdout,
-    Stderr,
-    File(String),
-}
-
-impl Default for LoggingConfig {
-    fn default() -> Self {
-        Self {
-            level: "info".to_string(),
-            format: LogFormat::Json,
-            output: LogOutput::Stdout,
-            include_location: true,
-            include_thread_id: false,
-            include_thread_name: false,
-        }
-    }
-}
+use crate::structured_logger::{LoggingConfig, LogFormat};
 
 pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
     use tracing_subscriber::fmt::format::FmtSpan;

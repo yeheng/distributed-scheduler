@@ -7,10 +7,11 @@ use futures::stream::{self, StreamExt};
 use tracing::{debug, error, info, warn};
 
 use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_core::{traits::MessageQueue, SchedulerError, SchedulerResult, SchedulerStats};
+use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult, SchedulerStats};
 use scheduler_domain::entities::{Message, Task, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_infrastructure::{MetricsCollector, StructuredLogger, TaskTracer, TimeoutUtils};
+use scheduler_infrastructure::TimeoutUtils;
+use scheduler_observability::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
 use crate::cron_utils::CronScheduler;

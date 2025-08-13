@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use scheduler_core::{
+use scheduler_foundation::{
     models::task_status_update::TaskStatusUpdate,
     traits::{ExecutorRegistry, WorkerServiceTrait},
     SchedulerResult, ServiceLocator,
@@ -274,7 +274,7 @@ impl WorkerServiceBuilder {
 
     pub async fn build(self) -> SchedulerResult<WorkerService> {
         let executor_registry = self.executor_registry.ok_or_else(|| {
-            scheduler_core::SchedulerError::Internal("Executor registry is required".to_string())
+            scheduler_foundation::SchedulerError::Internal("Executor registry is required".to_string())
         })?;
 
         Ok(WorkerService::new(

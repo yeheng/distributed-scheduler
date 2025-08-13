@@ -10,7 +10,7 @@ pub use metrics_collector::RedisStreamMetrics;
 pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
-use scheduler_core::{traits::MessageQueue, SchedulerResult};
+use scheduler_foundation::{traits::MessageQueue, SchedulerResult};
 use scheduler_domain::entities::Message;
 use std::sync::Arc;
 

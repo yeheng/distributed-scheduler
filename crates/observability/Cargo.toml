@@ -1,0 +1,32 @@
+[package]
+name = "scheduler-observability"
+version = "0.1.0"
+edition = "2021"
+description = "Observability and monitoring for the distributed task scheduler"
+
+[dependencies]
+scheduler-foundation = { path = "../foundation" }
+scheduler-domain = { path = "../domain" }
+scheduler-config = { path = "../config" }
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+async-trait = { workspace = true }
+tracing = { workspace = true }
+# OpenTelemetry dependencies
+opentelemetry = { workspace = true }
+opentelemetry-otlp = { workspace = true }
+opentelemetry_sdk = { workspace = true }
+opentelemetry-semantic-conventions = { workspace = true }
+tracing-opentelemetry = { workspace = true }
+tracing-subscriber = { workspace = true }
+metrics = { workspace = true }
+metrics-exporter-prometheus = { workspace = true }
+prometheus = { workspace = true }
+
+[dev-dependencies]
+scheduler-testing-utils = { path = "../testing-utils" }

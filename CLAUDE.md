@@ -13,7 +13,7 @@ The project uses a multi-crate workspace structure with the following key module
 
 ### Core Modules
 
-- **`crates/core/`** - Foundation module containing data models, service interfaces, configuration management, logging, and error handling
+- **`crates/foundation/`** - Foundation module providing core abstractions, service interfaces, dependency injection, and essential building blocks for the scheduler ecosystem
 - **`crates/api/`** - REST API service built with Axum framework for HTTP interfaces
 - **`crates/dispatcher/`** - Task scheduler core responsible for scheduling strategies, dependency management, and cron jobs
 - **`crates/worker/`** - Worker node service for task execution, heartbeat management, and lifecycle control
@@ -42,7 +42,7 @@ cargo build --release
 cargo test
 
 # Run tests for specific crate
-cargo test -p scheduler-core
+cargo test -p scheduler-foundation
 
 # Run integration tests
 cargo test --test integration_tests

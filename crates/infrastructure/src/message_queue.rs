@@ -3,9 +3,9 @@ use lapin::{
     options::*, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties,
     Consumer, Queue,
 };
-use scheduler_core::traits::MessageQueue;
+use scheduler_foundation::traits::MessageQueue;
 use scheduler_config::models::MessageQueueConfig;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::Message;
 use scheduler_errors::SchedulerError;
 use std::sync::Arc;

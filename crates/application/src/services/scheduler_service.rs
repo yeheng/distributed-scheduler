@@ -4,7 +4,7 @@ use tracing::{debug, error, info};
 use futures::stream::{self, StreamExt};
 
 use crate::interfaces::service_interfaces::{task_services::TaskSchedulerService, SchedulerStats};
-use scheduler_core::{traits::MessageQueue, SchedulerError, SchedulerResult};
+use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
 use scheduler_domain::entities::{Message, Task, TaskRun};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 

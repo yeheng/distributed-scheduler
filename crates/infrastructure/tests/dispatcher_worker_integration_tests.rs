@@ -1,6 +1,6 @@
 use chrono::Utc;
-use scheduler_core::traits::MockMessageQueue;
-use scheduler_core::MessageQueue;
+use scheduler_foundation::traits::MockMessageQueue;
+use scheduler_foundation::MessageQueue;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{

@@ -3,7 +3,7 @@
 use super::{CacheService, CacheStats};
 use crate::cache::config::CacheConfig;
 use async_trait::async_trait;
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
 use std::sync::Arc;
 use std::time::Duration;
@@ -26,7 +26,7 @@ impl RedisCacheManager {
     /// Create a new Redis cache manager
     pub async fn new(config: CacheConfig) -> SchedulerResult<Self> {
         if !config.enabled {
-            return Err(scheduler_core::SchedulerError::Configuration(
+            return Err(SchedulerError::Configuration(
                 "Cache is disabled".to_string(),
             ));
         }

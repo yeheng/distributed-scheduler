@@ -4,7 +4,7 @@ use std::time::Instant;
 
 use tracing::{debug, warn};
 
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::Message;
 use scheduler_errors::SchedulerError;
 

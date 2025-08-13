@@ -4,7 +4,7 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tracing::{debug, error, info, warn};
 
-use scheduler_core::{
+use scheduler_foundation::{
     traits::{MessageQueue, StateListenerService},
     SchedulerError, SchedulerResult,
 };

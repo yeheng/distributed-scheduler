@@ -16,7 +16,7 @@ pub use manager::*;
 pub use repository::*;
 pub use metrics::*;
 
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
 
 /// Cache key prefix patterns for different data types

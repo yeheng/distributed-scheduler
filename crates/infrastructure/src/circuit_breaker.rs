@@ -6,12 +6,10 @@
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 
-use serde::{Deserialize, Serialize};
 use tokio::sync::RwLock;
-use tracing::{debug, error, info, warn};
 
 use scheduler_config::{CircuitBreakerConfig, CircuitState};
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
 
 /// Circuit breaker statistics

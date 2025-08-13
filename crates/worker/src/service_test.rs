@@ -2,7 +2,7 @@
 mod tests {
     use std::sync::Arc;
 
-    use scheduler_core::{
+    use scheduler_foundation::{
         prelude::{ApplicationContext, DefaultExecutorRegistry},
         traits::WorkerServiceTrait,
         ServiceLocator,

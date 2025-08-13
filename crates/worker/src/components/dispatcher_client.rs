@@ -1,5 +1,5 @@
 use reqwest;
-use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_foundation::{SchedulerError, SchedulerResult};
 use scheduler_domain::entities::WorkerInfo;
 use serde_json::json;
 use tracing::{debug, error, info, warn};
@@ -40,7 +40,7 @@ impl DispatcherClient {
             supported_task_types,
             max_concurrent_tasks: 5, // This should be configurable
             current_task_count: 0,
-            status: scheduler_core::WorkerStatus::Alive,
+            status: scheduler_foundation::WorkerStatus::Alive,
             last_heartbeat: chrono::Utc::now(),
             registered_at: chrono::Utc::now(),
         };

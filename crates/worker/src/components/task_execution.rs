@@ -2,7 +2,7 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
-use scheduler_core::{
+use scheduler_foundation::{
     traits::{ExecutorRegistry, ResourceLimits, TaskExecutionContext},
     SchedulerError, SchedulerResult,
 };

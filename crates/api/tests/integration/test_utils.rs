@@ -1,5 +1,5 @@
 use scheduler_api::routes::{create_routes, AppState};
-use scheduler_core::traits::TaskControlService;
+use scheduler_foundation::traits::TaskControlService;
 use scheduler_domain::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
@@ -111,7 +111,7 @@ impl TaskControlService for MockTaskControlService {
     async fn trigger_task(
         &self,
         task_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
+    ) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
 
         Ok(TaskRunBuilder::new()
@@ -120,18 +120,18 @@ impl TaskControlService for MockTaskControlService {
             .build())
     }
 
-    async fn pause_task(&self, _task_id: i64) -> scheduler_core::SchedulerResult<()> {
+    async fn pause_task(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<()> {
         Ok(())
     }
 
-    async fn resume_task(&self, _task_id: i64) -> scheduler_core::SchedulerResult<()> {
+    async fn resume_task(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<()> {
         Ok(())
     }
 
     async fn restart_task_run(
         &self,
         task_run_id: i64,
-    ) -> scheduler_core::SchedulerResult<scheduler_domain::entities::TaskRun> {
+    ) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::TaskRun> {
         use chrono::Utc;
 
         Ok(TaskRunBuilder::new()
@@ -141,15 +141,15 @@ impl TaskControlService for MockTaskControlService {
             .build())
     }
 
-    async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_core::SchedulerResult<()> {
+    async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_foundation::SchedulerResult<()> {
         Ok(())
     }
 
-    async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_core::SchedulerResult<usize> {
+    async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<usize> {
         Ok(0)
     }
 
-    async fn has_running_instances(&self, _task_id: i64) -> scheduler_core::SchedulerResult<bool> {
+    async fn has_running_instances(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<bool> {
         Ok(false)
     }
 
@@ -157,7 +157,7 @@ impl TaskControlService for MockTaskControlService {
         &self,
         _task_id: i64,
         _limit: usize,
-    ) -> scheduler_core::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+    ) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
         Ok(Vec::new())
     }
 }

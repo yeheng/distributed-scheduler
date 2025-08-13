@@ -1,6 +1,6 @@
 use axum::{
     middleware,
-    routing::{get, post},
+    routing::{get, post, patch},
     Router,
 };
 use std::sync::Arc;
@@ -13,7 +13,7 @@ use crate::{
         system::{get_system_health, get_system_stats},
         tasks::{
             create_task, delete_task, get_task, get_task_execution_stats, get_task_run,
-            get_task_runs, list_tasks, trigger_task, update_task,
+            get_task_runs, list_tasks, patch_task, trigger_task, update_task,
         },
         workers::{get_worker, get_worker_stats, list_workers},
     },
@@ -24,7 +24,7 @@ pub struct AppState {
     pub task_repo: Arc<dyn scheduler_domain::repositories::TaskRepository>,
     pub task_run_repo: Arc<dyn scheduler_domain::repositories::TaskRunRepository>,
     pub worker_repo: Arc<dyn scheduler_domain::repositories::WorkerRepository>,
-    pub task_controller: Arc<dyn scheduler_core::traits::TaskControlService>,
+    pub task_controller: Arc<dyn scheduler_foundation::traits::TaskControlService>,
     pub auth_config: Arc<AuthConfig>,
     pub rate_limiter: Option<Arc<crate::middleware::RateLimiter>>,
 }
@@ -43,7 +43,7 @@ pub fn create_routes(state: AppState) -> Router {
         
         // Task endpoints - require authentication
         .route("/api/tasks", get(list_tasks).post(create_task))
-        .route("/api/tasks/{id}", get(get_task).put(update_task).delete(delete_task))
+        .route("/api/tasks/{id}", get(get_task).put(update_task).patch(patch_task).delete(delete_task))
         .route("/api/tasks/{id}/trigger", post(trigger_task))
         .route("/api/tasks/{id}/runs", get(get_task_runs))
         .route("/api/tasks/{id}/stats", get(get_task_execution_stats))

@@ -5,7 +5,7 @@ edition = "2021"
 
 [dependencies]
 # Core dependencies
-scheduler-core = { path = "../core" }
+scheduler-foundation = { path = "../foundation" }
 scheduler-domain = { path = "../domain" }
 
 # Async runtime

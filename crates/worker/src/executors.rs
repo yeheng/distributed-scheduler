@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
-use scheduler_core::traits::{ExecutorStatus, TaskExecutionContext, TaskExecutor};
-use scheduler_core::{SchedulerError, SchedulerResult};
+use scheduler_foundation::traits::{ExecutorStatus, TaskExecutionContext, TaskExecutor};
+use scheduler_foundation::{SchedulerError, SchedulerResult};
 use scheduler_domain::entities::TaskResult;
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};

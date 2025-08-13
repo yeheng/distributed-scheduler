@@ -1,5 +1,5 @@
 use chrono::Utc;
-use scheduler_core::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
+use scheduler_foundation::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
 use scheduler_domain::{
     StatusUpdateMessage, TaskControlAction, TaskControlMessage, WorkerHeartbeatMessage,
 };

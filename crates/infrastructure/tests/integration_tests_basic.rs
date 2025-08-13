@@ -1,6 +1,6 @@
 use anyhow::Result;
 use chrono::Utc;
-use scheduler_core::SchedulerError;
+use scheduler_foundation::SchedulerError;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
 use scheduler_infrastructure::database::postgres::{

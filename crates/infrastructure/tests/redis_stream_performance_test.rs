@@ -1,5 +1,5 @@
 use anyhow::Result;
-use scheduler_core::traits::MessageQueue;
+use scheduler_foundation::traits::MessageQueue;
 use scheduler_domain::entities::{Message, TaskExecutionMessage};
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;

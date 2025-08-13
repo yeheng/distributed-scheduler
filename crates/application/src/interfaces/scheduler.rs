@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 
-use scheduler_core::{SchedulerResult, TaskStatusUpdate};
+use scheduler_foundation::{SchedulerResult, TaskStatusUpdate};
 use scheduler_domain::entities::{Task, TaskRun, WorkerInfo};
 
 #[async_trait]

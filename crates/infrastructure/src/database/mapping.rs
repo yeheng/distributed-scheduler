@@ -3,7 +3,7 @@
 //! This module provides helper functions for parsing complex JSON fields
 //! from database rows, handling the differences between PostgreSQL and SQLite.
 
-use scheduler_core::SchedulerResult;
+use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::ShardConfig;
 use scheduler_errors::SchedulerError;
 
