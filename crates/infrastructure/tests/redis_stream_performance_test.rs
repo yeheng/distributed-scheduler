@@ -1,6 +1,6 @@
 use anyhow::Result;
-use scheduler_foundation::traits::MessageQueue;
 use scheduler_domain::entities::{Message, TaskExecutionMessage};
+use scheduler_foundation::traits::MessageQueue;
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;
 use std::sync::atomic::{AtomicU64, Ordering};

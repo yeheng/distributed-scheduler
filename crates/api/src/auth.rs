@@ -1,6 +1,6 @@
+pub mod guards;
 pub mod models;
 pub mod service;
-pub mod guards;
 
 use axum::{
     extract::{FromRequestParts, Request, State},

@@ -9,8 +9,8 @@ use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
 
 use scheduler_config::{CircuitBreakerConfig, CircuitState};
-use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::SchedulerResult;
 
 /// Circuit breaker statistics
 #[derive(Debug, Clone)]
@@ -278,7 +278,7 @@ mod tests {
     async fn test_circuit_breaker_closed_state() {
         let cb = CircuitBreaker::new();
         assert_eq!(cb.get_state().await.unwrap(), CircuitState::Closed);
-        
+
         let result = cb.execute(|| async { Ok::<(), SchedulerError>(()) }).await;
         assert!(result.is_ok());
         assert_eq!(cb.get_state().await.unwrap(), CircuitState::Closed);
@@ -301,7 +301,7 @@ mod tests {
         }
 
         assert_eq!(cb.get_state().await.unwrap(), CircuitState::Open);
-        
+
         let result = cb.execute(|| async { Ok::<(), SchedulerError>(()) }).await;
         assert!(result.is_err());
         assert!(result

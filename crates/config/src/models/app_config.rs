@@ -79,7 +79,7 @@ impl Default for AppConfig {
 impl AppConfig {
     pub fn load(config_path: Option<&str>) -> Result<Self> {
         let mut builder = ConfigBuilder::builder();
-        
+
         if let Some(path) = config_path {
             if Path::new(path).exists() {
                 builder = builder.add_source(File::new(path, FileFormat::Toml));
@@ -101,7 +101,7 @@ impl AppConfig {
                     break;
                 }
             }
-            
+
             if !config_file_found {
                 builder = builder
                     .set_default("database.url", "postgresql://localhost/scheduler")?
@@ -150,30 +150,30 @@ impl AppConfig {
                     .set_default("executor.default_executor", "shell")?;
             }
         }
-        
+
         builder = builder.add_source(
             Environment::with_prefix("SCHEDULER")
                 .separator("_")
                 .try_parsing(true),
         );
-        
+
         let config: AppConfig = builder
             .build()
             .context("构建配置失败")?
             .try_deserialize()
             .context("反序列化配置失败")?;
-            
+
         config.validate()?;
 
         Ok(config)
     }
-    
+
     pub fn from_toml(toml_str: &str) -> Result<Self> {
         let config: AppConfig = toml::from_str(toml_str).context("解析TOML配置失败")?;
         config.validate()?;
         Ok(config)
     }
-    
+
     pub fn to_toml(&self) -> Result<String> {
         toml::to_string_pretty(self).context("序列化配置为TOML失败")
     }
@@ -216,10 +216,17 @@ mod tests {
     fn test_app_config_serialization() {
         let config = AppConfig::default();
         let serialized = serde_json::to_string(&config).expect("Failed to serialize");
-        let deserialized: AppConfig = serde_json::from_str(&serialized).expect("Failed to deserialize");
-        
-        assert_eq!(config.database.max_connections, deserialized.database.max_connections);
-        assert_eq!(config.dispatcher.schedule_interval_seconds, deserialized.dispatcher.schedule_interval_seconds);
+        let deserialized: AppConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(
+            config.database.max_connections,
+            deserialized.database.max_connections
+        );
+        assert_eq!(
+            config.dispatcher.schedule_interval_seconds,
+            deserialized.dispatcher.schedule_interval_seconds
+        );
     }
 
     #[test]
@@ -292,7 +299,7 @@ database_circuit_breaker = { failure_threshold = 5, recovery_timeout = 60, succe
 message_queue_circuit_breaker = { failure_threshold = 3, recovery_timeout = 30, success_threshold = 2, call_timeout = 10, backoff_multiplier = 1.5, max_recovery_timeout = 180 }
 external_service_circuit_breaker = { failure_threshold = 3, recovery_timeout = 45, success_threshold = 3, call_timeout = 15, backoff_multiplier = 2.0, max_recovery_timeout = 240 }
 "#;
-        
+
         let config = AppConfig::from_toml(toml_str).expect("Failed to parse TOML");
         assert_eq!(config.database.max_connections, 20);
         assert_eq!(config.dispatcher.schedule_interval_seconds, 5);

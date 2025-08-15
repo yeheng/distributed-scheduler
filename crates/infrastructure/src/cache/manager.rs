@@ -3,8 +3,8 @@
 use super::{CacheService, CacheStats};
 use crate::cache::config::CacheConfig;
 use async_trait::async_trait;
-use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::SchedulerResult;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
@@ -31,7 +31,10 @@ impl RedisCacheManager {
             ));
         }
 
-        info!("Creating Redis cache manager with URL: {}", config.redis_url);
+        info!(
+            "Creating Redis cache manager with URL: {}",
+            config.redis_url
+        );
 
         let client = redis::Client::open(config.redis_url.clone())
             .map_err(|e| SchedulerError::CacheError(e.to_string()))?;
@@ -47,7 +50,10 @@ impl RedisCacheManager {
             .await
             .map_err(|e| SchedulerError::CacheError(e.to_string()))?;
 
-        let key_prefix = config.key_prefix.clone().unwrap_or_else(|| "scheduler".to_string());
+        let key_prefix = config
+            .key_prefix
+            .clone()
+            .unwrap_or_else(|| "scheduler".to_string());
 
         info!("Redis cache manager created successfully");
 
@@ -109,7 +115,7 @@ impl RedisCacheManager {
     /// Get TTL for a specific key type
     fn get_ttl_for_key(&self, key: &str) -> Duration {
         let ttl_config = &self.config.ttl;
-        
+
         if key.starts_with("task:") {
             Duration::from_secs(ttl_config.task_seconds)
         } else if key.starts_with("worker:") {
@@ -253,7 +259,7 @@ impl CacheService for RedisCacheManager {
             let scan_result: Result<(u64, Vec<String>), redis::RedisError> = redis::cmd("SCAN")
                 .arg(cursor)
                 .arg("MATCH")
-                .arg(format!("{}*", full_prefix))
+                .arg(format!("{full_prefix}*"))
                 .arg("COUNT")
                 .arg(1000)
                 .query_async(&mut conn)
@@ -262,7 +268,7 @@ impl CacheService for RedisCacheManager {
             match scan_result {
                 Ok((next_cursor, batch_keys)) => {
                     keys.extend(batch_keys);
-                    
+
                     if next_cursor == 0 {
                         break;
                     }
@@ -284,16 +290,17 @@ impl CacheService for RedisCacheManager {
         // Delete all keys in batches
         let mut deleted_count = 0;
         for chunk in keys.chunks(100) {
-            let result: Result<usize, redis::RedisError> = redis::cmd("DEL")
-                .arg(chunk)
-                .query_async(&mut conn)
-                .await;
+            let result: Result<usize, redis::RedisError> =
+                redis::cmd("DEL").arg(chunk).query_async(&mut conn).await;
             match result {
                 Ok(_) => {
                     deleted_count += chunk.len();
                 }
                 Err(e) => {
-                    error!("Cache batch DELETE failed for prefix {}: {}", full_prefix, e);
+                    error!(
+                        "Cache batch DELETE failed for prefix {}: {}",
+                        full_prefix, e
+                    );
                     self.increment_errors().await;
                     return Err(SchedulerError::CacheError(e.to_string()));
                 }
@@ -352,7 +359,7 @@ mod tests {
         // This test requires a running Redis instance
         // In a real test environment, you would use testcontainers
         let result = RedisCacheManager::new(config).await;
-        
+
         // We can't guarantee Redis is running, so we just check the error type
         match result {
             Ok(_) => {

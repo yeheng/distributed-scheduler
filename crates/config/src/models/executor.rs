@@ -1,6 +1,6 @@
+use crate::validation::ConfigValidator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
-use crate::validation::ConfigValidator;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ExecutorConfig {
@@ -42,7 +42,7 @@ pub struct RetryConfig {
 impl Default for ExecutorConfig {
     fn default() -> Self {
         let mut executors = HashMap::new();
-        
+
         executors.insert(
             "shell".to_string(),
             ExecutorInstanceConfig {
@@ -55,7 +55,7 @@ impl Default for ExecutorConfig {
                 retry_config: Some(RetryConfig::default()),
             },
         );
-        
+
         executors.insert(
             "http".to_string(),
             ExecutorInstanceConfig {
@@ -127,7 +127,7 @@ mod tests {
             timeout_seconds: Some(120),
             retry_config: None,
         };
-        
+
         assert_eq!(config.executor_type, "test");
         assert_eq!(config.priority, 50);
         assert_eq!(config.max_concurrent_tasks, Some(5));
@@ -209,8 +209,7 @@ impl ConfigValidator for ExecutorConfig {
         if let Some(ref default_executor) = self.default_executor {
             if !self.executors.contains_key(default_executor) {
                 return Err(crate::ConfigError::Validation(format!(
-                    "Default executor '{}' not found in executor configurations",
-                    default_executor
+                    "Default executor '{default_executor}' not found in executor configurations"
                 )));
             }
         }
@@ -219,15 +218,13 @@ impl ConfigValidator for ExecutorConfig {
         for (name, executor_config) in &self.executors {
             if executor_config.executor_type.is_empty() {
                 return Err(crate::ConfigError::Validation(format!(
-                    "Executor '{}' has empty executor_type",
-                    name
+                    "Executor '{name}' has empty executor_type"
                 )));
             }
 
             if executor_config.supported_task_types.is_empty() {
                 return Err(crate::ConfigError::Validation(format!(
-                    "Executor '{}' has no supported task types",
-                    name
+                    "Executor '{name}' has no supported task types"
                 )));
             }
 
@@ -235,20 +232,17 @@ impl ConfigValidator for ExecutorConfig {
             if let Some(ref retry_config) = executor_config.retry_config {
                 if retry_config.max_retries == 0 {
                     return Err(crate::ConfigError::Validation(format!(
-                        "Executor '{}' has max_retries set to 0",
-                        name
+                        "Executor '{name}' has max_retries set to 0"
                     )));
                 }
                 if retry_config.base_delay_ms == 0 {
                     return Err(crate::ConfigError::Validation(format!(
-                        "Executor '{}' has base_delay_ms set to 0",
-                        name
+                        "Executor '{name}' has base_delay_ms set to 0"
                     )));
                 }
                 if retry_config.backoff_multiplier <= 1.0 && retry_config.max_retries > 1 {
                     return Err(crate::ConfigError::Validation(format!(
-                        "Executor '{}' has backoff_multiplier <= 1.0 with multiple retries",
-                        name
+                        "Executor '{name}' has backoff_multiplier <= 1.0 with multiple retries"
                     )));
                 }
             }

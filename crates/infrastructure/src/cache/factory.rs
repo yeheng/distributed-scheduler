@@ -4,8 +4,8 @@ use super::{
     config::CacheConfig, manager::RedisCacheManager, metrics::CacheMetrics, repository::*,
     CacheService,
 };
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::repositories::*;
+use scheduler_foundation::SchedulerResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};
@@ -28,24 +28,26 @@ impl CacheFactory {
     }
 
     /// Initialize cache service and metrics
-    pub async fn initialize(&mut self, registry: Option<&prometheus::Registry>) -> SchedulerResult<()> {
+    pub async fn initialize(
+        &mut self,
+        registry: Option<&prometheus::Registry>,
+    ) -> SchedulerResult<()> {
         if !self.config.enabled {
             info!("Cache is disabled, skipping initialization");
             return Ok(());
         }
 
-        info!("Initializing cache service with Redis URL: {}", self.config.redis_url);
+        info!(
+            "Initializing cache service with Redis URL: {}",
+            self.config.redis_url
+        );
 
         // Create Redis cache manager
         let cache_manager = RedisCacheManager::new(self.config.clone()).await?;
         let cache_service = Arc::new(cache_manager) as Arc<dyn CacheService>;
 
         // Create metrics if registry is provided
-        let metrics = if let Some(registry) = registry {
-            Some(CacheMetrics::new(registry))
-        } else {
-            None
-        };
+        let metrics = registry.map(|registry| CacheMetrics::new(registry));
 
         self.cache_service = Some(cache_service);
         self.metrics = metrics;
@@ -124,7 +126,10 @@ pub struct CacheManager {
 
 impl CacheManager {
     /// Create new cache manager
-    pub async fn new(config: CacheConfig, registry: Option<&prometheus::Registry>) -> SchedulerResult<Self> {
+    pub async fn new(
+        config: CacheConfig,
+        registry: Option<&prometheus::Registry>,
+    ) -> SchedulerResult<Self> {
         let mut factory = CacheFactory::new(config);
         factory.initialize(registry).await?;
 
@@ -152,7 +157,11 @@ impl CacheManager {
         task_repo: Arc<dyn TaskRepository>,
         worker_repo: Arc<dyn WorkerRepository>,
         task_run_repo: Arc<dyn TaskRunRepository>,
-    ) -> (Arc<dyn TaskRepository>, Arc<dyn WorkerRepository>, Arc<dyn TaskRunRepository>) {
+    ) -> (
+        Arc<dyn TaskRepository>,
+        Arc<dyn WorkerRepository>,
+        Arc<dyn TaskRunRepository>,
+    ) {
         let factory = self.factory.read().await;
 
         let cached_task_repo = factory.create_cached_task_repository(task_repo);
@@ -166,7 +175,7 @@ impl CacheManager {
     pub async fn clear_all_cache(&self) -> SchedulerResult<()> {
         if let Some(ref cache_service) = self.cache_service {
             info!("Clearing all cache");
-            
+
             // Clear all prefixes
             let prefixes = ["task", "worker", "system_stats", "task_run", "dependencies"];
             for prefix in &prefixes {
@@ -289,10 +298,10 @@ impl CacheConfigHelper {
             default_ttl_seconds: 600,
             use_cluster: false,
             ttl: super::config::CacheTtlConfig {
-                task_seconds: 600,        // 10 minutes
-                worker_seconds: 15,       // 15 seconds
-                system_stats_seconds: 30, // 30 seconds
-                task_run_seconds: 1200,   // 20 minutes
+                task_seconds: 600,         // 10 minutes
+                worker_seconds: 15,        // 15 seconds
+                system_stats_seconds: 30,  // 30 seconds
+                task_run_seconds: 1200,    // 20 minutes
                 dependencies_seconds: 300, // 5 minutes
             },
         }
@@ -342,7 +351,7 @@ mod tests {
     fn test_cache_config_validation() {
         let mut config = CacheConfig::default();
         config.enabled = true;
-        
+
         // Valid configuration
         assert!(CacheConfigHelper::validate(&config).is_ok());
 

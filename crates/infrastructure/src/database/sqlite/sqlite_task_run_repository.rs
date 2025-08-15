@@ -1,17 +1,18 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{TaskRun, TaskRunStatus},
     repositories::{TaskExecutionStats, TaskRunRepository},
 };
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::SchedulerResult;
 use sqlx::{Row, SqlitePool};
 use tracing::{debug, instrument};
 
-use crate::{task_run_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}};
+use crate::{
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    task_run_context,
+};
 
 pub struct SqliteTaskRunRepository {
     pool: SqlitePool,
@@ -49,11 +50,13 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         status = ?task_run.status,
     ))]
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
-        let context = task_run_context!(RepositoryOperation::Create, 
-            run_id = task_run.id, 
-            task_id = task_run.task_id)
-            .with_status(task_run.status)
-            .with_worker_id(task_run.worker_id.clone().unwrap_or_default());
+        let context = task_run_context!(
+            RepositoryOperation::Create,
+            run_id = task_run.id,
+            task_id = task_run.task_id
+        )
+        .with_status(task_run.status)
+        .with_worker_id(task_run.worker_id.clone().unwrap_or_default());
 
         let row = sqlx::query(
             r#"
@@ -81,9 +84,12 @@ impl TaskRunRepository for SqliteTaskRunRepository {
 
         let created_task_run = Self::row_to_task_run(&row)?;
         RepositoryErrorHelpers::log_operation_success_task_run(
-            context, 
-            &created_task_run.entity_description(), 
-            Some(&format!("状态: {:?}, Worker: {:?}", created_task_run.status, created_task_run.worker_id))
+            context,
+            &created_task_run.entity_description(),
+            Some(&format!(
+                "状态: {:?}, Worker: {:?}",
+                created_task_run.status, created_task_run.worker_id
+            )),
         );
         Ok(created_task_run)
     }

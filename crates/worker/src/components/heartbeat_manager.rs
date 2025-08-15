@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use scheduler_foundation::{models::task_status_update::TaskStatusUpdate, SchedulerResult, ServiceLocator};
 use scheduler_domain::entities::{Message, StatusUpdateMessage, TaskResult, TaskRunStatus};
+use scheduler_foundation::{
+    models::task_status_update::TaskStatusUpdate, SchedulerResult, ServiceLocator,
+};
 use tokio::sync::broadcast;
 use tokio::time::interval;
 use tracing::{error, info};
@@ -50,7 +52,7 @@ impl HeartbeatManager {
         tokio::spawn(async move {
             // Reset the interval to prevent immediate first tick
             heartbeat_interval.reset();
-            
+
             loop {
                 tokio::select! {
                     // Handle heartbeat interval tick
@@ -76,7 +78,7 @@ impl HeartbeatManager {
     }
     pub async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()> {
         use scheduler_observability::CrossComponentTracer;
-        
+
         let span = CrossComponentTracer::instrument_service_call(
             "worker",
             "send_status_update",
@@ -87,7 +89,7 @@ impl HeartbeatManager {
             ],
         );
         let _guard = span.enter();
-        
+
         let message_queue = self.service_locator.message_queue().await?;
         let status_message = StatusUpdateMessage {
             task_run_id: update.task_run_id,

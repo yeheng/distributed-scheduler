@@ -8,7 +8,6 @@ use scheduler_domain::entities::{
     Message, Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
 };
 
-
 // Core service interfaces that remain in core for backward compatibility
 #[async_trait]
 pub trait TaskControlService: Send + Sync {
@@ -81,7 +80,10 @@ pub trait WorkerServiceTrait: Send + Sync {
     async fn start(&self) -> SchedulerResult<()>;
     async fn stop(&self) -> SchedulerResult<()>;
     async fn poll_and_execute_tasks(&self) -> SchedulerResult<()>;
-    async fn send_status_update(&self, update: crate::models::task_status_update::TaskStatusUpdate) -> SchedulerResult<()>;
+    async fn send_status_update(
+        &self,
+        update: crate::models::task_status_update::TaskStatusUpdate,
+    ) -> SchedulerResult<()>;
     async fn get_current_task_count(&self) -> i32;
     async fn can_accept_task(&self, task_type: &str) -> bool;
     async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()>;
@@ -261,7 +263,10 @@ impl MockMessageQueue {
         self.nacked_messages.lock().await.clone()
     }
 
-    pub async fn get_queue_messages(&self, queue: &str) -> Vec<scheduler_domain::entities::Message> {
+    pub async fn get_queue_messages(
+        &self,
+        queue: &str,
+    ) -> Vec<scheduler_domain::entities::Message> {
         self.queues
             .lock()
             .await

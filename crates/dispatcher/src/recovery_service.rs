@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
-use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
 use scheduler_domain::entities::{TaskRun, TaskRunStatus, WorkerStatus};
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
+use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone)]
 pub struct RecoveryConfig {

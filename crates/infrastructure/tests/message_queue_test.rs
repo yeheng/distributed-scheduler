@@ -3,11 +3,9 @@ mod message_queue_test {
     use std::env;
 
     use chrono::Utc;
-    use scheduler_foundation::{
-        MessageQueue as _, TaskResult, TaskRunStatus,
-    };
     use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
     use scheduler_domain::entities::*;
+    use scheduler_foundation::{MessageQueue as _, TaskResult, TaskRunStatus};
     use scheduler_infrastructure::RabbitMQMessageQueue;
     use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
     use tokio::time::{sleep, Duration};
@@ -55,8 +53,7 @@ mod message_queue_test {
             timestamp: Utc::now(),
         };
 
-        let payload = serde_json::to_value(&message)
-            .expect("Failed to serialize message in test");
+        let payload = serde_json::to_value(&message).expect("Failed to serialize message in test");
         Message {
             id: Uuid::new_v4().to_string(),
             message_type: MessageType::StatusUpdate(message),
@@ -73,8 +70,8 @@ mod message_queue_test {
         message
     }
 
-    async fn create_rabbit_mqmessage_queue() -> scheduler_foundation::SchedulerResult<RabbitMQMessageQueue>
-    {
+    async fn create_rabbit_mqmessage_queue(
+    ) -> scheduler_foundation::SchedulerResult<RabbitMQMessageQueue> {
         let rabbitmq_image = GenericImage::new("rabbitmq", "3-management")
             .with_exposed_port(5672.tcp())
             .with_exposed_port(15672.tcp())

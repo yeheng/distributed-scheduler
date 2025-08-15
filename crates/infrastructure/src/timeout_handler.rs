@@ -3,11 +3,11 @@
 //! This module provides standardized timeout handling for all async operations
 //! including database calls, message queue operations, and external service calls.
 
-use std::time::Duration;
-use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
-use tokio::time::timeout;
+use scheduler_foundation::SchedulerResult;
 use std::future::Future;
+use std::time::Duration;
+use tokio::time::timeout;
 use tracing::{error, instrument};
 
 /// Default timeout values for different operation types
@@ -176,8 +176,7 @@ impl TimeoutHandler {
             Ok(result) => result,
             Err(_) => {
                 let error_msg = format!(
-                    "{}操作 '{}' 超时 (超时时间: {:?})",
-                    operation_type, operation_name, timeout_duration
+                    "{operation_type}操作 '{operation_name}' 超时 (超时时间: {timeout_duration:?})"
                 );
                 error!("{}", error_msg);
                 Err(SchedulerError::timeout_error(error_msg))
@@ -237,10 +236,8 @@ impl TimeoutUtils {
         match timeout(timeout_duration, operation).await {
             Ok(result) => result,
             Err(_) => {
-                let error_msg = format!(
-                    "操作 '{}' 超时 (超时时间: {:?})",
-                    operation_name, timeout_duration
-                );
+                let error_msg =
+                    format!("操作 '{operation_name}' 超时 (超时时间: {timeout_duration:?})");
                 error!("{}", error_msg);
                 Err(SchedulerError::timeout_error(error_msg))
             }
@@ -257,11 +254,11 @@ mod tests {
     #[tokio::test]
     async fn test_timeout_handler_success() {
         let handler = TimeoutHandler::with_default_config();
-        
+
         let result = handler
             .database_operation(async { Ok("success") }, "test_operation")
             .await;
-        
+
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "success");
     }
@@ -271,7 +268,7 @@ mod tests {
         let mut config = TimeoutConfig::default();
         config.database_timeout = Duration::from_millis(100);
         let handler = TimeoutHandler::new(config);
-        
+
         let result = handler
             .database_operation(
                 async {
@@ -281,7 +278,7 @@ mod tests {
                 "slow_operation",
             )
             .await;
-        
+
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert!(error.to_string().contains("超时"));
@@ -296,12 +293,8 @@ mod tests {
 
     #[tokio::test]
     async fn test_timeout_utils_custom_timeout() {
-        let result = TimeoutUtils::custom(
-            async { Ok("custom") },
-            Duration::from_secs(1),
-            "custom_op",
-        )
-        .await;
+        let result =
+            TimeoutUtils::custom(async { Ok("custom") }, Duration::from_secs(1), "custom_op").await;
         assert!(result.is_ok());
         assert_eq!(result.unwrap(), "custom");
     }

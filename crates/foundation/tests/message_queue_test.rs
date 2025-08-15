@@ -1,7 +1,9 @@
 use chrono::Utc;
-use scheduler_foundation::{traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus};
 use scheduler_domain::{
     StatusUpdateMessage, TaskControlAction, TaskControlMessage, WorkerHeartbeatMessage,
+};
+use scheduler_foundation::{
+    traits::MockMessageQueue, Message, MessageQueue, TaskResult, TaskRunStatus,
 };
 use scheduler_testing_utils::MessageBuilder;
 use std::collections::HashMap;

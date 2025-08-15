@@ -40,13 +40,18 @@ impl ExecutorFactory {
         let mut registry = self.registry.write().await;
 
         for (name, executor_config) in &self.config.executors {
-            info!("Creating executor '{}' of type '{}'", name, executor_config.executor_type);
-            
-            let executor = self.create_executor(name, executor_config).await
-                .with_context(|| format!("Failed to create executor '{}'", name))?;
-            
+            info!(
+                "Creating executor '{}' of type '{}'",
+                name, executor_config.executor_type
+            );
+
+            let executor = self
+                .create_executor(name, executor_config)
+                .await
+                .with_context(|| format!("Failed to create executor '{name}'"))?;
+
             registry.insert(name.to_string(), executor);
-            
+
             info!("Executor '{}' initialized successfully", name);
         }
 
@@ -54,8 +59,7 @@ impl ExecutorFactory {
         if let Some(ref default_executor) = self.config.default_executor {
             if !registry.contains_key(default_executor) {
                 return Err(SchedulerError::config_error(format!(
-                    "Default executor '{}' not found",
-                    default_executor
+                    "Default executor '{default_executor}' not found"
                 )));
             }
         }
@@ -82,26 +86,29 @@ impl ExecutorFactory {
                 Ok(Arc::new(executor))
             }
             "mock" => {
-                let should_succeed = config.config
+                let should_succeed = config
+                    .config
                     .as_ref()
                     .and_then(|c| c.get("should_succeed").and_then(|v| v.as_bool()))
                     .unwrap_or(true);
-                
-                let execution_time_ms = config.config
+
+                let execution_time_ms = config
+                    .config
                     .as_ref()
                     .and_then(|c| c.get("execution_time_ms").and_then(|v| v.as_u64()))
                     .unwrap_or(100);
-                
-                let executor = MockTaskExecutor::new(name.to_string(), should_succeed, execution_time_ms);
-                info!("Created Mock executor: {} (success={}, time={}ms)", name, should_succeed, execution_time_ms);
+
+                let executor =
+                    MockTaskExecutor::new(name.to_string(), should_succeed, execution_time_ms);
+                info!(
+                    "Created Mock executor: {} (success={}, time={}ms)",
+                    name, should_succeed, execution_time_ms
+                );
                 Ok(Arc::new(executor))
             }
-            executor_type => {
-                Err(SchedulerError::config_error(format!(
-                    "Unknown executor type: {}",
-                    executor_type
-                )))
-            }
+            executor_type => Err(SchedulerError::config_error(format!(
+                "Unknown executor type: {executor_type}"
+            ))),
         }
     }
 
@@ -122,18 +129,24 @@ impl ExecutorFactory {
     }
 
     /// Get executor by task type
-    pub async fn get_executor_by_task_type(&self, task_type: &str) -> Option<Arc<dyn TaskExecutor>> {
+    pub async fn get_executor_by_task_type(
+        &self,
+        task_type: &str,
+    ) -> Option<Arc<dyn TaskExecutor>> {
         let registry = self.registry.read().await;
-        
+
         // Find executors that support the given task type
         for (name, executor_config) in &self.config.executors {
-            if executor_config.supported_task_types.contains(&task_type.to_string()) {
+            if executor_config
+                .supported_task_types
+                .contains(&task_type.to_string())
+            {
                 if let Some(executor) = registry.get(name) {
                     return Some(Arc::clone(executor));
                 }
             }
         }
-        
+
         None
     }
 
@@ -151,25 +164,27 @@ impl ExecutorFactory {
     /// Reload configuration and reinitialize executors
     pub async fn reload_config(&mut self, new_config: ExecutorConfig) -> SchedulerResult<()> {
         info!("Reloading executor configuration");
-        
+
         // Clear existing executors
         {
             let mut registry = self.registry.write().await;
             registry.clear();
         }
-        
+
         // Update configuration
         self.config = new_config;
-        
+
         // Reinitialize executors
         self.initialize().await?;
-        
+
         info!("Executor configuration reloaded successfully");
         Ok(())
     }
 
     /// Get executor status for all executors
-    pub async fn get_all_executor_status(&self) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
+    pub async fn get_all_executor_status(
+        &self,
+    ) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
         let registry = self.registry.read().await;
         let mut statuses = HashMap::new();
 
@@ -221,7 +236,7 @@ impl ExecutorFactory {
     /// Warm up all executors
     pub async fn warm_up_all(&self) -> SchedulerResult<()> {
         let registry = self.registry.read().await;
-        
+
         for (name, executor) in registry.iter() {
             if let Err(e) = executor.warm_up().await {
                 warn!("Warm up failed for executor '{}': {}", name, e);
@@ -229,14 +244,14 @@ impl ExecutorFactory {
                 info!("Executor '{}' warmed up successfully", name);
             }
         }
-        
+
         Ok(())
     }
 
     /// Clean up all executors
     pub async fn cleanup_all(&self) -> SchedulerResult<()> {
         let registry = self.registry.read().await;
-        
+
         for (name, executor) in registry.iter() {
             if let Err(e) = executor.cleanup().await {
                 error!("Cleanup failed for executor '{}': {}", name, e);
@@ -244,7 +259,7 @@ impl ExecutorFactory {
                 info!("Executor '{}' cleaned up successfully", name);
             }
         }
-        
+
         Ok(())
     }
 }
@@ -289,7 +304,9 @@ impl ExecutorRegistry for ExecutorFactory {
         registry.len()
     }
 
-    async fn get_all_status(&self) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
+    async fn get_all_status(
+        &self,
+    ) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
         self.get_all_executor_status().await
     }
 
@@ -302,11 +319,11 @@ impl ExecutorRegistry for ExecutorFactory {
         task_type: &str,
     ) -> SchedulerResult<Vec<Arc<dyn TaskExecutor>>> {
         let mut matching_executors = Vec::new();
-        
+
         if let Some(executor) = self.get_executor_by_task_type(task_type).await {
             matching_executors.push(executor);
         }
-        
+
         Ok(matching_executors)
     }
 }
@@ -320,7 +337,7 @@ mod tests {
     async fn test_executor_factory_creation() {
         let config = ExecutorConfig::default();
         let factory = ExecutorFactory::new(config);
-        
+
         assert_eq!(factory.list_executors().await.len(), 0);
     }
 
@@ -328,10 +345,10 @@ mod tests {
     async fn test_executor_factory_initialization() {
         let config = ExecutorConfig::default();
         let factory = ExecutorFactory::new(config);
-        
+
         let result = factory.initialize().await;
         assert!(result.is_ok());
-        
+
         assert_eq!(factory.list_executors().await.len(), 2);
         assert!(factory.contains("shell").await);
         assert!(factory.contains("http").await);
@@ -342,10 +359,10 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = ExecutorFactory::new(config);
         factory.initialize().await.unwrap();
-        
+
         let shell_executor = factory.get_executor("shell").await;
         assert!(shell_executor.is_some());
-        
+
         let nonexistent = factory.get_executor("nonexistent").await;
         assert!(nonexistent.is_none());
     }
@@ -355,10 +372,10 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = ExecutorFactory::new(config);
         factory.initialize().await.unwrap();
-        
+
         let default_executor = factory.get_default_executor().await;
         assert!(default_executor.is_some());
-        
+
         let executor = default_executor.unwrap();
         assert_eq!(executor.name(), "shell");
     }
@@ -368,13 +385,13 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = ExecutorFactory::new(config);
         factory.initialize().await.unwrap();
-        
+
         let shell_executor = factory.get_executor_by_task_type("shell").await;
         assert!(shell_executor.is_some());
-        
+
         let http_executor = factory.get_executor_by_task_type("http").await;
         assert!(http_executor.is_some());
-        
+
         let nonexistent = factory.get_executor_by_task_type("nonexistent").await;
         assert!(nonexistent.is_none());
     }
@@ -382,7 +399,7 @@ mod tests {
     #[tokio::test]
     async fn test_executor_factory_with_mock() {
         let mut config = ExecutorConfig::default();
-        
+
         config.executors.insert(
             "test_mock".to_string(),
             ExecutorInstanceConfig {
@@ -398,15 +415,18 @@ mod tests {
                 retry_config: Some(RetryConfig::default()),
             },
         );
-        
+
         let factory = ExecutorFactory::new(config);
         factory.initialize().await.unwrap();
-        
+
         let mock_executor = factory.get_executor("test_mock").await;
         assert!(mock_executor.is_some());
-        
+
         let executor = mock_executor.unwrap();
         assert_eq!(executor.name(), "test_mock");
-        assert_eq!(executor.supported_task_types(), vec!["test_mock".to_string()]);
+        assert_eq!(
+            executor.supported_task_types(),
+            vec!["test_mock".to_string()]
+        );
     }
 }

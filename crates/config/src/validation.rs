@@ -12,13 +12,13 @@ impl ValidationUtils {
     /// Validate that a string is not empty
     pub fn validate_not_empty(value: &str, field_name: &str) -> ConfigResult<()> {
         if value.trim().is_empty() {
-            return Err(crate::ConfigError::Validation(
-                format!("{field_name} cannot be empty"),
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "{field_name} cannot be empty"
+            )));
         }
         Ok(())
     }
-    
+
     /// Validate that a port number is valid
     pub fn validate_port(port: u16) -> ConfigResult<()> {
         if port == 0 {
@@ -28,7 +28,7 @@ impl ValidationUtils {
         }
         Ok(())
     }
-    
+
     /// Validate that a timeout is reasonable
     pub fn validate_timeout_seconds(timeout_seconds: u64) -> ConfigResult<()> {
         if timeout_seconds == 0 {
@@ -43,37 +43,37 @@ impl ValidationUtils {
         }
         Ok(())
     }
-    
+
     /// Validate that a count is reasonable
     pub fn validate_count(count: usize, field_name: &str) -> ConfigResult<()> {
         if count == 0 {
-            return Err(crate::ConfigError::Validation(
-                format!("{field_name} must be greater than 0"),
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "{field_name} must be greater than 0"
+            )));
         }
         if count > 10000 {
-            return Err(crate::ConfigError::Validation(
-                format!("{field_name} must be less than or equal to 10000"),
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "{field_name} must be less than or equal to 10000"
+            )));
         }
         Ok(())
     }
-    
+
     /// Validate that a URL has a valid format
     pub fn validate_url(url: &str, field_name: &str) -> ConfigResult<()> {
         if url.trim().is_empty() {
-            return Err(crate::ConfigError::Validation(
-                format!("{field_name} cannot be empty"),
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "{field_name} cannot be empty"
+            )));
         }
-        
+
         // Basic URL format validation
         if !url.contains("://") {
-            return Err(crate::ConfigError::Validation(
-                format!("{field_name} must be a valid URL with protocol"),
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "{field_name} must be a valid URL with protocol"
+            )));
         }
-        
+
         Ok(())
     }
 }

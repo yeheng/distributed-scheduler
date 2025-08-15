@@ -3,11 +3,8 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
-use scheduler_foundation::{
-    traits::MessageQueue,
-    SchedulerResult,
-};
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::{traits::MessageQueue, SchedulerResult};
 
 use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};
 
@@ -86,7 +83,7 @@ impl MessageQueueFactory {
             database,
             password,
             connection_timeout_seconds: config.connection_timeout_seconds,
-            max_retry_attempts: config.max_retries as u32,
+            max_retry_attempts: config.max_retries,
             retry_delay_seconds: config.retry_delay_seconds,
             consumer_group_prefix: "scheduler".to_string(),
             consumer_id: format!("consumer_{}", &uuid::Uuid::new_v4().to_string()[..8]),

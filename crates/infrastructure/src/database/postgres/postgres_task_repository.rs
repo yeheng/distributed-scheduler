@@ -1,18 +1,20 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskStatus},
     repositories::TaskRepository,
     task_query_builder::{TaskQueryBuilder, TaskQueryParam},
 };
+use scheduler_foundation::SchedulerResult;
 use sqlx::{PgPool, Row};
 use tracing::{debug, instrument};
 
 use super::task_dependency_checker::TaskDependencyChecker;
-use crate::{task_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}, timeout_handler::TimeoutUtils};
+use crate::{
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    task_context,
+    timeout_handler::TimeoutUtils,
+};
 
 pub struct PostgresTaskRepository {
     pool: PgPool,
@@ -84,10 +86,12 @@ impl TaskRepository for PostgresTaskRepository {
         task_type = %task.task_type,
     ))]
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
-        let context = task_context!(RepositoryOperation::Create, 
-            task_id = task.id, 
-            task_name = &task.name)
-            .with_task_type(task.task_type.clone());
+        let context = task_context!(
+            RepositoryOperation::Create,
+            task_id = task.id,
+            task_name = &task.name
+        )
+        .with_task_type(task.task_type.clone());
 
         let shard_config_json = task
             .shard_config
@@ -124,9 +128,12 @@ impl TaskRepository for PostgresTaskRepository {
 
         let created_task = Self::row_to_task(&row)?;
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &created_task.entity_description(), 
-            Some(&format!("ID: {}, 类型: {}", created_task.id, created_task.task_type))
+            context,
+            &created_task.entity_description(),
+            Some(&format!(
+                "ID: {}, 类型: {}",
+                created_task.id, created_task.task_type
+            )),
         );
         Ok(created_task)
     }
@@ -144,7 +151,7 @@ impl TaskRepository for PostgresTaskRepository {
                 .await
                 .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))
             },
-            &format!("查询任务 ID {}", id),
+            &format!("查询任务 ID {id}"),
         )
         .await?;
 
@@ -190,10 +197,12 @@ impl TaskRepository for PostgresTaskRepository {
         task_type = %task.task_type,
     ))]
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
-        let context = task_context!(RepositoryOperation::Update, 
-            task_id = task.id, 
-            task_name = &task.name)
-            .with_task_type(task.task_type.clone());
+        let context = task_context!(
+            RepositoryOperation::Update,
+            task_id = task.id,
+            task_name = &task.name
+        )
+        .with_task_type(task.task_type.clone());
 
         let shard_config_json = task
             .shard_config
@@ -230,9 +239,12 @@ impl TaskRepository for PostgresTaskRepository {
         }
 
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &task.entity_description(), 
-            Some(&format!("状态: {:?}, 类型: {}", task.status, task.task_type))
+            context,
+            &task.entity_description(),
+            Some(&format!(
+                "状态: {:?}, 类型: {}",
+                task.status, task.task_type
+            )),
         );
         Ok(())
     }
@@ -250,11 +262,7 @@ impl TaskRepository for PostgresTaskRepository {
             return Err(RepositoryErrorHelpers::task_not_found(context));
         }
 
-        RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &format!("任务 (ID: {})", id), 
-            None
-        );
+        RepositoryErrorHelpers::log_operation_success(context, &format!("任务 (ID: {id})"), None);
         Ok(())
     }
     #[instrument(skip(self, filter), fields(
@@ -265,7 +273,7 @@ impl TaskRepository for PostgresTaskRepository {
     ))]
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
         let context = task_context!(RepositoryOperation::Query)
-            .with_additional_info(format!("过滤器: {:?}", filter));
+            .with_additional_info(format!("过滤器: {filter:?}"));
 
         let (query, params) = TaskQueryBuilder::build_select_query(filter);
 
@@ -315,8 +323,9 @@ impl TaskRepository for PostgresTaskRepository {
             return Ok(());
         }
 
-        let context = task_context!(RepositoryOperation::BatchUpdate)
-            .with_additional_info(format!("批量更新 {} 个任务状态为 {:?}", task_ids.len(), status));
+        let context = task_context!(RepositoryOperation::BatchUpdate).with_additional_info(
+            format!("批量更新 {} 个任务状态为 {:?}", task_ids.len(), status),
+        );
 
         let query = TaskQueryBuilder::build_batch_update_query();
         let status_str = match status {
@@ -332,9 +341,13 @@ impl TaskRepository for PostgresTaskRepository {
             .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &format!("批量任务状态更新"), 
-            Some(&format!("更新了 {} 个任务的状态为 {}", result.rows_affected(), status_str))
+            context,
+            &"批量任务状态更新".to_string(),
+            Some(&format!(
+                "更新了 {} 个任务的状态为 {}",
+                result.rows_affected(),
+                status_str
+            )),
         );
         Ok(())
     }

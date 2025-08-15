@@ -1,8 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
-use scheduler_foundation::{models::task_status_update::TaskStatusUpdate, SchedulerError, SchedulerResult, ServiceLocator};
 use scheduler_domain::entities::TaskControlMessage;
+use scheduler_foundation::{
+    models::task_status_update::TaskStatusUpdate, SchedulerError, SchedulerResult, ServiceLocator,
+};
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{error, info, warn};
@@ -161,7 +163,7 @@ impl WorkerLifecycle {
             use scheduler_observability::MessageTracingExt;
             let span = message.create_span("consume");
             let _guard = span.enter();
-            
+
             match &message.message_type {
                 scheduler_domain::entities::MessageType::TaskExecution(task_execution) => {
                     let task_execution = task_execution.clone();

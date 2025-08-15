@@ -1,11 +1,11 @@
-use scheduler_domain::entities::Message;
 use crate::CrossComponentTracer;
+use scheduler_domain::entities::Message;
 
 /// Extension trait to add tracing capabilities to messages
 pub trait MessageTracingExt {
     /// Inject current tracing context into the message
     fn inject_current_trace_context(self) -> Self;
-    
+
     /// Create an instrumented span from this message
     fn create_span(&self, operation: &str) -> tracing::Span;
 }
@@ -19,7 +19,7 @@ impl MessageTracingExt for Message {
         }
         self
     }
-    
+
     fn create_span(&self, operation: &str) -> tracing::Span {
         CrossComponentTracer::create_span_from_message(self, operation)
     }

@@ -2,7 +2,7 @@ use anyhow::Result;
 use tracing::info;
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
-use crate::structured_logger::{LoggingConfig, LogFormat};
+use crate::structured_logger::{LogFormat, LoggingConfig};
 
 pub fn init_structured_logging(config: LoggingConfig) -> Result<()> {
     use tracing_subscriber::fmt::format::FmtSpan;

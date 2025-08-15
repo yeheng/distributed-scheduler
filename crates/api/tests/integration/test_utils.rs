@@ -1,6 +1,6 @@
 use scheduler_api::routes::{create_routes, AppState};
-use scheduler_foundation::traits::TaskControlService;
 use scheduler_domain::{TaskRepository, TaskRunRepository, WorkerRepository};
+use scheduler_foundation::traits::TaskControlService;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
@@ -145,11 +145,17 @@ impl TaskControlService for MockTaskControlService {
         Ok(())
     }
 
-    async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<usize> {
+    async fn cancel_all_task_runs(
+        &self,
+        _task_id: i64,
+    ) -> scheduler_foundation::SchedulerResult<usize> {
         Ok(0)
     }
 
-    async fn has_running_instances(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<bool> {
+    async fn has_running_instances(
+        &self,
+        _task_id: i64,
+    ) -> scheduler_foundation::SchedulerResult<bool> {
         Ok(false)
     }
 

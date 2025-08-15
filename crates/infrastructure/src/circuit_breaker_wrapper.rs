@@ -5,15 +5,17 @@
 
 use std::sync::Arc;
 
+use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerMiddleware};
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_config::CircuitBreakerConfig;
-use scheduler_foundation::SchedulerResult;
-use crate::circuit_breaker::{CircuitBreaker, CircuitBreakerMiddleware};
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskRun, TaskRunStatus, TaskStatus, WorkerInfo, WorkerStatus},
-    repositories::{TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerLoadStats, WorkerRepository},
+    repositories::{
+        TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerLoadStats, WorkerRepository,
+    },
 };
+use scheduler_foundation::SchedulerResult;
 
 /// Circuit breaker wrapper for TaskRepository
 pub struct CircuitBreakerTaskRepository {
@@ -28,7 +30,8 @@ impl CircuitBreakerTaskRepository {
     ) -> Self {
         let config = circuit_breaker_config.unwrap_or_default();
         let circuit_breaker = Arc::new(CircuitBreaker::with_config(config));
-        let middleware = CircuitBreakerMiddleware::new(circuit_breaker, "TaskRepository".to_string());
+        let middleware =
+            CircuitBreakerMiddleware::new(circuit_breaker, "TaskRepository".to_string());
 
         Self {
             inner,
@@ -106,7 +109,10 @@ impl TaskRepository for CircuitBreakerTaskRepository {
             .await
     }
 
-    async fn get_schedulable_tasks(&self, current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>> {
+    async fn get_schedulable_tasks(
+        &self,
+        current_time: DateTime<Utc>,
+    ) -> SchedulerResult<Vec<Task>> {
         self.circuit_breaker
             .execute("get_schedulable_tasks", || {
                 let inner = self.inner.clone();
@@ -133,7 +139,11 @@ impl TaskRepository for CircuitBreakerTaskRepository {
             .await
     }
 
-    async fn batch_update_status(&self, task_ids: &[i64], status: TaskStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        task_ids: &[i64],
+        status: TaskStatus,
+    ) -> SchedulerResult<()> {
         self.circuit_breaker
             .execute("batch_update_status", || {
                 let inner = self.inner.clone();
@@ -157,7 +167,8 @@ impl CircuitBreakerTaskRunRepository {
     ) -> Self {
         let config = circuit_breaker_config.unwrap_or_default();
         let circuit_breaker = Arc::new(CircuitBreaker::with_config(config));
-        let middleware = CircuitBreakerMiddleware::new(circuit_breaker, "TaskRunRepository".to_string());
+        let middleware =
+            CircuitBreakerMiddleware::new(circuit_breaker, "TaskRunRepository".to_string());
 
         Self {
             inner,
@@ -271,11 +282,7 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
             .execute("update_status", || {
                 let inner = self.inner.clone();
                 let worker_id = worker_id.map(|s| s.to_string());
-                async move {
-                    inner
-                        .update_status(id, status, worker_id.as_deref())
-                        .await
-                }
+                async move { inner.update_status(id, status, worker_id.as_deref()).await }
             })
             .await
     }
@@ -309,7 +316,11 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
             .await
     }
 
-    async fn get_execution_stats(&self, task_id: i64, days: i32) -> SchedulerResult<TaskExecutionStats> {
+    async fn get_execution_stats(
+        &self,
+        task_id: i64,
+        days: i32,
+    ) -> SchedulerResult<TaskExecutionStats> {
         self.circuit_breaker
             .execute("get_execution_stats", || {
                 let inner = self.inner.clone();
@@ -327,7 +338,11 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
             .await
     }
 
-    async fn batch_update_status(&self, run_ids: &[i64], status: TaskRunStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        run_ids: &[i64],
+        status: TaskRunStatus,
+    ) -> SchedulerResult<()> {
         self.circuit_breaker
             .execute("batch_update_status", || {
                 let inner = self.inner.clone();
@@ -351,7 +366,8 @@ impl CircuitBreakerWorkerRepository {
     ) -> Self {
         let config = circuit_breaker_config.unwrap_or_default();
         let circuit_breaker = Arc::new(CircuitBreaker::with_config(config));
-        let middleware = CircuitBreakerMiddleware::new(circuit_breaker, "WorkerRepository".to_string());
+        let middleware =
+            CircuitBreakerMiddleware::new(circuit_breaker, "WorkerRepository".to_string());
 
         Self {
             inner,
@@ -486,7 +502,11 @@ impl WorkerRepository for CircuitBreakerWorkerRepository {
             .await
     }
 
-    async fn batch_update_status(&self, worker_ids: &[String], status: WorkerStatus) -> SchedulerResult<()> {
+    async fn batch_update_status(
+        &self,
+        worker_ids: &[String],
+        status: WorkerStatus,
+    ) -> SchedulerResult<()> {
         self.circuit_breaker
             .execute("batch_update_status", || {
                 let inner = self.inner.clone();
@@ -510,7 +530,9 @@ mod tests {
         async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
             // Simulate network delay
             tokio::time::sleep(Duration::from_millis(10)).await;
-            Err(scheduler_foundation::SchedulerError::Internal("Mock database error".to_string()))
+            Err(scheduler_foundation::SchedulerError::Internal(
+                "Mock database error".to_string(),
+            ))
         }
 
         async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<Task>> {
@@ -537,7 +559,10 @@ mod tests {
             Ok(vec![])
         }
 
-        async fn get_schedulable_tasks(&self, _current_time: DateTime<Utc>) -> SchedulerResult<Vec<Task>> {
+        async fn get_schedulable_tasks(
+            &self,
+            _current_time: DateTime<Utc>,
+        ) -> SchedulerResult<Vec<Task>> {
             Ok(vec![])
         }
 
@@ -549,7 +574,11 @@ mod tests {
             Ok(vec![])
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _task_ids: &[i64],
+            _status: TaskStatus,
+        ) -> SchedulerResult<()> {
             Ok(())
         }
     }
@@ -561,7 +590,7 @@ mod tests {
             recovery_timeout: Duration::from_millis(100),
             ..Default::default()
         };
-        
+
         let mock_repo = Arc::new(MockTaskRepository);
         let cb_repo = CircuitBreakerTaskRepository::new(mock_repo, Some(config));
 

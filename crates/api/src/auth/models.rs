@@ -1,4 +1,4 @@
-use crate::auth::{AuthenticatedUser, AuthType, Permission};
+use crate::auth::{AuthType, AuthenticatedUser, Permission};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -145,7 +145,7 @@ impl UserService {
 
         let user_id = Uuid::new_v4();
         let password_hash = self.hash_password(&request.password)?;
-        
+
         let now = chrono::Utc::now();
         let user = User {
             id: user_id,
@@ -165,20 +165,16 @@ impl UserService {
     }
 
     pub async fn authenticate_user(&self, username: &str, password: &str) -> Result<User, String> {
-        let user_id = self.username_index
-            .get(username)
-            .ok_or("User not found")?;
-        
-        let user = self.users
-            .get(user_id)
-            .ok_or("User not found")?;
+        let user_id = self.username_index.get(username).ok_or("User not found")?;
+
+        let user = self.users.get(user_id).ok_or("User not found")?;
 
         if !user.is_active {
             return Err("User account is disabled".to_string());
         }
 
         self.verify_password(password, &user.password_hash)?;
-        
+
         Ok(user.clone())
     }
 
@@ -195,12 +191,12 @@ impl UserService {
 
     fn hash_password(&self, password: &str) -> Result<String, String> {
         bcrypt::hash(password, bcrypt::DEFAULT_COST)
-            .map_err(|e| format!("Failed to hash password: {}", e))
+            .map_err(|e| format!("Failed to hash password: {e}"))
     }
 
     fn verify_password(&self, password: &str, hash: &str) -> Result<(), String> {
         bcrypt::verify(password, hash)
-            .map_err(|e| format!("Failed to verify password: {}", e))?
+            .map_err(|e| format!("Failed to verify password: {e}"))?
             .then_some(())
             .ok_or("Invalid password".to_string())
     }

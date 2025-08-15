@@ -1,19 +1,14 @@
-use serde::{Deserialize, Serialize};
 use crate::validation::ConfigValidator;
+use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum LogLevel {
     Trace,
     Debug,
+    #[default]
     Info,
     Warn,
     Error,
-}
-
-impl Default for LogLevel {
-    fn default() -> Self {
-        LogLevel::Info
-    }
 }
 
 impl std::str::FromStr for LogLevel {
@@ -26,7 +21,9 @@ impl std::str::FromStr for LogLevel {
             "info" => Ok(LogLevel::Info),
             "warn" => Ok(LogLevel::Warn),
             "error" => Ok(LogLevel::Error),
-            _ => Err(format!("Invalid log level: {}. Valid levels: trace, debug, info, warn, error", s)),
+            _ => Err(format!(
+                "Invalid log level: {s}. Valid levels: trace, debug, info, warn, error"
+            )),
         }
     }
 }
@@ -43,17 +40,12 @@ impl std::fmt::Display for LogLevel {
     }
 }
 
-#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Default)]
 pub enum OutputFormat {
+    #[default]
     Json,
     Text,
     Pretty,
-}
-
-impl Default for OutputFormat {
-    fn default() -> Self {
-        OutputFormat::Json
-    }
 }
 
 impl std::str::FromStr for OutputFormat {
@@ -64,7 +56,9 @@ impl std::str::FromStr for OutputFormat {
             "json" => Ok(OutputFormat::Json),
             "text" => Ok(OutputFormat::Text),
             "pretty" => Ok(OutputFormat::Pretty),
-            _ => Err(format!("Invalid output format: {}. Valid formats: json, text, pretty", s)),
+            _ => Err(format!(
+                "Invalid output format: {s}. Valid formats: json, text, pretty"
+            )),
         }
     }
 }
@@ -229,13 +223,13 @@ mod tests {
         std::env::set_var("LOG_FORMAT", "text");
         std::env::set_var("LOG_TO_FILE", "true");
         std::env::set_var("LOG_FILE_PATH", "/tmp/test.log");
-        
+
         let config = LogConfig::from_env();
         assert_eq!(config.level, LogLevel::Debug);
         assert_eq!(config.format, OutputFormat::Text);
         assert!(config.enable_file_logging);
         assert_eq!(config.log_file_path, Some("/tmp/test.log".to_string()));
-        
+
         // Clean up
         std::env::remove_var("LOG_LEVEL");
         std::env::remove_var("LOG_FORMAT");

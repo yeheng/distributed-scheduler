@@ -1,9 +1,9 @@
 use chrono::{Duration, Utc};
 use futures;
-use scheduler_foundation::traits::MessageQueue;
-use scheduler_foundation::traits::MockMessageQueue;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
+use scheduler_foundation::traits::MessageQueue;
+use scheduler_foundation::traits::MockMessageQueue;
 use scheduler_infrastructure::database::postgres::*;
 use scheduler_observability::MetricsCollector;
 use scheduler_testing_utils::{TaskBuilder, WorkerInfoBuilder};

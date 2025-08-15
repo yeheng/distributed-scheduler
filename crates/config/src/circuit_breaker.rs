@@ -1,10 +1,10 @@
-use std::time::Duration;
-use serde::{Deserialize, Serialize};
 use crate::{ConfigError, ConfigResult};
+use serde::{Deserialize, Serialize};
+use std::time::Duration;
 
 mod duration_serde {
+    use serde::{Deserialize, Deserializer, Serialize, Serializer};
     use std::time::Duration;
-    use serde::{Deserialize, Deserializer, Serializer, Serialize};
 
     pub fn serialize<S>(duration: &Duration, serializer: S) -> Result<S::Ok, S::Error>
     where
@@ -62,43 +62,43 @@ impl CircuitBreakerConfig {
                 "failure_threshold must be greater than 0".to_string(),
             ));
         }
-        
+
         if self.success_threshold == 0 {
             return Err(ConfigError::Validation(
                 "success_threshold must be greater than 0".to_string(),
             ));
         }
-        
+
         if self.backoff_multiplier <= 1.0 {
             return Err(ConfigError::Validation(
                 "backoff_multiplier must be greater than 1.0".to_string(),
             ));
         }
-        
+
         if self.recovery_timeout.is_zero() {
             return Err(ConfigError::Validation(
                 "recovery_timeout must be greater than 0".to_string(),
             ));
         }
-        
+
         if self.call_timeout.is_zero() {
             return Err(ConfigError::Validation(
                 "call_timeout must be greater than 0".to_string(),
             ));
         }
-        
+
         if self.max_recovery_timeout.is_zero() {
             return Err(ConfigError::Validation(
                 "max_recovery_timeout must be greater than 0".to_string(),
             ));
         }
-        
+
         if self.recovery_timeout > self.max_recovery_timeout {
             return Err(ConfigError::Validation(
                 "recovery_timeout must be less than or equal to max_recovery_timeout".to_string(),
             ));
         }
-        
+
         Ok(())
     }
 }
@@ -154,8 +154,9 @@ mod tests {
     fn test_circuit_breaker_config_serialization() {
         let config = CircuitBreakerConfig::default();
         let serialized = serde_json::to_string(&config).expect("Failed to serialize");
-        let deserialized: CircuitBreakerConfig = serde_json::from_str(&serialized).expect("Failed to deserialize");
-        
+        let deserialized: CircuitBreakerConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
         assert_eq!(config.failure_threshold, deserialized.failure_threshold);
         assert_eq!(config.recovery_timeout, deserialized.recovery_timeout);
         assert_eq!(config.success_threshold, deserialized.success_threshold);

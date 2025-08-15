@@ -4,9 +4,9 @@ use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::TaskResult;
 use scheduler_domain::entities::TaskRun;
+use scheduler_foundation::SchedulerResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskExecutionContextTrait {

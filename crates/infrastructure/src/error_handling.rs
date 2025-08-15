@@ -1,5 +1,5 @@
 //! Enhanced error handling for repository operations with rich context
-//! 
+//!
 //! This module provides context-rich error helpers for all repository operations,
 //! including detailed entity information, operation context, and structured logging.
 
@@ -7,8 +7,8 @@ use chrono::{DateTime, Utc};
 use scheduler_domain::entities::{TaskRunStatus, WorkerStatus};
 use scheduler_errors::SchedulerError;
 use sqlx::Error as SqlxError;
-use tracing::{error, warn, info, instrument};
 use std::fmt;
+use tracing::{error, info, instrument, warn};
 
 /// Operation context for repository operations
 #[derive(Debug, Clone)]
@@ -85,9 +85,9 @@ impl TaskOperationContext {
 
     pub fn entity_description(&self) -> String {
         match (&self.task_id, &self.task_name) {
-            (Some(id), Some(name)) => format!("任务 '{}' (ID: {})", name, id),
-            (Some(id), None) => format!("任务 (ID: {})", id),
-            (None, Some(name)) => format!("任务 '{}'", name),
+            (Some(id), Some(name)) => format!("任务 '{name}' (ID: {id})"),
+            (Some(id), None) => format!("任务 (ID: {id})"),
+            (None, Some(name)) => format!("任务 '{name}'"),
             (None, None) => "任务".to_string(),
         }
     }
@@ -145,9 +145,11 @@ impl TaskRunOperationContext {
 
     pub fn entity_description(&self) -> String {
         match (&self.run_id, &self.task_id) {
-            (Some(run_id), Some(task_id)) => format!("任务执行实例 (ID: {}, 任务ID: {})", run_id, task_id),
-            (Some(run_id), None) => format!("任务执行实例 (ID: {})", run_id),
-            (None, Some(task_id)) => format!("任务执行实例 (任务ID: {})", task_id),
+            (Some(run_id), Some(task_id)) => {
+                format!("任务执行实例 (ID: {run_id}, 任务ID: {task_id})")
+            }
+            (Some(run_id), None) => format!("任务执行实例 (ID: {run_id})"),
+            (None, Some(task_id)) => format!("任务执行实例 (任务ID: {task_id})"),
             (None, None) => "任务执行实例".to_string(),
         }
     }
@@ -198,9 +200,9 @@ impl WorkerOperationContext {
 
     pub fn entity_description(&self) -> String {
         match (&self.worker_id, &self.hostname) {
-            (Some(id), Some(hostname)) => format!("Worker '{}' ({})", id, hostname),
-            (Some(id), None) => format!("Worker '{}'", id),
-            (None, Some(hostname)) => format!("Worker ({})", hostname),
+            (Some(id), Some(hostname)) => format!("Worker '{id}' ({hostname})"),
+            (Some(id), None) => format!("Worker '{id}'"),
+            (None, Some(hostname)) => format!("Worker ({hostname})"),
             (None, None) => "Worker".to_string(),
         }
     }
@@ -251,9 +253,9 @@ impl MessageQueueOperationContext {
 
     pub fn entity_description(&self) -> String {
         match (&self.queue_name, &self.message_id) {
-            (Some(queue), Some(msg_id)) => format!("消息队列 '{}' 中的消息 '{}'", queue, msg_id),
-            (Some(queue), None) => format!("消息队列 '{}'", queue),
-            (None, Some(msg_id)) => format!("消息 '{}'", msg_id),
+            (Some(queue), Some(msg_id)) => format!("消息队列 '{queue}' 中的消息 '{msg_id}'"),
+            (Some(queue), None) => format!("消息队列 '{queue}'"),
+            (None, Some(msg_id)) => format!("消息 '{msg_id}'"),
             (None, None) => "消息队列".to_string(),
         }
     }
@@ -268,10 +270,10 @@ impl RepositoryErrorHelpers {
     pub fn database_error(context: TaskOperationContext, error: SqlxError) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时发生数据库错误: {}", operation_desc, entity_desc, error);
+
+        let error_msg = format!("{operation_desc}{entity_desc}时发生数据库错误: {error}");
         error!(error = %error, "{}", error_msg);
-        
+
         SchedulerError::database_error(error_msg)
     }
 
@@ -286,45 +288,52 @@ impl RepositoryErrorHelpers {
     pub fn task_database_error(context: TaskOperationContext, error: SqlxError) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
+
         let error_msg = match &error {
             SqlxError::Database(ref db_error) => {
                 if let Some(constraint) = db_error.constraint() {
                     match constraint {
                         "tasks_name_key" => {
-                            let msg = format!("{}{}时发生唯一约束冲突: 任务名称 '{}' 已存在", 
-                                operation_desc, entity_desc, 
-                                context.task_name.as_deref().unwrap_or("未知"));
+                            let msg = format!(
+                                "{}{}时发生唯一约束冲突: 任务名称 '{}' 已存在",
+                                operation_desc,
+                                entity_desc,
+                                context.task_name.as_deref().unwrap_or("未知")
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         "tasks_pkey" => {
-                            let msg = format!("{}{}时发生主键冲突: 任务ID {} 已存在", 
-                                operation_desc, entity_desc, 
-                                context.task_id.unwrap_or(0));
+                            let msg = format!(
+                                "{}{}时发生主键冲突: 任务ID {} 已存在",
+                                operation_desc,
+                                entity_desc,
+                                context.task_id.unwrap_or(0)
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         _ => {
-                            format!("{}{}时发生数据库约束冲突: {}", 
-                                operation_desc, entity_desc, constraint)
+                            format!(
+                                "{operation_desc}{entity_desc}时发生数据库约束冲突: {constraint}"
+                            )
                         }
                     }
                 } else {
-                    format!("{}{}时发生数据库错误: {}", operation_desc, entity_desc, db_error)
+                    format!("{operation_desc}{entity_desc}时发生数据库错误: {db_error}")
                 }
             }
             SqlxError::PoolClosed => {
-                format!("{}{}时数据库连接池已关闭", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池已关闭")
             }
             SqlxError::PoolTimedOut => {
-                format!("{}{}时数据库连接池超时", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池超时")
             }
             SqlxError::Io(ref io_error) => {
-                format!("{}{}时发生I/O错误: {}", operation_desc, entity_desc, io_error)
+                format!("{operation_desc}{entity_desc}时发生I/O错误: {io_error}")
             }
             _ => {
-                format!("{}{}时发生未知数据库错误: {}", operation_desc, entity_desc, error)
+                format!("{operation_desc}{entity_desc}时发生未知数据库错误: {error}")
             }
         };
 
@@ -341,55 +350,68 @@ impl RepositoryErrorHelpers {
         status = ?context.status,
         timestamp = %context.timestamp,
     ))]
-    pub fn task_run_database_error(context: TaskRunOperationContext, error: SqlxError) -> SchedulerError {
+    pub fn task_run_database_error(
+        context: TaskRunOperationContext,
+        error: SqlxError,
+    ) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
+
         let error_msg = match &error {
             SqlxError::Database(ref db_error) => {
                 if let Some(constraint) = db_error.constraint() {
                     match constraint {
                         "task_runs_pkey" => {
-                            let msg = format!("{}{}时发生主键冲突: 执行ID {} 已存在", 
-                                operation_desc, entity_desc, 
-                                context.run_id.unwrap_or(0));
+                            let msg = format!(
+                                "{}{}时发生主键冲突: 执行ID {} 已存在",
+                                operation_desc,
+                                entity_desc,
+                                context.run_id.unwrap_or(0)
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         "task_runs_task_id_fkey" => {
-                            let msg = format!("{}{}时发生外键约束冲突: 关联的任务ID {} 不存在", 
-                                operation_desc, entity_desc, 
-                                context.task_id.unwrap_or(0));
+                            let msg = format!(
+                                "{}{}时发生外键约束冲突: 关联的任务ID {} 不存在",
+                                operation_desc,
+                                entity_desc,
+                                context.task_id.unwrap_or(0)
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         "task_runs_worker_id_fkey" => {
-                            let msg = format!("{}{}时发生外键约束冲突: 关联的Worker '{}' 不存在", 
-                                operation_desc, entity_desc, 
-                                context.worker_id.as_deref().unwrap_or("未知"));
+                            let msg = format!(
+                                "{}{}时发生外键约束冲突: 关联的Worker '{}' 不存在",
+                                operation_desc,
+                                entity_desc,
+                                context.worker_id.as_deref().unwrap_or("未知")
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         _ => {
-                            format!("{}{}时发生数据库约束冲突: {}", 
-                                operation_desc, entity_desc, constraint)
+                            format!(
+                                "{operation_desc}{entity_desc}时发生数据库约束冲突: {constraint}"
+                            )
                         }
                     }
                 } else {
-                    format!("{}{}时发生数据库错误: {}", operation_desc, entity_desc, db_error)
+                    format!("{operation_desc}{entity_desc}时发生数据库错误: {db_error}")
                 }
             }
             SqlxError::PoolClosed => {
-                format!("{}{}时数据库连接池已关闭", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池已关闭")
             }
             SqlxError::PoolTimedOut => {
-                format!("{}{}时数据库连接池超时", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池超时")
             }
             SqlxError::Io(ref io_error) => {
-                format!("{}{}时发生I/O错误: {}", operation_desc, entity_desc, io_error)
+                format!("{operation_desc}{entity_desc}时发生I/O错误: {io_error}")
             }
             _ => {
-                format!("{}{}时发生未知数据库错误: {}", operation_desc, entity_desc, error)
+                format!("{operation_desc}{entity_desc}时发生未知数据库错误: {error}")
             }
         };
 
@@ -405,48 +427,58 @@ impl RepositoryErrorHelpers {
         status = ?context.status,
         timestamp = %context.timestamp,
     ))]
-    pub fn worker_database_error(context: WorkerOperationContext, error: SqlxError) -> SchedulerError {
+    pub fn worker_database_error(
+        context: WorkerOperationContext,
+        error: SqlxError,
+    ) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
+
         let error_msg = match &error {
             SqlxError::Database(ref db_error) => {
                 if let Some(constraint) = db_error.constraint() {
                     match constraint {
                         "workers_pkey" => {
-                            let msg = format!("{}{}时发生主键冲突: Worker ID '{}' 已存在", 
-                                operation_desc, entity_desc, 
-                                context.worker_id.as_deref().unwrap_or("未知"));
+                            let msg = format!(
+                                "{}{}时发生主键冲突: Worker ID '{}' 已存在",
+                                operation_desc,
+                                entity_desc,
+                                context.worker_id.as_deref().unwrap_or("未知")
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         "workers_hostname_key" => {
-                            let msg = format!("{}{}时发生唯一约束冲突: 主机名 '{}' 已被使用", 
-                                operation_desc, entity_desc, 
-                                context.hostname.as_deref().unwrap_or("未知"));
+                            let msg = format!(
+                                "{}{}时发生唯一约束冲突: 主机名 '{}' 已被使用",
+                                operation_desc,
+                                entity_desc,
+                                context.hostname.as_deref().unwrap_or("未知")
+                            );
                             error!(error = %error, constraint = constraint, "{}", msg);
                             return SchedulerError::database_error(msg);
                         }
                         _ => {
-                            format!("{}{}时发生数据库约束冲突: {}", 
-                                operation_desc, entity_desc, constraint)
+                            format!(
+                                "{operation_desc}{entity_desc}时发生数据库约束冲突: {constraint}"
+                            )
                         }
                     }
                 } else {
-                    format!("{}{}时发生数据库错误: {}", operation_desc, entity_desc, db_error)
+                    format!("{operation_desc}{entity_desc}时发生数据库错误: {db_error}")
                 }
             }
             SqlxError::PoolClosed => {
-                format!("{}{}时数据库连接池已关闭", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池已关闭")
             }
             SqlxError::PoolTimedOut => {
-                format!("{}{}时数据库连接池超时", operation_desc, entity_desc)
+                format!("{operation_desc}{entity_desc}时数据库连接池超时")
             }
             SqlxError::Io(ref io_error) => {
-                format!("{}{}时发生I/O错误: {}", operation_desc, entity_desc, io_error)
+                format!("{operation_desc}{entity_desc}时发生I/O错误: {io_error}")
             }
             _ => {
-                format!("{}{}时发生未知数据库错误: {}", operation_desc, entity_desc, error)
+                format!("{operation_desc}{entity_desc}时发生未知数据库错误: {error}")
             }
         };
 
@@ -462,12 +494,15 @@ impl RepositoryErrorHelpers {
         message_type = ?context.message_type,
         timestamp = %context.timestamp,
     ))]
-    pub fn message_queue_error(context: MessageQueueOperationContext, error: impl fmt::Display) -> SchedulerError {
+    pub fn message_queue_error(
+        context: MessageQueueOperationContext,
+        error: impl fmt::Display,
+    ) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时发生消息队列错误: {}", operation_desc, entity_desc, error);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时发生消息队列错误: {error}");
+
         error!(error = %error, "{}", error_msg);
         SchedulerError::MessageQueue(error_msg)
     }
@@ -479,12 +514,15 @@ impl RepositoryErrorHelpers {
         task_name = ?context.task_name,
         timestamp = %context.timestamp,
     ))]
-    pub fn task_serialization_error(context: TaskOperationContext, error: impl fmt::Display) -> SchedulerError {
+    pub fn task_serialization_error(
+        context: TaskOperationContext,
+        error: impl fmt::Display,
+    ) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时序列化失败: {}", operation_desc, entity_desc, error);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时序列化失败: {error}");
+
         error!(error = %error, "{}", error_msg);
         SchedulerError::Serialization(error_msg)
     }
@@ -497,9 +535,9 @@ impl RepositoryErrorHelpers {
     pub fn validation_error(context: TaskOperationContext, message: String) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时验证失败: {}", operation_desc, entity_desc, message);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时验证失败: {message}");
+
         error!("{}", error_msg);
         SchedulerError::ValidationError(error_msg)
     }
@@ -511,13 +549,13 @@ impl RepositoryErrorHelpers {
         timestamp = %context.timestamp,
     ))]
     pub fn log_operation_success(
-        context: TaskOperationContext, 
-        entity_desc: &str, 
-        additional_info: Option<&str>
+        context: TaskOperationContext,
+        entity_desc: &str,
+        additional_info: Option<&str>,
     ) {
         let operation_desc = context.operation.to_string();
-        let base_msg = format!("{}{}成功", operation_desc, entity_desc);
-        
+        let base_msg = format!("{operation_desc}{entity_desc}成功");
+
         if let Some(info) = additional_info {
             info!("{}: {}", base_msg, info);
         } else {
@@ -532,13 +570,13 @@ impl RepositoryErrorHelpers {
         timestamp = %context.timestamp,
     ))]
     pub fn log_operation_success_task_run(
-        context: TaskRunOperationContext, 
-        entity_desc: &str, 
-        additional_info: Option<&str>
+        context: TaskRunOperationContext,
+        entity_desc: &str,
+        additional_info: Option<&str>,
     ) {
         let operation_desc = context.operation.to_string();
-        let base_msg = format!("{}{}成功", operation_desc, entity_desc);
-        
+        let base_msg = format!("{operation_desc}{entity_desc}成功");
+
         if let Some(info) = additional_info {
             info!("{}: {}", base_msg, info);
         } else {
@@ -553,13 +591,13 @@ impl RepositoryErrorHelpers {
         timestamp = %context.timestamp,
     ))]
     pub fn log_operation_success_worker(
-        context: WorkerOperationContext, 
-        entity_desc: &str, 
-        additional_info: Option<&str>
+        context: WorkerOperationContext,
+        entity_desc: &str,
+        additional_info: Option<&str>,
     ) {
         let operation_desc = context.operation.to_string();
-        let base_msg = format!("{}{}成功", operation_desc, entity_desc);
-        
+        let base_msg = format!("{operation_desc}{entity_desc}成功");
+
         if let Some(info) = additional_info {
             info!("{}: {}", base_msg, info);
         } else {
@@ -574,13 +612,13 @@ impl RepositoryErrorHelpers {
         timestamp = %context.timestamp,
     ))]
     pub fn log_operation_success_message_queue(
-        context: MessageQueueOperationContext, 
-        entity_desc: &str, 
-        additional_info: Option<&str>
+        context: MessageQueueOperationContext,
+        entity_desc: &str,
+        additional_info: Option<&str>,
     ) {
         let operation_desc = context.operation.to_string();
-        let base_msg = format!("{}{}成功", operation_desc, entity_desc);
-        
+        let base_msg = format!("{operation_desc}{entity_desc}成功");
+
         if let Some(info) = additional_info {
             info!("{}: {}", base_msg, info);
         } else {
@@ -594,13 +632,9 @@ impl RepositoryErrorHelpers {
         entity_desc = %entity_desc,
         timestamp = %context.timestamp,
     ))]
-    pub fn log_operation_warning(
-        context: TaskOperationContext, 
-        entity_desc: &str, 
-        warning: &str
-    ) {
+    pub fn log_operation_warning(context: TaskOperationContext, entity_desc: &str, warning: &str) {
         let operation_desc = context.operation.to_string();
-        
+
         warn!("{}{}时警告: {}", operation_desc, entity_desc, warning);
     }
 
@@ -611,12 +645,12 @@ impl RepositoryErrorHelpers {
         timestamp = %context.timestamp,
     ))]
     pub fn log_operation_warning_message_queue(
-        context: MessageQueueOperationContext, 
-        entity_desc: &str, 
-        warning: &str
+        context: MessageQueueOperationContext,
+        entity_desc: &str,
+        warning: &str,
     ) {
         let operation_desc = context.operation.to_string();
-        
+
         warn!("{}{}时警告: {}", operation_desc, entity_desc, warning);
     }
 
@@ -624,33 +658,39 @@ impl RepositoryErrorHelpers {
     pub fn task_not_found(context: TaskOperationContext) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时未找到: {} 不存在", operation_desc, entity_desc, entity_desc);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时未找到: {entity_desc} 不存在");
+
         error!("{}", error_msg);
-        SchedulerError::TaskNotFound { id: context.task_id.unwrap_or(0) }
+        SchedulerError::TaskNotFound {
+            id: context.task_id.unwrap_or(0),
+        }
     }
 
     /// Create a task run not found error with context
     pub fn task_run_not_found(context: TaskRunOperationContext) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时未找到: {} 不存在", operation_desc, entity_desc, entity_desc);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时未找到: {entity_desc} 不存在");
+
         error!("{}", error_msg);
-        SchedulerError::TaskRunNotFound { id: context.run_id.unwrap_or(0) }
+        SchedulerError::TaskRunNotFound {
+            id: context.run_id.unwrap_or(0),
+        }
     }
 
     /// Create a worker not found error with context
     pub fn worker_not_found(context: WorkerOperationContext) -> SchedulerError {
         let entity_desc = context.entity_description();
         let operation_desc = context.operation.to_string();
-        
-        let error_msg = format!("{}{}时未找到: {} 不存在", operation_desc, entity_desc, entity_desc);
-        
+
+        let error_msg = format!("{operation_desc}{entity_desc}时未找到: {entity_desc} 不存在");
+
         error!("{}", error_msg);
-        SchedulerError::WorkerNotFound { id: context.worker_id.unwrap_or_default() }
+        SchedulerError::WorkerNotFound {
+            id: context.worker_id.unwrap_or_default(),
+        }
     }
 }
 
@@ -664,7 +704,8 @@ macro_rules! task_context {
         $crate::error_handling::TaskOperationContext::new($operation).with_task_id($task_id)
     };
     ($operation:expr, task_name = $task_name:expr) => {
-        $crate::error_handling::TaskOperationContext::new($operation).with_task_name($task_name.to_string())
+        $crate::error_handling::TaskOperationContext::new($operation)
+            .with_task_name($task_name.to_string())
     };
     ($operation:expr, task_id = $task_id:expr, task_name = $task_name:expr) => {
         $crate::error_handling::TaskOperationContext::new($operation)
@@ -699,10 +740,12 @@ macro_rules! worker_context {
         $crate::error_handling::WorkerOperationContext::new($operation)
     };
     ($operation:expr, worker_id = $worker_id:expr) => {
-        $crate::error_handling::WorkerOperationContext::new($operation).with_worker_id($worker_id.to_string())
+        $crate::error_handling::WorkerOperationContext::new($operation)
+            .with_worker_id($worker_id.to_string())
     };
     ($operation:expr, hostname = $hostname:expr) => {
-        $crate::error_handling::WorkerOperationContext::new($operation).with_hostname($hostname.to_string())
+        $crate::error_handling::WorkerOperationContext::new($operation)
+            .with_hostname($hostname.to_string())
     };
 }
 
@@ -713,7 +756,8 @@ macro_rules! message_queue_context {
         $crate::error_handling::MessageQueueOperationContext::new($operation)
     };
     ($operation:expr, queue = $queue:expr) => {
-        $crate::error_handling::MessageQueueOperationContext::new($operation).with_queue_name($queue.to_string())
+        $crate::error_handling::MessageQueueOperationContext::new($operation)
+            .with_queue_name($queue.to_string())
     };
     ($operation:expr, queue = $queue:expr, message_id = $message_id:expr) => {
         $crate::error_handling::MessageQueueOperationContext::new($operation)

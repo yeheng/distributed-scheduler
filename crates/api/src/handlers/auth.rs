@@ -3,8 +3,8 @@ use serde::{Deserialize, Serialize};
 use tracing::info;
 
 use crate::{
-    auth::{JwtService, Permission},
     auth::models::{LoginRequest, LoginResponse},
+    auth::{JwtService, Permission},
     error::{ApiError, ApiResult},
     response::ApiResponse,
 };
@@ -43,7 +43,7 @@ pub async fn login(
     Json(request): Json<LoginRequest>,
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     info!("User login attempt: {}", request.username);
-    
+
     // For now, use the existing credential validation for backward compatibility
     let (user_id, permissions) = validate_user_credentials(&request.username, &request.password)?;
 
@@ -64,7 +64,7 @@ pub async fn login(
         user: crate::auth::models::UserResponse {
             id: uuid::Uuid::new_v4(),
             username: user_id.clone(),
-            email: format!("{}@example.com", user_id),
+            email: format!("{user_id}@example.com"),
             role: if permissions.contains(&Permission::Admin) {
                 crate::auth::models::UserRole::Admin
             } else if permissions.contains(&Permission::TaskWrite) {
@@ -93,11 +93,13 @@ pub async fn refresh_token(
     );
 
     // Validate the refresh token (simplified for now)
-    let claims = jwt_service.validate_token(&request.refresh_token)
+    let claims = jwt_service
+        .validate_token(&request.refresh_token)
         .map_err(|_| ApiError::Authentication(crate::auth::AuthError::InvalidToken))?;
 
     // Generate new access token
-    let permissions: Vec<Permission> = claims.permissions
+    let permissions: Vec<Permission> = claims
+        .permissions
         .iter()
         .filter_map(|p| crate::auth::parse_permission(p))
         .collect();

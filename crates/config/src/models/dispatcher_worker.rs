@@ -1,5 +1,5 @@
-use serde::{Deserialize, Serialize};
 use crate::validation::{ConfigValidator, ValidationUtils};
+use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DispatcherConfig {
@@ -13,20 +13,26 @@ pub struct DispatcherConfig {
 impl ConfigValidator for DispatcherConfig {
     fn validate(&self) -> crate::ConfigResult<()> {
         ValidationUtils::validate_timeout_seconds(self.schedule_interval_seconds)?;
-        ValidationUtils::validate_count(self.max_concurrent_dispatches, "dispatcher.max_concurrent_dispatches")?;
+        ValidationUtils::validate_count(
+            self.max_concurrent_dispatches,
+            "dispatcher.max_concurrent_dispatches",
+        )?;
         ValidationUtils::validate_timeout_seconds(self.worker_timeout_seconds)?;
-        
-        ValidationUtils::validate_not_empty(&self.dispatch_strategy, "dispatcher.dispatch_strategy")?;
-        
+
+        ValidationUtils::validate_not_empty(
+            &self.dispatch_strategy,
+            "dispatcher.dispatch_strategy",
+        )?;
+
         // Validate dispatch strategy
         let valid_strategies = ["round_robin", "random", "least_loaded", "priority"];
         if !valid_strategies.contains(&self.dispatch_strategy.as_str()) {
-            return Err(crate::ConfigError::Validation(
-                format!("Invalid dispatch strategy: {}. Valid options: {:?}", 
-                        self.dispatch_strategy, valid_strategies)
-            ));
+            return Err(crate::ConfigError::Validation(format!(
+                "Invalid dispatch strategy: {}. Valid options: {:?}",
+                self.dispatch_strategy, valid_strategies
+            )));
         }
-        
+
         Ok(())
     }
 }
@@ -48,22 +54,22 @@ impl ConfigValidator for WorkerConfig {
         ValidationUtils::validate_not_empty(&self.worker_id, "worker.worker_id")?;
         ValidationUtils::validate_not_empty(&self.hostname, "worker.hostname")?;
         ValidationUtils::validate_not_empty(&self.ip_address, "worker.ip_address")?;
-        
+
         ValidationUtils::validate_count(self.max_concurrent_tasks, "worker.max_concurrent_tasks")?;
         ValidationUtils::validate_timeout_seconds(self.heartbeat_interval_seconds)?;
         ValidationUtils::validate_timeout_seconds(self.task_poll_interval_seconds)?;
-        
+
         // Validate supported task types
         if self.supported_task_types.is_empty() {
             return Err(crate::ConfigError::Validation(
                 "worker.supported_task_types cannot be empty".to_string(),
             ));
         }
-        
+
         for task_type in &self.supported_task_types {
             ValidationUtils::validate_not_empty(task_type, "worker.supported_task_types")?;
         }
-        
+
         Ok(())
     }
 }
@@ -81,14 +87,14 @@ mod tests {
             worker_timeout_seconds: 90,
             dispatch_strategy: "round_robin".to_string(),
         };
-        
+
         assert!(config.validate().is_ok());
-        
+
         // Test invalid schedule_interval_seconds
         let mut invalid_config = config.clone();
         invalid_config.schedule_interval_seconds = 0;
         assert!(invalid_config.validate().is_err());
-        
+
         // Test invalid dispatch_strategy
         let mut invalid_config = config.clone();
         invalid_config.dispatch_strategy = "invalid_strategy".to_string();
@@ -107,19 +113,19 @@ mod tests {
             heartbeat_interval_seconds: 30,
             task_poll_interval_seconds: 5,
         };
-        
+
         assert!(config.validate().is_ok());
-        
+
         // Test invalid worker_id
         let mut invalid_config = config.clone();
         invalid_config.worker_id = "".to_string();
         assert!(invalid_config.validate().is_err());
-        
+
         // Test empty supported_task_types
         let mut invalid_config = config.clone();
         invalid_config.supported_task_types = vec![];
         assert!(invalid_config.validate().is_err());
-        
+
         // Test invalid heartbeat_interval_seconds
         let mut invalid_config = config.clone();
         invalid_config.heartbeat_interval_seconds = 0;
@@ -135,11 +141,15 @@ mod tests {
             worker_timeout_seconds: 90,
             dispatch_strategy: "round_robin".to_string(),
         };
-        
+
         let serialized = serde_json::to_string(&config).expect("Failed to serialize");
-        let deserialized: DispatcherConfig = serde_json::from_str(&serialized).expect("Failed to deserialize");
-        
-        assert_eq!(config.schedule_interval_seconds, deserialized.schedule_interval_seconds);
+        let deserialized: DispatcherConfig =
+            serde_json::from_str(&serialized).expect("Failed to deserialize");
+
+        assert_eq!(
+            config.schedule_interval_seconds,
+            deserialized.schedule_interval_seconds
+        );
         assert_eq!(config.dispatch_strategy, deserialized.dispatch_strategy);
     }
 }

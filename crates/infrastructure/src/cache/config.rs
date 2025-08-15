@@ -60,10 +60,10 @@ impl Default for CacheConfig {
 impl Default for CacheTtlConfig {
     fn default() -> Self {
         Self {
-            task_seconds: 300,        // 5 minutes
-            worker_seconds: 30,       // 30 seconds
-            system_stats_seconds: 60, // 1 minute
-            task_run_seconds: 600,   // 10 minutes
+            task_seconds: 300,         // 5 minutes
+            worker_seconds: 30,        // 30 seconds
+            system_stats_seconds: 60,  // 1 minute
+            task_run_seconds: 600,     // 10 minutes
             dependencies_seconds: 120, // 2 minutes
         }
     }
@@ -78,7 +78,9 @@ impl CacheConfig {
             }
 
             if !self.redis_url.starts_with("redis://") && !self.redis_url.starts_with("rediss://") {
-                return Err(anyhow::anyhow!("Redis URL must start with redis:// or rediss://"));
+                return Err(anyhow::anyhow!(
+                    "Redis URL must start with redis:// or rediss://"
+                ));
             }
 
             if self.max_connections == 0 {
@@ -159,7 +161,7 @@ mod tests {
     fn test_cache_config_validation() {
         let mut config = CacheConfig::default();
         config.enabled = true;
-        
+
         // Valid configuration
         assert!(config.validate().is_ok());
 

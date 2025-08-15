@@ -3,14 +3,14 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_foundation::traits::scheduler::TaskControlService;
 use scheduler_config::AppConfig;
+use scheduler_dispatcher::{
+    controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
+};
+use scheduler_foundation::traits::scheduler::TaskControlService;
 use scheduler_foundation::{
     container::ServiceLocator,
     traits::{ExecutorRegistry, StateListenerService, WorkerServiceTrait},
-};
-use scheduler_dispatcher::{
-    controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
 };
 use scheduler_infrastructure::{
     database::postgres::{
@@ -68,9 +68,9 @@ impl Application {
             .await?;
 
         // 创建服务定位器
-        let service_locator = Arc::new(scheduler_foundation::container::ServiceLocator::new(Arc::new(
-            app_context,
-        )));
+        let service_locator = Arc::new(scheduler_foundation::container::ServiceLocator::new(
+            Arc::new(app_context),
+        ));
 
         // 创建指标收集器
         let metrics = Arc::new(MetricsCollector::new().context("创建指标收集器失败")?);
@@ -164,7 +164,9 @@ impl Application {
         info!("启动Worker服务: {}", self.config.worker.worker_id);
 
         // 创建执行器工厂
-        let executor_factory = Arc::new(scheduler_worker::ExecutorFactory::new(self.config.executor.clone()));
+        let executor_factory = Arc::new(scheduler_worker::ExecutorFactory::new(
+            self.config.executor.clone(),
+        ));
         executor_factory.initialize().await?;
         let executor_registry: Arc<dyn ExecutorRegistry> = executor_factory;
 
@@ -343,7 +345,6 @@ async fn create_message_queue(config: &AppConfig) -> Result<Arc<RabbitMQMessageQ
     info!("消息队列连接成功");
     Ok(Arc::new(message_queue))
 }
-
 
 /// 运行调度器循环
 async fn run_scheduler_loop(

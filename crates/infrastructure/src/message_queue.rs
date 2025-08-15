@@ -3,18 +3,20 @@ use lapin::{
     options::*, types::FieldTable, BasicProperties, Channel, Connection, ConnectionProperties,
     Consumer, Queue,
 };
-use scheduler_foundation::traits::MessageQueue;
 use scheduler_config::models::MessageQueueConfig;
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::Message;
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::traits::MessageQueue;
+use scheduler_foundation::SchedulerResult;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};
 
-use crate::{message_queue_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}, timeout_handler::TimeoutUtils};
+use crate::{
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    message_queue_context,
+    timeout_handler::TimeoutUtils,
+};
 
 pub struct RabbitMQMessageQueue {
     connection: Connection,
@@ -52,7 +54,7 @@ impl RabbitMQMessageQueue {
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
             &format!("RabbitMQ连接: {}", config.url),
-            Some("连接创建成功")
+            Some("连接创建成功"),
         );
 
         let queue = Self {
@@ -81,8 +83,8 @@ impl RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &"队列初始化",
-            Some("所有队列初始化完成")
+            "队列初始化",
+            Some("所有队列初始化完成"),
         );
         Ok(())
     }
@@ -94,7 +96,7 @@ impl RabbitMQMessageQueue {
         durable: bool,
     ) -> SchedulerResult<Queue> {
         let context = message_queue_context!(RepositoryOperation::Create, queue = queue_name)
-            .with_additional_info(format!("声明队列，持久化: {}", durable));
+            .with_additional_info(format!("声明队列，持久化: {durable}"));
 
         let queue = channel
             .queue_declare(
@@ -112,8 +114,8 @@ impl RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &format!("队列声明: {}", queue_name),
-            Some(&format!("持久化: {}", durable))
+            &format!("队列声明: {queue_name}"),
+            Some(&format!("持久化: {durable}")),
         );
         Ok(queue)
     }
@@ -124,33 +126,31 @@ impl RabbitMQMessageQueue {
             .with_message_type(message.message_type_str().to_string())
             .with_additional_info(format!("序列化消息: {}", message.id));
 
-        serde_json::to_vec(message)
-            .map_err(|e| {
-                let error_msg = format!("序列化消息失败: {e}");
-                RepositoryErrorHelpers::log_operation_warning_message_queue(
-                    context.clone(),
-                    &format!("消息序列化: {}", message.id),
-                    &error_msg
-                );
-                SchedulerError::Serialization(error_msg)
-            })
+        serde_json::to_vec(message).map_err(|e| {
+            let error_msg = format!("序列化消息失败: {e}");
+            RepositoryErrorHelpers::log_operation_warning_message_queue(
+                context.clone(),
+                &format!("消息序列化: {}", message.id),
+                &error_msg,
+            );
+            SchedulerError::Serialization(error_msg)
+        })
     }
-    
+
     #[instrument(skip(self, data), fields(data_size = %data.len()))]
     fn deserialize_message(&self, data: &[u8]) -> SchedulerResult<Message> {
         let context = message_queue_context!(RepositoryOperation::Execute)
             .with_additional_info(format!("反序列化消息，数据大小: {}", data.len()));
 
-        serde_json::from_slice(data)
-            .map_err(|e| {
-                let error_msg = format!("反序列化消息失败: {e}");
-                RepositoryErrorHelpers::log_operation_warning_message_queue(
-                    context.clone(),
-                    &"消息反序列化",
-                    &error_msg
-                );
-                SchedulerError::Serialization(error_msg)
-            })
+        serde_json::from_slice(data).map_err(|e| {
+            let error_msg = format!("反序列化消息失败: {e}");
+            RepositoryErrorHelpers::log_operation_warning_message_queue(
+                context.clone(),
+                "消息反序列化",
+                &error_msg,
+            );
+            SchedulerError::Serialization(error_msg)
+        })
     }
     #[instrument(skip(self), fields(queue = %queue, consumer_tag = %consumer_tag))]
     pub async fn create_consumer(
@@ -159,7 +159,7 @@ impl RabbitMQMessageQueue {
         consumer_tag: &str,
     ) -> SchedulerResult<Consumer> {
         let context = message_queue_context!(RepositoryOperation::Create, queue = queue)
-            .with_additional_info(format!("创建消费者: {}", consumer_tag));
+            .with_additional_info(format!("创建消费者: {consumer_tag}"));
 
         let channel = self.channel.lock().await;
         let consumer = channel
@@ -174,8 +174,8 @@ impl RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &format!("消费者创建: {}", consumer_tag),
-            Some(&format!("队列: {}", queue))
+            &format!("消费者创建: {consumer_tag}"),
+            Some(&format!("队列: {queue}")),
         );
         Ok(consumer)
     }
@@ -194,8 +194,8 @@ impl RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &"RabbitMQ连接关闭",
-            Some("正常关闭连接")
+            "RabbitMQ连接关闭",
+            Some("正常关闭连接"),
         );
         Ok(())
     }
@@ -212,7 +212,7 @@ impl MessageQueue for RabbitMQMessageQueue {
         let context = message_queue_context!(RepositoryOperation::Create, queue = queue)
             .with_message_id(message.id.clone())
             .with_message_type(message.message_type_str().to_string())
-            .with_additional_info(format!("发布消息到队列: {}", queue));
+            .with_additional_info(format!("发布消息到队列: {queue}"));
 
         let channel = self.channel.lock().await;
         let payload = self.serialize_message(message)?;
@@ -229,26 +229,30 @@ impl MessageQueue for RabbitMQMessageQueue {
                     )
                     .await
                     .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))?;
-                
+
                 confirm
                     .await
                     .map_err(|e| RepositoryErrorHelpers::message_queue_error(context.clone(), e))
             },
-            &format!("发布消息到队列 '{}'", queue),
+            &format!("发布消息到队列 '{queue}'"),
         )
         .await?;
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
             &format!("消息发布: {}", message.id),
-            Some(&format!("队列: {}, 类型: {}", queue, message.message_type_str()))
+            Some(&format!(
+                "队列: {}, 类型: {}",
+                queue,
+                message.message_type_str()
+            )),
         );
         Ok(())
     }
     #[instrument(skip(self), fields(queue = %queue))]
     async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<Message>> {
         let context = message_queue_context!(RepositoryOperation::Read, queue = queue)
-            .with_additional_info(format!("从队列消费消息: {}", queue));
+            .with_additional_info(format!("从队列消费消息: {queue}"));
 
         let channel = self.channel.lock().await;
         let get_result = channel.basic_get(queue, BasicGetOptions::default()).await;
@@ -275,11 +279,12 @@ impl MessageQueue for RabbitMQMessageQueue {
                     debug!("队列 {} 不存在，返回空结果", queue);
                     Ok(vec![])
                 } else {
-                    let error = SchedulerError::MessageQueue(format!("从队列 {queue} 获取消息失败: {e}"));
+                    let error =
+                        SchedulerError::MessageQueue(format!("从队列 {queue} 获取消息失败: {e}"));
                     RepositoryErrorHelpers::log_operation_warning_message_queue(
                         context,
-                        &format!("消息消费失败: 队列 {}", queue),
-                        &error_msg
+                        &format!("消息消费失败: 队列 {queue}"),
+                        &error_msg,
                     );
                     Err(error)
                 }
@@ -290,17 +295,17 @@ impl MessageQueue for RabbitMQMessageQueue {
     async fn ack_message(&self, message_id: &str) -> SchedulerResult<()> {
         let _context = message_queue_context!(RepositoryOperation::Update)
             .with_message_id(message_id.to_string())
-            .with_additional_info(format!("确认消息: {}", message_id));
+            .with_additional_info(format!("确认消息: {message_id}"));
 
         debug!("确认消息: {}", message_id);
         Ok(())
     }
-    
+
     #[instrument(skip(self), fields(message_id = %message_id, requeue = %requeue))]
     async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()> {
         let _context = message_queue_context!(RepositoryOperation::Update)
             .with_message_id(message_id.to_string())
-            .with_additional_info(format!("拒绝消息: {}, 重新入队: {}", message_id, requeue));
+            .with_additional_info(format!("拒绝消息: {message_id}, 重新入队: {requeue}"));
 
         debug!("拒绝消息: {}, 重新入队: {}", message_id, requeue);
         Ok(())
@@ -308,22 +313,22 @@ impl MessageQueue for RabbitMQMessageQueue {
     #[instrument(skip(self), fields(queue = %queue, durable = %durable))]
     async fn create_queue(&self, queue: &str, durable: bool) -> SchedulerResult<()> {
         let context = message_queue_context!(RepositoryOperation::Create, queue = queue)
-            .with_additional_info(format!("创建队列，持久化: {}", durable));
+            .with_additional_info(format!("创建队列，持久化: {durable}"));
 
         let channel = self.channel.lock().await;
         self.declare_queue(&channel, queue, durable).await?;
-        
+
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &format!("队列创建: {}", queue),
-            Some(&format!("持久化: {}", durable))
+            &format!("队列创建: {queue}"),
+            Some(&format!("持久化: {durable}")),
         );
         Ok(())
     }
     #[instrument(skip(self), fields(queue = %queue))]
     async fn delete_queue(&self, queue: &str) -> SchedulerResult<()> {
         let context = message_queue_context!(RepositoryOperation::Delete, queue = queue)
-            .with_additional_info(format!("删除队列: {}", queue));
+            .with_additional_info(format!("删除队列: {queue}"));
 
         let channel = self.channel.lock().await;
         channel
@@ -333,15 +338,15 @@ impl MessageQueue for RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &format!("队列删除: {}", queue),
-            Some("队列删除成功")
+            &format!("队列删除: {queue}"),
+            Some("队列删除成功"),
         );
         Ok(())
     }
     #[instrument(skip(self), fields(queue = %queue))]
     async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32> {
         let context = message_queue_context!(RepositoryOperation::Read, queue = queue)
-            .with_additional_info(format!("获取队列大小: {}", queue));
+            .with_additional_info(format!("获取队列大小: {queue}"));
 
         let channel = self.channel.lock().await;
         let queue_info = channel
@@ -367,11 +372,12 @@ impl MessageQueue for RabbitMQMessageQueue {
                     debug!("队列 {} 不存在，返回大小为0", queue);
                     Ok(0)
                 } else {
-                    let error = SchedulerError::MessageQueue(format!("获取队列 {queue} 信息失败: {e}"));
+                    let error =
+                        SchedulerError::MessageQueue(format!("获取队列 {queue} 信息失败: {e}"));
                     RepositoryErrorHelpers::log_operation_warning_message_queue(
                         context,
-                        &format!("获取队列大小失败: {}", queue),
-                        &error_msg
+                        &format!("获取队列大小失败: {queue}"),
+                        &error_msg,
                     );
                     Err(error)
                 }
@@ -381,7 +387,7 @@ impl MessageQueue for RabbitMQMessageQueue {
     #[instrument(skip(self), fields(queue = %queue))]
     async fn purge_queue(&self, queue: &str) -> SchedulerResult<()> {
         let context = message_queue_context!(RepositoryOperation::Delete, queue = queue)
-            .with_additional_info(format!("清空队列: {}", queue));
+            .with_additional_info(format!("清空队列: {queue}"));
 
         let channel = self.channel.lock().await;
         channel
@@ -391,8 +397,8 @@ impl MessageQueue for RabbitMQMessageQueue {
 
         RepositoryErrorHelpers::log_operation_success_message_queue(
             context,
-            &format!("队列清空: {}", queue),
-            Some("队列清空成功")
+            &format!("队列清空: {queue}"),
+            Some("队列清空成功"),
         );
         Ok(())
     }

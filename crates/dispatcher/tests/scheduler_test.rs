@@ -2,9 +2,9 @@
 mod tests {
     use chrono::{Timelike, Utc};
     use scheduler_application::interfaces::scheduler::TaskSchedulerService;
-    use scheduler_foundation::*;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
     use scheduler_domain::TaskStatus;
+    use scheduler_foundation::*;
     use serde_json::json;
     use std::sync::Arc;
 

@@ -131,7 +131,10 @@ impl Task {
         !self.dependencies.is_empty()
     }
     pub fn entity_description(&self) -> String {
-        format!("任务 '{}' (ID: {}, 类型: {})", self.name, self.id, self.task_type)
+        format!(
+            "任务 '{}' (ID: {}, 类型: {})",
+            self.name, self.id, self.task_type
+        )
     }
 }
 
@@ -333,7 +336,10 @@ impl TaskRun {
     }
     pub fn entity_description(&self) -> String {
         match &self.worker_id {
-            Some(worker_id) => format!("任务执行实例 (ID: {}, 任务ID: {}, Worker: {})", self.id, self.task_id, worker_id),
+            Some(worker_id) => format!(
+                "任务执行实例 (ID: {}, 任务ID: {}, Worker: {})",
+                self.id, self.task_id, worker_id
+            ),
             None => format!("任务执行实例 (ID: {}, 任务ID: {})", self.id, self.task_id),
         }
     }
@@ -635,9 +641,11 @@ impl Message {
             }
         }
     }
-    
+
     /// 创建工作节点心跳消息（可能失败版本）
-    pub fn try_worker_heartbeat(message: WorkerHeartbeatMessage) -> Result<Self, serde_json::Error> {
+    pub fn try_worker_heartbeat(
+        message: WorkerHeartbeatMessage,
+    ) -> Result<Self, serde_json::Error> {
         let payload = serde_json::to_value(&message)?;
         Ok(Self {
             id: Uuid::new_v4().to_string(),
@@ -726,18 +734,21 @@ impl Message {
         self.correlation_id = Some(correlation_id);
         self
     }
-    
+
     /// 设置分布式追踪头部信息
-    pub fn with_trace_headers(mut self, headers: std::collections::HashMap<String, String>) -> Self {
+    pub fn with_trace_headers(
+        mut self,
+        headers: std::collections::HashMap<String, String>,
+    ) -> Self {
         self.trace_headers = Some(headers);
         self
     }
-    
+
     /// 获取分布式追踪头部信息
     pub fn get_trace_headers(&self) -> Option<&std::collections::HashMap<String, String>> {
         self.trace_headers.as_ref()
     }
-    
+
     /// 注入当前tracing span的上下文到消息中
     /// 注意：此方法需要在有observability依赖的crate中使用具体实现
     pub fn inject_current_trace_context(self) -> Self {
@@ -745,7 +756,7 @@ impl Message {
         // in crates that have observability dependencies
         self
     }
-    
+
     pub fn is_retry_exhausted(&self, max_retries: i32) -> bool {
         self.retry_count >= max_retries
     }

@@ -1,5 +1,5 @@
 //! Update value types for precise PATCH operations
-//! 
+//!
 //! This module provides types that enable precise PATCH semantics by distinguishing
 //! between "set to value", "set to null", and "don't update" operations.
 
@@ -7,41 +7,37 @@ use serde::{Deserialize, Serialize};
 use std::fmt;
 
 /// Represents a precise update operation for PATCH semantics
-/// 
+///
 /// This enum allows distinguishing between three different update scenarios:
 /// - `Set(T)`: Set the field to the specified value
 /// - `Unset`: Set the field to null/remove the value (for nullable fields)
 /// - `NoChange`: Do not modify the field (equivalent to field not being provided)
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use scheduler_api::types::UpdateValue;
-/// 
+///
 /// // Set a field to a specific value
 /// let name_update = UpdateValue::Set("New Name".to_string());
-/// 
+///
 /// // Set a nullable field to null
 /// let description_update = UpdateValue::<String>::Unset;
-/// 
+///
 /// // Don't change the field
 /// let no_change = UpdateValue::<String>::NoChange;
 /// ```
 #[derive(Debug, Clone, PartialEq, Serialize)]
 #[serde(untagged)]
+#[derive(Default)]
 pub enum UpdateValue<T> {
     /// Set the field to the specified value
     Set(T),
     /// Set the field to null/remove the value (for nullable fields)
     Unset,
     /// Do not modify the field
+    #[default]
     NoChange,
-}
-
-impl<T> Default for UpdateValue<T> {
-    fn default() -> Self {
-        UpdateValue::NoChange
-    }
 }
 
 impl<T> UpdateValue<T> {
@@ -247,7 +243,7 @@ where
 {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
-            UpdateValue::Set(value) => write!(f, "Set({})", value),
+            UpdateValue::Set(value) => write!(f, "Set({value})"),
             UpdateValue::Unset => write!(f, "Unset"),
             UpdateValue::NoChange => write!(f, "NoChange"),
         }
@@ -257,6 +253,7 @@ where
 /// A specialized update value for numeric fields that supports increment/decrement operations
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
 #[serde(untagged)]
+#[derive(Default)]
 pub enum NumericUpdateValue<T> {
     /// Set to a specific value
     Set(T),
@@ -267,25 +264,20 @@ pub enum NumericUpdateValue<T> {
     /// Set to null/remove the value
     Unset,
     /// Do not modify the field
+    #[default]
     NoChange,
-}
-
-impl<T> Default for NumericUpdateValue<T> {
-    fn default() -> Self {
-        NumericUpdateValue::NoChange
-    }
 }
 
 // Note: Implementation moved above the Deserialize impl
 
 /// A macro to simplify creating update request structures
-/// 
+///
 /// # Examples
-/// 
+///
 /// ```rust
 /// use scheduler_api::{update_request, types::{UpdateValue, NumericUpdateValue}};
 /// use validator::Validate;
-/// 
+///
 /// update_request! {
 ///     #[derive(Validate)]
 ///     struct UpdateUserRequest {
@@ -373,8 +365,11 @@ mod tests {
     #[test]
     fn test_update_value_apply_to() {
         let existing = Some("old".to_string());
-        
-        assert_eq!(UpdateValue::Set("new".to_string()).apply_to(existing.clone()), Some("new".to_string()));
+
+        assert_eq!(
+            UpdateValue::Set("new".to_string()).apply_to(existing.clone()),
+            Some("new".to_string())
+        );
         assert_eq!(UpdateValue::Unset.apply_to(existing.clone()), None);
         assert_eq!(UpdateValue::NoChange.apply_to(existing.clone()), existing);
     }
@@ -382,17 +377,32 @@ mod tests {
     #[test]
     fn test_numeric_update_value() {
         let existing = Some(10);
-        
-        assert_eq!(NumericUpdateValue::Set(20).apply_to(existing.clone()), Some(20));
-        assert_eq!(NumericUpdateValue::Add(5).apply_to(existing.clone()), Some(15));
-        assert_eq!(NumericUpdateValue::Subtract(3).apply_to(existing.clone()), Some(7));
+
+        assert_eq!(
+            NumericUpdateValue::Set(20).apply_to(existing.clone()),
+            Some(20)
+        );
+        assert_eq!(
+            NumericUpdateValue::Add(5).apply_to(existing.clone()),
+            Some(15)
+        );
+        assert_eq!(
+            NumericUpdateValue::Subtract(3).apply_to(existing.clone()),
+            Some(7)
+        );
         assert_eq!(NumericUpdateValue::Unset.apply_to(existing.clone()), None);
-        assert_eq!(NumericUpdateValue::NoChange.apply_to(existing.clone()), existing);
+        assert_eq!(
+            NumericUpdateValue::NoChange.apply_to(existing.clone()),
+            existing
+        );
     }
 
     #[test]
     fn test_update_value_display() {
-        assert_eq!(UpdateValue::Set("test".to_string()).to_string(), "Set(test)");
+        assert_eq!(
+            UpdateValue::Set("test".to_string()).to_string(),
+            "Set(test)"
+        );
         assert_eq!(UpdateValue::<String>::Unset.to_string(), "Unset");
         assert_eq!(UpdateValue::<String>::NoChange.to_string(), "NoChange");
     }

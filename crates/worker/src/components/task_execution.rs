@@ -2,11 +2,11 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
+use scheduler_domain::entities::{TaskExecutionMessage, TaskRun, TaskRunStatus};
 use scheduler_foundation::{
     traits::{ExecutorRegistry, ResourceLimits, TaskExecutionContext},
     SchedulerError, SchedulerResult,
 };
-use scheduler_domain::entities::{TaskExecutionMessage, TaskRun, TaskRunStatus};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
@@ -106,7 +106,9 @@ impl TaskExecutionManager {
         };
         // Clone the parameters for error logging
         let raw_parameters = message.parameters.clone();
-        let parameters = match serde_json::from_value::<HashMap<String, serde_json::Value>>(message.parameters) {
+        let parameters = match serde_json::from_value::<HashMap<String, serde_json::Value>>(
+            message.parameters,
+        ) {
             Ok(params) => params,
             Err(e) => {
                 error!(

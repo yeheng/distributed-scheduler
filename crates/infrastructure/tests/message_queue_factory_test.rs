@@ -1,6 +1,6 @@
 use scheduler_config::{MessageQueueConfig, MessageQueueType, RedisConfig};
-use scheduler_foundation::MessageQueue;
 use scheduler_domain::entities::*;
+use scheduler_foundation::MessageQueue;
 use scheduler_infrastructure::{MessageQueueFactory, MessageQueueManager};
 use serde_json::json;
 

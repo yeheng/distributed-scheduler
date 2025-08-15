@@ -9,8 +9,8 @@ pub mod mocks {
     use crate::retry_service::RetryService;
     use async_trait::async_trait;
     use chrono::{DateTime, Utc};
-    use scheduler_foundation::SchedulerResult;
     use scheduler_domain::entities::TaskRun;
+    use scheduler_foundation::SchedulerResult;
 
     #[derive(Debug, Clone)]
     pub struct MockRetryService;

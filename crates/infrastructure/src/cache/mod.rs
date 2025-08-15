@@ -1,23 +1,23 @@
 //! Redis-based caching infrastructure for the scheduler system
-//! 
+//!
 //! This module provides a high-performance caching layer for frequently accessed data
 //! such as task definitions, worker status, and system metrics.
 
 pub mod config;
 pub mod factory;
 pub mod manager;
-pub mod repository;
 pub mod metrics;
+pub mod repository;
 
 use async_trait::async_trait;
 pub use config::*;
 pub use factory::*;
 pub use manager::*;
-pub use repository::*;
 pub use metrics::*;
+pub use repository::*;
 
-use scheduler_foundation::SchedulerResult;
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::SchedulerResult;
 
 /// Cache key prefix patterns for different data types
 #[derive(Debug, Clone, PartialEq)]
@@ -136,7 +136,12 @@ pub trait CacheServiceExt: Send + Sync {
         T: serde::de::DeserializeOwned + Send + Sync;
 
     /// Set a typed value in cache with TTL
-    async fn set_typed<T>(&self, key: &str, value: &T, ttl: std::time::Duration) -> SchedulerResult<()>
+    async fn set_typed<T>(
+        &self,
+        key: &str,
+        value: &T,
+        ttl: std::time::Duration,
+    ) -> SchedulerResult<()>
     where
         T: serde::Serialize + Send + Sync;
 }
@@ -157,12 +162,17 @@ impl<T: CacheService + ?Sized> CacheServiceExt for T {
         }
     }
 
-    async fn set_typed<U>(&self, key: &str, value: &U, ttl: std::time::Duration) -> SchedulerResult<()>
+    async fn set_typed<U>(
+        &self,
+        key: &str,
+        value: &U,
+        ttl: std::time::Duration,
+    ) -> SchedulerResult<()>
     where
         U: serde::Serialize + Send + Sync,
     {
-        let bytes = serde_json::to_vec(value)
-            .map_err(|e| SchedulerError::CacheError(e.to_string()))?;
+        let bytes =
+            serde_json::to_vec(value).map_err(|e| SchedulerError::CacheError(e.to_string()))?;
         self.set(key, &bytes, ttl).await
     }
 }

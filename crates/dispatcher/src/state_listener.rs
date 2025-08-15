@@ -4,14 +4,14 @@ use std::time::Duration;
 use async_trait::async_trait;
 use tracing::{debug, error, info, warn};
 
-use scheduler_foundation::{
-    traits::{MessageQueue, StateListenerService},
-    SchedulerError, SchedulerResult,
-};
 use scheduler_domain::entities::{
     Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus,
 };
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
+use scheduler_foundation::{
+    traits::{MessageQueue, StateListenerService},
+    SchedulerError, SchedulerResult,
+};
 
 use crate::retry_service::RetryService;
 
@@ -158,7 +158,10 @@ impl StateListener {
                     match serde_json::to_string(result) {
                         Ok(json_str) => Some(json_str),
                         Err(e) => {
-                            error!("Failed to serialize task result for task_run_id={}: {}", status_msg.task_run_id, e);
+                            error!(
+                                "Failed to serialize task result for task_run_id={}: {}",
+                                status_msg.task_run_id, e
+                            );
                             None
                         }
                     }
@@ -197,7 +200,10 @@ impl StateListener {
                     status_msg.task_run_id,
                     status_msg.worker_id,
                     status_msg.error_message.as_deref().unwrap_or_else(|| {
-                        error!("No error message provided for failed task_run_id={}", status_msg.task_run_id);
+                        error!(
+                            "No error message provided for failed task_run_id={}",
+                            status_msg.task_run_id
+                        );
                         "未知错误"
                     })
                 );

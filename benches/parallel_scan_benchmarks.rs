@@ -1,22 +1,22 @@
 use criterion::{criterion_group, criterion_main, Criterion, Throughput};
-use scheduler_domain::entities::{Task, TaskStatus, ShardConfig};
-use tokio::runtime::Runtime;
-use std::time::Duration;
 use futures::{stream, StreamExt};
+use scheduler_domain::entities::{ShardConfig, Task, TaskStatus};
+use std::time::Duration;
+use tokio::runtime::Runtime;
 
 /// Specialized benchmark for the parallelized task scanning optimization
 /// This focuses specifically on the buffer_unordered implementation
 fn bench_parallel_scan_optimization(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("parallel_scan_optimization");
-    
+
     // Test different task set sizes
     let task_counts = vec![10, 25, 50, 100, 250, 500];
-    
+
     for task_count in task_counts {
         group.throughput(Throughput::Elements(task_count as u64));
-        
+
         group.bench_with_input(
             format!("parallel_scan_{}", task_count),
             &task_count,
@@ -24,7 +24,7 @@ fn bench_parallel_scan_optimization(c: &mut Criterion) {
                 b.iter(|| {
                     // Setup: Create test tasks
                     let tasks = create_realistic_test_tasks(count);
-                    
+
                     // Benchmark the parallel scanning operation
                     let result = runtime.block_on(benchmark_parallel_scan(tasks));
                     std::hint::black_box(result);
@@ -32,16 +32,16 @@ fn bench_parallel_scan_optimization(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark comparing different concurrency strategies
 fn bench_concurrency_strategies(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("concurrency_strategies");
-    
+
     let task_count = 100;
     let concurrency_strategies = vec![
         ("sequential", 1),
@@ -50,33 +50,29 @@ fn bench_concurrency_strategies(c: &mut Criterion) {
         ("high_concurrency", 20),
         ("very_high_concurrency", 50),
     ];
-    
+
     for (strategy_name, concurrency_limit) in concurrency_strategies {
-        group.bench_with_input(
-            strategy_name,
-            &concurrency_limit,
-            |b, &limit| {
-                b.iter(|| {
-                    let tasks = create_realistic_test_tasks(task_count);
-                    let result = runtime.block_on(benchmark_with_concurrency(tasks, limit));
-                    std::hint::black_box(result);
-                })
-            },
-        );
+        group.bench_with_input(strategy_name, &concurrency_limit, |b, &limit| {
+            b.iter(|| {
+                let tasks = create_realistic_test_tasks(task_count);
+                let result = runtime.block_on(benchmark_with_concurrency(tasks, limit));
+                std::hint::black_box(result);
+            })
+        });
     }
-    
+
     group.finish();
 }
 
 /// Benchmark for task scheduling latency
 fn bench_scheduling_latency(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("scheduling_latency");
-    
+
     // Measure individual task scheduling latency
     let task_counts = vec![1, 5, 10, 25];
-    
+
     for task_count in task_counts {
         group.bench_with_input(
             format!("latency_{}_tasks", task_count),
@@ -92,18 +88,18 @@ fn bench_scheduling_latency(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark for throughput measurement
 fn bench_scheduling_throughput(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("scheduling_throughput");
-    
+
     let durations = vec![Duration::from_secs(1), Duration::from_secs(3)];
-    
+
     for duration in durations {
         group.bench_with_input(
             format!("throughput_{}s", duration.as_secs()),
@@ -113,7 +109,7 @@ fn bench_scheduling_throughput(c: &mut Criterion) {
                     let tasks = create_continuous_task_stream();
                     let start = tokio::time::Instant::now();
                     let mut scheduled_count = 0;
-                    
+
                     // Run for the specified duration
                     let mut task_stream = tasks.into_iter().cycle();
                     while start.elapsed() < dur {
@@ -121,11 +117,11 @@ fn bench_scheduling_throughput(c: &mut Criterion) {
                         if batch.is_empty() {
                             break;
                         }
-                        
+
                         let result = runtime.block_on(benchmark_parallel_scan(batch));
                         scheduled_count += result.len();
                     }
-                    
+
                     let actual_duration = start.elapsed();
                     let throughput = scheduled_count as f64 / actual_duration.as_secs_f64();
                     std::hint::black_box(throughput);
@@ -133,18 +129,18 @@ fn bench_scheduling_throughput(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark for memory efficiency with streaming
 fn bench_streaming_memory_efficiency(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("streaming_memory_efficiency");
-    
+
     let large_task_counts = vec![1000, 5000, 10000];
-    
+
     for task_count in large_task_counts {
         group.bench_with_input(
             format!("streaming_{}_tasks", task_count),
@@ -159,19 +155,19 @@ fn bench_streaming_memory_efficiency(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
 /// Benchmark for error resilience in parallel processing
 fn bench_parallel_error_resilience(c: &mut Criterion) {
     let runtime = Runtime::new().unwrap();
-    
+
     let mut group = c.benchmark_group("parallel_error_resilience");
-    
+
     let error_rates = vec![0.0, 0.05, 0.1, 0.2, 0.3];
     let task_count = 100;
-    
+
     for error_rate in error_rates {
         group.bench_with_input(
             format!("error_resilience_{}%", (error_rate * 100.0) as i32),
@@ -185,7 +181,7 @@ fn bench_parallel_error_resilience(c: &mut Criterion) {
             },
         );
     }
-    
+
     group.finish();
 }
 
@@ -194,7 +190,7 @@ fn bench_parallel_error_resilience(c: &mut Criterion) {
 async fn benchmark_parallel_scan(tasks: Vec<Task>) -> Vec<Task> {
     // Simulate the parallel scanning logic from the actual implementation
     let concurrency_limit = 10;
-    
+
     let scheduled_tasks: Vec<Task> = stream::iter(tasks)
         .map(|task| {
             async move {
@@ -206,22 +202,20 @@ async fn benchmark_parallel_scan(tasks: Vec<Task>) -> Vec<Task> {
         .buffer_unordered(concurrency_limit)
         .collect()
         .await;
-    
+
     scheduled_tasks
 }
 
 async fn benchmark_with_concurrency(tasks: Vec<Task>, concurrency_limit: usize) -> Vec<Task> {
     let scheduled_tasks: Vec<Task> = stream::iter(tasks)
-        .map(|task| {
-            async move {
-                tokio::time::sleep(Duration::from_micros(100)).await;
-                task
-            }
+        .map(|task| async move {
+            tokio::time::sleep(Duration::from_micros(100)).await;
+            task
         })
         .buffer_unordered(concurrency_limit)
         .collect()
         .await;
-    
+
     scheduled_tasks
 }
 
@@ -229,30 +223,28 @@ async fn benchmark_streaming_scan(tasks: Vec<Task>) -> Vec<Task> {
     // Simulate streaming approach to process large task sets efficiently
     let batch_size = 100;
     let concurrency_limit = 10;
-    
+
     let mut results = Vec::new();
-    
+
     for chunk in tasks.chunks(batch_size) {
         let chunk_results: Vec<Task> = stream::iter(chunk.to_vec())
-            .map(|task| {
-                async move {
-                    tokio::time::sleep(Duration::from_micros(50)).await;
-                    task
-                }
+            .map(|task| async move {
+                tokio::time::sleep(Duration::from_micros(50)).await;
+                task
             })
             .buffer_unordered(concurrency_limit)
             .collect()
             .await;
-        
+
         results.extend(chunk_results);
     }
-    
+
     results
 }
 
 async fn benchmark_error_handling(tasks: Vec<Task>) -> Vec<Task> {
     let concurrency_limit = 10;
-    
+
     let scheduled_tasks: Vec<Task> = stream::iter(tasks)
         .map(|task| {
             async move {
@@ -261,7 +253,7 @@ async fn benchmark_error_handling(tasks: Vec<Task>) -> Vec<Task> {
                     tokio::time::sleep(Duration::from_millis(10)).await; // Error handling is faster
                     return task; // Continue processing despite errors
                 }
-                
+
                 tokio::time::sleep(Duration::from_micros(100)).await;
                 task
             }
@@ -269,7 +261,7 @@ async fn benchmark_error_handling(tasks: Vec<Task>) -> Vec<Task> {
         .buffer_unordered(concurrency_limit)
         .collect()
         .await;
-    
+
     scheduled_tasks
 }
 
@@ -278,7 +270,7 @@ async fn benchmark_error_handling(tasks: Vec<Task>) -> Vec<Task> {
 fn create_realistic_test_tasks(count: usize) -> Vec<Task> {
     let mut tasks = Vec::new();
     let now = chrono::Utc::now();
-    
+
     for i in 0..count {
         let task = Task {
             id: i as i64 + 1,
@@ -312,14 +304,14 @@ fn create_realistic_test_tasks(count: usize) -> Vec<Task> {
         };
         tasks.push(task);
     }
-    
+
     tasks
 }
 
 fn create_latency_test_tasks(count: usize) -> Vec<Task> {
     let mut tasks = Vec::new();
     let now = chrono::Utc::now();
-    
+
     for i in 0..count {
         let task = Task {
             id: i as i64 + 1,
@@ -337,7 +329,7 @@ fn create_latency_test_tasks(count: usize) -> Vec<Task> {
         };
         tasks.push(task);
     }
-    
+
     tasks
 }
 
@@ -352,10 +344,10 @@ fn create_large_task_set(count: usize) -> Vec<Task> {
 fn create_tasks_with_failure_scenarios(count: usize, error_rate: f64) -> Vec<Task> {
     let mut tasks = Vec::new();
     let now = chrono::Utc::now();
-    
+
     for i in 0..count {
         let should_fail = (i as f64 / count as f64) < error_rate;
-        
+
         let task = Task {
             id: i as i64 + 1,
             name: if should_fail {
@@ -380,7 +372,7 @@ fn create_tasks_with_failure_scenarios(count: usize, error_rate: f64) -> Vec<Tas
         };
         tasks.push(task);
     }
-    
+
     tasks
 }
 

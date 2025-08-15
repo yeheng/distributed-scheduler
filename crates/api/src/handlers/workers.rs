@@ -8,7 +8,9 @@ use crate::{
     error::{ApiError, ApiResult},
     response::{success, PaginatedResponse},
     routes::AppState,
-    validation::worker::{validate_worker_id, validate_worker_status, validate_pagination, sanitize_input},
+    validation::worker::{
+        sanitize_input, validate_pagination, validate_worker_id, validate_worker_status,
+    },
 };
 
 #[derive(Debug, Deserialize)]
@@ -60,13 +62,12 @@ pub async fn list_workers(
     // 验证分页参数
     let (page, page_size) = validate_pagination(params.page, params.page_size)
         .map_err(|e| ApiError::BadRequest(e.to_string()))?;
-    
+
     // 验证状态参数
     if let Some(ref status) = params.status {
-        validate_worker_status(status)
-            .map_err(|e| ApiError::BadRequest(e.to_string()))?;
+        validate_worker_status(status).map_err(|e| ApiError::BadRequest(e.to_string()))?;
     }
-    
+
     let mut workers = if let Some(status) = params.status {
         let status = sanitize_input(&status);
         match status.to_uppercase().as_str() {
@@ -115,11 +116,10 @@ pub async fn get_worker(
     // Check permissions for worker reading
     current_user.require_permission(Permission::WorkerRead)?;
     // 验证worker ID
-    validate_worker_id(&id)
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
-        
+    validate_worker_id(&id).map_err(|e| ApiError::BadRequest(e.to_string()))?;
+
     let sanitized_id = sanitize_input(&id);
-    
+
     match state.worker_repo.get_by_id(&sanitized_id).await? {
         Some(worker) => {
             let response = WorkerDetailResponse::from(worker);
@@ -137,17 +137,18 @@ pub async fn get_worker_stats(
     // Check permissions for worker reading
     current_user.require_permission(Permission::WorkerRead)?;
     // 验证worker ID
-    validate_worker_id(&id)
-        .map_err(|e| ApiError::BadRequest(e.to_string()))?;
-        
+    validate_worker_id(&id).map_err(|e| ApiError::BadRequest(e.to_string()))?;
+
     let sanitized_id = sanitize_input(&id);
-    
+
     let worker = match state.worker_repo.get_by_id(&sanitized_id).await? {
         Some(worker) => worker,
         None => return Err(crate::error::ApiError::NotFound),
     };
     let load_stats = state.worker_repo.get_worker_load_stats().await?;
-    let worker_load_stat = load_stats.into_iter().find(|stat| stat.worker_id == sanitized_id);
+    let worker_load_stat = load_stats
+        .into_iter()
+        .find(|stat| stat.worker_id == sanitized_id);
 
     match worker_load_stat {
         Some(stat) => Ok(success(stat)),

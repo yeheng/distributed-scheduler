@@ -1,9 +1,9 @@
 use anyhow::Result;
 use chrono::Utc;
 use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
+use scheduler_domain::entities::*;
 use scheduler_foundation::traits::MessageQueue;
 use scheduler_foundation::{TaskResult, TaskRunStatus};
-use scheduler_domain::entities::*;
 use scheduler_infrastructure::message_queue::RabbitMQMessageQueue;
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;
@@ -775,8 +775,8 @@ fn create_test_status_message(id: i64) -> Message {
         timestamp: Utc::now(),
     };
 
-    let payload = serde_json::to_value(&status_message)
-        .expect("Failed to serialize status message in test");
+    let payload =
+        serde_json::to_value(&status_message).expect("Failed to serialize status message in test");
     Message {
         id: Uuid::new_v4().to_string(),
         message_type: MessageType::StatusUpdate(status_message),

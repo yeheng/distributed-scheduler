@@ -1,16 +1,18 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{Task, TaskFilter, TaskStatus},
     repositories::TaskRepository,
 };
+use scheduler_foundation::SchedulerResult;
 use sqlx::{Row, SqlitePool};
 use tracing::{debug, instrument};
 
-use crate::{task_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}, database::mapping::MappingHelpers};
+use crate::{
+    database::mapping::MappingHelpers,
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    task_context,
+};
 
 pub struct SqliteTaskRepository {
     pool: SqlitePool,
@@ -23,11 +25,11 @@ impl SqliteTaskRepository {
 
     fn row_to_task(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<Task> {
         use sqlx::Row;
-        
+
         let dependencies = MappingHelpers::parse_dependencies_sqlite(row, "dependencies");
-        
+
         let parameters = MappingHelpers::parse_parameters_sqlite(row, "parameters")?;
-        
+
         let shard_config = MappingHelpers::parse_shard_config_sqlite(row, "shard_config")?;
 
         Ok(Task {
@@ -47,7 +49,10 @@ impl SqliteTaskRepository {
     }
 
     /// Get latest run status for multiple tasks in batch (internal helper)
-    async fn get_dependency_run_statuses_batch(&self, task_ids: &[i64]) -> SchedulerResult<Vec<(i64, Option<String>)>> {
+    async fn get_dependency_run_statuses_batch(
+        &self,
+        task_ids: &[i64],
+    ) -> SchedulerResult<Vec<(i64, Option<String>)>> {
         if task_ids.is_empty() {
             return Ok(vec![]);
         }
@@ -56,9 +61,7 @@ impl SqliteTaskRepository {
             .with_additional_info(format!("批量查询{}个任务的依赖状态", task_ids.len()));
 
         // Create placeholders for the IN clause
-        let placeholders: Vec<String> = (1..=task_ids.len())
-            .map(|i| format!("?{}", i))
-            .collect();
+        let placeholders: Vec<String> = (1..=task_ids.len()).map(|i| format!("?{i}")).collect();
 
         let sql = format!(
             "SELECT 
@@ -115,11 +118,9 @@ impl SqliteTaskRepository {
         let context = task_context!(RepositoryOperation::BatchRead)
             .with_additional_info(format!("批量查询{}个任务详情", task_ids.len()));
 
-        // Create placeholders for the IN clause  
-        let placeholders: Vec<String> = (1..=task_ids.len())
-            .map(|i| format!("?{}", i))
-            .collect();
-            
+        // Create placeholders for the IN clause
+        let placeholders: Vec<String> = (1..=task_ids.len()).map(|i| format!("?{i}")).collect();
+
         let sql = format!(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at 
              FROM tasks 
@@ -155,10 +156,12 @@ impl TaskRepository for SqliteTaskRepository {
         task_type = %task.task_type,
     ))]
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
-        let context = task_context!(RepositoryOperation::Create, 
-            task_id = task.id, 
-            task_name = &task.name)
-            .with_task_type(task.task_type.clone());
+        let context = task_context!(
+            RepositoryOperation::Create,
+            task_id = task.id,
+            task_name = &task.name
+        )
+        .with_task_type(task.task_type.clone());
 
         let shard_config_json = task
             .shard_config
@@ -195,9 +198,12 @@ impl TaskRepository for SqliteTaskRepository {
 
         let created_task = Self::row_to_task(&row)?;
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &created_task.entity_description(), 
-            Some(&format!("ID: {}, 类型: {}", created_task.id, created_task.task_type))
+            context,
+            &created_task.entity_description(),
+            Some(&format!(
+                "ID: {}, 类型: {}",
+                created_task.id, created_task.task_type
+            )),
         );
         Ok(created_task)
     }
@@ -255,10 +261,12 @@ impl TaskRepository for SqliteTaskRepository {
         task_type = %task.task_type,
     ))]
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
-        let context = task_context!(RepositoryOperation::Update, 
-            task_id = task.id, 
-            task_name = &task.name)
-            .with_task_type(task.task_type.clone());
+        let context = task_context!(
+            RepositoryOperation::Update,
+            task_id = task.id,
+            task_name = &task.name
+        )
+        .with_task_type(task.task_type.clone());
 
         let shard_config_json = task
             .shard_config
@@ -301,9 +309,12 @@ impl TaskRepository for SqliteTaskRepository {
         }
 
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &task.entity_description(), 
-            Some(&format!("状态: {:?}, 类型: {}", task.status, task.task_type))
+            context,
+            &task.entity_description(),
+            Some(&format!(
+                "状态: {:?}, 类型: {}",
+                task.status, task.task_type
+            )),
         );
         Ok(())
     }
@@ -321,11 +332,7 @@ impl TaskRepository for SqliteTaskRepository {
             return Err(RepositoryErrorHelpers::task_not_found(context));
         }
 
-        RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &format!("任务 (ID: {})", id), 
-            None
-        );
+        RepositoryErrorHelpers::log_operation_success(context, &format!("任务 (ID: {id})"), None);
         Ok(())
     }
     #[instrument(skip(self, filter), fields(
@@ -336,7 +343,7 @@ impl TaskRepository for SqliteTaskRepository {
     ))]
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
         let context = task_context!(RepositoryOperation::Query)
-            .with_additional_info(format!("过滤器: {:?}", filter));
+            .with_additional_info(format!("过滤器: {filter:?}"));
 
         let mut query = "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at FROM tasks WHERE 1=1".to_string();
         let mut bind_count = 0;
@@ -413,7 +420,7 @@ impl TaskRepository for SqliteTaskRepository {
     }
     async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
         let context = task_context!(RepositoryOperation::Query, task_id = task_id);
-        
+
         let task = self.get_by_id(task_id).await?;
 
         if let Some(task) = task {
@@ -422,8 +429,10 @@ impl TaskRepository for SqliteTaskRepository {
             }
 
             // Optimized batch query for checking dependency statuses
-            let dependency_statuses = self.get_dependency_run_statuses_batch(&task.dependencies).await?;
-            
+            let dependency_statuses = self
+                .get_dependency_run_statuses_batch(&task.dependencies)
+                .await?;
+
             // Check if all dependencies are completed
             for (_, status) in dependency_statuses {
                 match status {
@@ -431,7 +440,7 @@ impl TaskRepository for SqliteTaskRepository {
                     _ => return Ok(false), // Dependency not completed or never executed
                 }
             }
-            
+
             Ok(true)
         } else {
             Err(RepositoryErrorHelpers::task_not_found(context))
@@ -439,7 +448,7 @@ impl TaskRepository for SqliteTaskRepository {
     }
     async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
         let context = task_context!(RepositoryOperation::Query, task_id = task_id);
-        
+
         let task = self.get_by_id(task_id).await?;
 
         if let Some(task) = task {
@@ -467,8 +476,9 @@ impl TaskRepository for SqliteTaskRepository {
             return Ok(());
         }
 
-        let context = task_context!(RepositoryOperation::BatchUpdate)
-            .with_additional_info(format!("批量更新 {} 个任务状态为 {:?}", task_ids.len(), status));
+        let context = task_context!(RepositoryOperation::BatchUpdate).with_additional_info(
+            format!("批量更新 {} 个任务状态为 {:?}", task_ids.len(), status),
+        );
 
         let status_str = match status {
             TaskStatus::Active => "ACTIVE",
@@ -492,9 +502,13 @@ impl TaskRepository for SqliteTaskRepository {
             .map_err(|e| RepositoryErrorHelpers::task_database_error(context.clone(), e))?;
 
         RepositoryErrorHelpers::log_operation_success(
-            context, 
-            &format!("批量任务状态更新"), 
-            Some(&format!("更新了 {} 个任务的状态为 {}", result.rows_affected(), status_str))
+            context,
+            &"批量任务状态更新".to_string(),
+            Some(&format!(
+                "更新了 {} 个任务的状态为 {}",
+                result.rows_affected(),
+                status_str
+            )),
         );
         Ok(())
     }

@@ -4,9 +4,9 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::warn;
 
-use scheduler_foundation::{SchedulerError, SchedulerResult};
 use scheduler_domain::entities::Task;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
+use scheduler_foundation::{SchedulerError, SchedulerResult};
 
 pub struct DependencyCheckService {
     task_repo: Arc<dyn TaskRepository>,
@@ -31,7 +31,10 @@ pub trait DependencyCheckServiceTrait: Send + Sync {
 }
 
 impl DependencyCheckService {
-    pub fn new(task_repo: Arc<dyn TaskRepository>, task_run_repo: Arc<dyn TaskRunRepository>) -> Self {
+    pub fn new(
+        task_repo: Arc<dyn TaskRepository>,
+        task_run_repo: Arc<dyn TaskRunRepository>,
+    ) -> Self {
         Self {
             task_repo,
             task_run_repo,
@@ -70,10 +73,7 @@ impl DependencyCheckServiceTrait for DependencyCheckService {
 
         let can_execute = blocking_dependencies.is_empty();
         let reason = if !can_execute {
-            Some(format!(
-                "等待依赖任务完成: {:?}",
-                blocking_dependencies
-            ))
+            Some(format!("等待依赖任务完成: {blocking_dependencies:?}"))
         } else {
             None
         };
@@ -107,7 +107,7 @@ impl DependencyCheckServiceTrait for DependencyCheckService {
                     return Err(SchedulerError::InvalidDependency {
                         task_id,
                         dependency_id: *dep_id,
-                        reason: format!("验证依赖时出错: {}", e),
+                        reason: format!("验证依赖时出错: {e}"),
                     });
                 }
             }
@@ -117,7 +117,7 @@ impl DependencyCheckServiceTrait for DependencyCheckService {
             return Err(SchedulerError::InvalidDependency {
                 task_id,
                 dependency_id: invalid_deps[0],
-                reason: format!("无效的依赖任务: {:?}", invalid_deps),
+                reason: format!("无效的依赖任务: {invalid_deps:?}"),
             });
         }
 
@@ -129,7 +129,8 @@ impl DependencyCheckServiceTrait for DependencyCheckService {
             });
         }
 
-        self.check_circular_dependencies(task_id, dependencies).await?;
+        self.check_circular_dependencies(task_id, dependencies)
+            .await?;
 
         Ok(())
     }
@@ -154,10 +155,7 @@ impl DependencyCheckService {
             });
         }
 
-        let recent_runs = self
-            .task_run_repo
-            .get_recent_runs(dependency_id, 1)
-            .await?;
+        let recent_runs = self.task_run_repo.get_recent_runs(dependency_id, 1).await?;
         let latest_run = recent_runs.first();
 
         match latest_run {
@@ -187,7 +185,7 @@ impl DependencyCheckService {
     ) -> SchedulerResult<()> {
         let mut visited = HashSet::new();
         let mut queue = VecDeque::new();
-        
+
         for &dep_id in dependencies {
             queue.push_back(dep_id);
         }

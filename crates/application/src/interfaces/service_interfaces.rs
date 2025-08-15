@@ -5,8 +5,8 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use serde_json::Value;
 
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+use scheduler_foundation::SchedulerResult;
 
 pub mod task_services {
     use super::*;
@@ -358,8 +358,15 @@ pub enum ExportFormat {
 
 #[async_trait]
 pub trait MessageQueue: Send + Sync {
-    async fn publish_message(&self, queue: &str, message: &scheduler_domain::entities::Message) -> SchedulerResult<()>;
-    async fn consume_messages(&self, queue: &str) -> SchedulerResult<Vec<scheduler_domain::entities::Message>>;
+    async fn publish_message(
+        &self,
+        queue: &str,
+        message: &scheduler_domain::entities::Message,
+    ) -> SchedulerResult<()>;
+    async fn consume_messages(
+        &self,
+        queue: &str,
+    ) -> SchedulerResult<Vec<scheduler_domain::entities::Message>>;
     async fn ack_message(&self, message_id: &str) -> SchedulerResult<()>;
     async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()>;
     async fn create_queue(&self, queue: &str, durable: bool) -> SchedulerResult<()>;

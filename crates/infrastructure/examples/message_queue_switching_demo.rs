@@ -1,10 +1,6 @@
-use scheduler_foundation::{
-    traits::MessageQueue,
-};
-use scheduler_config::models::{
-     MessageQueueConfig, MessageQueueType, RedisConfig,
-};
+use scheduler_config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
 use scheduler_domain::entities::*;
+use scheduler_foundation::traits::MessageQueue;
 use scheduler_infrastructure::{MessageQueueFactory, MessageQueueManager};
 use serde_json::json;
 use std::time::Duration;

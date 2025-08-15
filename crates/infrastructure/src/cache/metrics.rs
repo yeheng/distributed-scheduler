@@ -39,70 +39,71 @@ pub struct CacheMetrics {
 impl CacheMetrics {
     /// Create new cache metrics
     pub fn new(registry: &Registry) -> Self {
-        let hits = Counter::with_opts(Opts::new(
-            "cache_hits_total",
-            "Total number of cache hits"
-        )).unwrap();
+        let hits = Counter::with_opts(Opts::new("cache_hits_total", "Total number of cache hits"))
+            .unwrap();
         registry.register(Box::new(hits.clone())).unwrap();
 
         let misses = Counter::with_opts(Opts::new(
             "cache_misses_total",
-            "Total number of cache misses"
-        )).unwrap();
+            "Total number of cache misses",
+        ))
+        .unwrap();
         registry.register(Box::new(misses.clone())).unwrap();
 
-        let sets = Counter::with_opts(Opts::new(
-            "cache_sets_total",
-            "Total number of cache sets"
-        )).unwrap();
+        let sets = Counter::with_opts(Opts::new("cache_sets_total", "Total number of cache sets"))
+            .unwrap();
         registry.register(Box::new(sets.clone())).unwrap();
 
         let deletes = Counter::with_opts(Opts::new(
             "cache_deletes_total",
-            "Total number of cache deletes"
-        )).unwrap();
+            "Total number of cache deletes",
+        ))
+        .unwrap();
         registry.register(Box::new(deletes.clone())).unwrap();
 
         let errors = Counter::with_opts(Opts::new(
             "cache_errors_total",
-            "Total number of cache errors"
-        )).unwrap();
+            "Total number of cache errors",
+        ))
+        .unwrap();
         registry.register(Box::new(errors.clone())).unwrap();
 
-        let hit_rate = Gauge::with_opts(Opts::new(
-            "cache_hit_rate",
-            "Cache hit rate (0.0 to 1.0)"
-        )).unwrap();
+        let hit_rate =
+            Gauge::with_opts(Opts::new("cache_hit_rate", "Cache hit rate (0.0 to 1.0)")).unwrap();
         registry.register(Box::new(hit_rate.clone())).unwrap();
 
-        let miss_rate = Gauge::with_opts(Opts::new(
-            "cache_miss_rate",
-            "Cache miss rate (0.0 to 1.0)"
-        )).unwrap();
+        let miss_rate =
+            Gauge::with_opts(Opts::new("cache_miss_rate", "Cache miss rate (0.0 to 1.0)")).unwrap();
         registry.register(Box::new(miss_rate.clone())).unwrap();
 
         let error_rate = Gauge::with_opts(Opts::new(
             "cache_error_rate",
-            "Cache error rate (0.0 to 1.0)"
-        )).unwrap();
+            "Cache error rate (0.0 to 1.0)",
+        ))
+        .unwrap();
         registry.register(Box::new(error_rate.clone())).unwrap();
 
-        let operation_duration = Histogram::with_opts(Opts::new(
-            "cache_operation_duration_seconds",
-            "Cache operation duration in seconds"
-        ).into()).unwrap();
-        registry.register(Box::new(operation_duration.clone())).unwrap();
+        let operation_duration = Histogram::with_opts(
+            Opts::new(
+                "cache_operation_duration_seconds",
+                "Cache operation duration in seconds",
+            )
+            .into(),
+        )
+        .unwrap();
+        registry
+            .register(Box::new(operation_duration.clone()))
+            .unwrap();
 
-        let cache_size = Gauge::with_opts(Opts::new(
-            "cache_size_bytes",
-            "Cache size in bytes"
-        )).unwrap();
+        let cache_size =
+            Gauge::with_opts(Opts::new("cache_size_bytes", "Cache size in bytes")).unwrap();
         registry.register(Box::new(cache_size.clone())).unwrap();
 
         let memory_usage = Gauge::with_opts(Opts::new(
             "cache_memory_usage_bytes",
-            "Cache memory usage in bytes"
-        )).unwrap();
+            "Cache memory usage in bytes",
+        ))
+        .unwrap();
         registry.register(Box::new(memory_usage.clone())).unwrap();
 
         Self {
@@ -214,10 +215,10 @@ pub struct AlertThresholds {
 impl Default for AlertThresholds {
     fn default() -> Self {
         Self {
-            low_hit_rate: 0.5,  // 50% hit rate
-            high_error_rate: 0.05, // 5% error rate
+            low_hit_rate: 0.5,             // 50% hit rate
+            high_error_rate: 0.05,         // 5% error rate
             slow_operation_threshold: 1.0, // 1 second
-            alert_cooldown: 300, // 5 minutes
+            alert_cooldown: 300,           // 5 minutes
         }
     }
 }
@@ -241,7 +242,7 @@ impl CachePerformanceMonitor {
     /// Monitor cache performance and return alerts if needed
     pub async fn monitor(&self, stats: &CacheStats) -> Vec<String> {
         let mut alerts = Vec::new();
-        
+
         // Check if we can send alerts (cooldown period)
         let last_alert = *self.last_alert_time.read().await;
         if last_alert.elapsed().as_secs() < self.alert_thresholds.alert_cooldown {
@@ -249,7 +250,8 @@ impl CachePerformanceMonitor {
         }
 
         // Check hit rate
-        if stats.hit_rate() < self.alert_thresholds.low_hit_rate && stats.hits + stats.misses > 100 {
+        if stats.hit_rate() < self.alert_thresholds.low_hit_rate && stats.hits + stats.misses > 100
+        {
             alerts.push(format!(
                 "Low cache hit rate: {:.2}% (threshold: {:.2}%)",
                 stats.hit_rate() * 100.0,
@@ -315,9 +317,9 @@ pub struct HealthThresholds {
 impl Default for HealthThresholds {
     fn default() -> Self {
         Self {
-            degraded_hit_rate: 0.7,    // 70% hit rate
-            unhealthy_hit_rate: 0.5,   // 50% hit rate
-            degraded_error_rate: 0.02, // 2% error rate
+            degraded_hit_rate: 0.7,     // 70% hit rate
+            unhealthy_hit_rate: 0.5,    // 50% hit rate
+            degraded_error_rate: 0.02,  // 2% error rate
             unhealthy_error_rate: 0.05, // 5% error rate
         }
     }
@@ -344,14 +346,16 @@ impl CacheHealthChecker {
         let error_rate = stats.error_rate();
 
         // Check for unhealthy conditions
-        if hit_rate < self.health_thresholds.unhealthy_hit_rate 
-            || error_rate > self.health_thresholds.unhealthy_error_rate {
+        if hit_rate < self.health_thresholds.unhealthy_hit_rate
+            || error_rate > self.health_thresholds.unhealthy_error_rate
+        {
             return CacheHealthStatus::Unhealthy;
         }
 
         // Check for degraded conditions
-        if hit_rate < self.health_thresholds.degraded_hit_rate 
-            || error_rate > self.health_thresholds.degraded_error_rate {
+        if hit_rate < self.health_thresholds.degraded_hit_rate
+            || error_rate > self.health_thresholds.degraded_error_rate
+        {
             return CacheHealthStatus::Degraded;
         }
 
@@ -377,14 +381,14 @@ mod tests {
     async fn test_cache_metrics() {
         let registry = Registry::new();
         let metrics = CacheMetrics::new(&registry);
-        
+
         let mut stats = CacheStats::default();
         stats.hits = 80;
         stats.misses = 20;
         stats.errors = 2;
-        
+
         metrics.update_stats(&stats).await;
-        
+
         assert_eq!(metrics.hits.get(), 80.0);
         assert_eq!(metrics.misses.get(), 20.0);
         assert_eq!(metrics.errors.get(), 2.0);
@@ -395,11 +399,11 @@ mod tests {
         let registry = Registry::new();
         let metrics = CacheMetrics::new(&registry);
         let monitor = CachePerformanceMonitor::new(metrics);
-        
+
         let mut stats = CacheStats::default();
         stats.hits = 30;
         stats.misses = 70; // Low hit rate
-        
+
         // This would normally require async runtime
         // In real tests, you'd use tokio::test
         assert!(monitor.alert_thresholds.low_hit_rate > 0.0);
@@ -410,12 +414,12 @@ mod tests {
         let registry = Registry::new();
         let metrics = CacheMetrics::new(&registry);
         let checker = CacheHealthChecker::new(metrics);
-        
+
         let mut stats = CacheStats::default();
         stats.hits = 80;
         stats.misses = 20;
         stats.errors = 1;
-        
+
         // This would normally require async runtime
         // In real tests, you'd use tokio::test
         assert!(checker.health_thresholds.degraded_hit_rate > 0.0);

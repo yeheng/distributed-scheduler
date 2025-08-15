@@ -359,7 +359,10 @@ impl MessageBuilder {
         self
     }
 
-    pub fn with_trace_headers(mut self, headers: std::collections::HashMap<String, String>) -> Self {
+    pub fn with_trace_headers(
+        mut self,
+        headers: std::collections::HashMap<String, String>,
+    ) -> Self {
         self.message.trace_headers = Some(headers);
         self
     }

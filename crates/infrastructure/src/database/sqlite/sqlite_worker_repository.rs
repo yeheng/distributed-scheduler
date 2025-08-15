@@ -1,11 +1,11 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{WorkerInfo, WorkerStatus},
     repositories::{WorkerLoadStats, WorkerRepository},
 };
 use scheduler_errors::SchedulerError;
+use scheduler_foundation::SchedulerResult;
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 
@@ -20,7 +20,8 @@ impl SqliteWorkerRepository {
         Self { pool }
     }
     fn row_to_worker_info(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<WorkerInfo> {
-        let supported_task_types = MappingHelpers::parse_supported_task_types_sqlite(row, "supported_task_types")?;
+        let supported_task_types =
+            MappingHelpers::parse_supported_task_types_sqlite(row, "supported_task_types")?;
 
         Ok(WorkerInfo {
             id: row.try_get("id")?,

@@ -7,9 +7,9 @@ pub mod validation;
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitState};
 pub use environment::{ConfigProfile, Environment, ProfileRegistry};
 pub use models::{
-    ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel, MessageQueueConfig, 
-    MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig, RedisConfig, 
-    ResilienceConfig, WorkerConfig,
+    ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
+    MessageQueueConfig, MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig,
+    RedisConfig, ResilienceConfig, WorkerConfig,
 };
 
 /// Configuration error type
@@ -20,16 +20,16 @@ pub type ConfigResult<T> = Result<T, ConfigError>;
 pub enum ConfigError {
     #[error("Configuration error: {0}")]
     Configuration(String),
-    
+
     #[error("Validation error: {0}")]
     Validation(String),
-    
+
     #[error("File error: {0}")]
     File(String),
-    
+
     #[error("Parse error: {0}")]
     Parse(String),
-    
+
     #[error("Environment error: {0}")]
     Environment(String),
 }

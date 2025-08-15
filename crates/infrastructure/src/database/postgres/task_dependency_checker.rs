@@ -1,15 +1,16 @@
-use std::collections::HashSet;
-use scheduler_foundation::{SchedulerResult, SchedulerError};
 use scheduler_domain::{
     entities::{Task, TaskRunStatus},
     task_dependency_service::TaskDependencyService,
 };
+use scheduler_foundation::{SchedulerError, SchedulerResult};
 use sqlx::{PgPool, Row};
+use std::collections::HashSet;
 use tracing::{debug, instrument};
 
-use crate::{task_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}};
+use crate::{
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    task_context,
+};
 
 /// Infrastructure implementation of task dependency checking
 /// Delegates business logic to domain service and handles data access
@@ -60,9 +61,7 @@ impl TaskDependencyChecker {
             .with_additional_info(format!("批量查询{}个任务详情", task_ids.len()));
 
         // Create placeholders for the IN clause
-        let placeholders: Vec<String> = (1..=task_ids.len())
-            .map(|i| format!("${}", i))
-            .collect();
+        let placeholders: Vec<String> = (1..=task_ids.len()).map(|i| format!("${i}")).collect();
         let sql = format!(
             "SELECT id, name, task_type, schedule, parameters, timeout_seconds, max_retries, status, dependencies, shard_config, created_at, updated_at 
              FROM tasks 
@@ -113,9 +112,7 @@ impl TaskDependencyChecker {
                 );
                 Ok(dependencies)
             }
-            None => {
-                Err(RepositoryErrorHelpers::task_not_found(context))
-            }
+            None => Err(RepositoryErrorHelpers::task_not_found(context)),
         }
     }
 
@@ -128,12 +125,14 @@ impl TaskDependencyChecker {
             return Ok(vec![]);
         }
 
-        let context = task_context!(RepositoryOperation::BatchRead)
-            .with_additional_info(format!("批量查询{}个任务的最新运行状态", dependency_ids.len()));
+        let context = task_context!(RepositoryOperation::BatchRead).with_additional_info(format!(
+            "批量查询{}个任务的最新运行状态",
+            dependency_ids.len()
+        ));
 
         // Create placeholders for the IN clause
         let placeholders: Vec<String> = (1..=dependency_ids.len())
-            .map(|i| format!("${}", i))
+            .map(|i| format!("${i}"))
             .collect();
 
         // Use window function to get the latest run status for each task

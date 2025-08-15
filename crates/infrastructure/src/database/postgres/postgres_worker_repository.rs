@@ -1,16 +1,17 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use scheduler_foundation::SchedulerResult;
 use scheduler_domain::{
     entities::{WorkerInfo, WorkerStatus},
     repositories::{WorkerLoadStats, WorkerRepository},
 };
+use scheduler_foundation::SchedulerResult;
 use sqlx::{PgPool, Row};
 use tracing::{debug, instrument};
 
-use crate::{worker_context, error_handling::{
-    RepositoryErrorHelpers, RepositoryOperation,
-}};
+use crate::{
+    error_handling::{RepositoryErrorHelpers, RepositoryOperation},
+    worker_context,
+};
 
 pub struct PostgresWorkerRepository {
     pool: PgPool,
@@ -86,7 +87,10 @@ impl WorkerRepository for PostgresWorkerRepository {
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
             &format!("Worker '{}'", worker.id),
-            Some(&format!("主机名: {}, 状态: {:?}", worker.hostname, worker.status))
+            Some(&format!(
+                "主机名: {}, 状态: {:?}",
+                worker.hostname, worker.status
+            )),
         );
         Ok(())
     }
@@ -106,8 +110,8 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &format!("Worker '{}'", worker_id),
-            None
+            &format!("Worker '{worker_id}'"),
+            None,
         );
         Ok(())
     }
@@ -177,7 +181,10 @@ impl WorkerRepository for PostgresWorkerRepository {
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
             &format!("Worker '{}'", worker.id),
-            Some(&format!("状态: {:?}, 任务数: {}", worker.status, worker.current_task_count))
+            Some(&format!(
+                "状态: {:?}, 任务数: {}",
+                worker.status, worker.current_task_count
+            )),
         );
         Ok(())
     }
@@ -192,9 +199,10 @@ impl WorkerRepository for PostgresWorkerRepository {
         .await
         .map_err(|e| RepositoryErrorHelpers::worker_database_error(context.clone(), e))?;
 
-        let workers: SchedulerResult<Vec<WorkerInfo>> = rows.iter().map(Self::row_to_worker_info).collect();
+        let workers: SchedulerResult<Vec<WorkerInfo>> =
+            rows.iter().map(Self::row_to_worker_info).collect();
         let result = workers?;
-        
+
         debug!("查询Worker列表成功，返回 {} 个Worker", result.len());
         Ok(result)
     }
@@ -212,9 +220,10 @@ impl WorkerRepository for PostgresWorkerRepository {
         .await
         .map_err(|e| RepositoryErrorHelpers::worker_database_error(context.clone(), e))?;
 
-        let workers: SchedulerResult<Vec<WorkerInfo>> = rows.iter().map(Self::row_to_worker_info).collect();
+        let workers: SchedulerResult<Vec<WorkerInfo>> =
+            rows.iter().map(Self::row_to_worker_info).collect();
         let result = workers?;
-        
+
         debug!("查询活跃Worker成功，返回 {} 个Worker", result.len());
         Ok(result)
     }
@@ -222,7 +231,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     async fn get_workers_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
         let context = worker_context!(RepositoryOperation::Query)
             .with_status(WorkerStatus::Alive)
-            .with_additional_info(format!("按任务类型查询: {}", task_type));
+            .with_additional_info(format!("按任务类型查询: {task_type}"));
 
         let rows = sqlx::query(
             "SELECT id, hostname, ip_address::text as ip_address, supported_task_types, max_concurrent_tasks, current_task_count, status, last_heartbeat, registered_at FROM workers WHERE status = $1 AND $2 = ANY(supported_task_types) ORDER BY last_heartbeat DESC"
@@ -233,10 +242,15 @@ impl WorkerRepository for PostgresWorkerRepository {
         .await
         .map_err(|e| RepositoryErrorHelpers::worker_database_error(context.clone(), e))?;
 
-        let workers: SchedulerResult<Vec<WorkerInfo>> = rows.iter().map(Self::row_to_worker_info).collect();
+        let workers: SchedulerResult<Vec<WorkerInfo>> =
+            rows.iter().map(Self::row_to_worker_info).collect();
         let result = workers?;
-        
-        debug!("按任务类型 {} 查询Worker成功，返回 {} 个Worker", task_type, result.len());
+
+        debug!(
+            "按任务类型 {} 查询Worker成功，返回 {} 个Worker",
+            task_type,
+            result.len()
+        );
         Ok(result)
     }
     #[instrument(skip(self), fields(
@@ -251,7 +265,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     ) -> SchedulerResult<()> {
         let context = worker_context!(RepositoryOperation::Update, worker_id = worker_id)
             .with_status(WorkerStatus::Alive)
-            .with_additional_info(format!("心跳更新，当前任务数: {}", current_task_count));
+            .with_additional_info(format!("心跳更新，当前任务数: {current_task_count}"));
 
         let result =
             sqlx::query("UPDATE workers SET last_heartbeat = $1, status = $2, current_task_count = $3 WHERE id = $4")
@@ -269,8 +283,8 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &format!("Worker '{}'", worker_id),
-            Some(&format!("心跳更新，任务数: {}", current_task_count))
+            &format!("Worker '{worker_id}'"),
+            Some(&format!("心跳更新，任务数: {current_task_count}")),
         );
         Ok(())
     }
@@ -281,7 +295,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()> {
         let context = worker_context!(RepositoryOperation::Update, worker_id = worker_id)
             .with_status(status)
-            .with_additional_info(format!("状态变更为 {:?}", status));
+            .with_additional_info(format!("状态变更为 {status:?}"));
 
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = $2")
             .bind(status)
@@ -296,8 +310,8 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &format!("Worker '{}'", worker_id),
-            Some(&format!("状态更新为 {:?}", status))
+            &format!("Worker '{worker_id}'"),
+            Some(&format!("状态更新为 {status:?}")),
         );
         Ok(())
     }
@@ -305,7 +319,7 @@ impl WorkerRepository for PostgresWorkerRepository {
     async fn get_timeout_workers(&self, timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
         let context = worker_context!(RepositoryOperation::Query)
             .with_status(WorkerStatus::Alive)
-            .with_additional_info(format!("查询超时Worker，阈值: {}秒", timeout_seconds));
+            .with_additional_info(format!("查询超时Worker，阈值: {timeout_seconds}秒"));
 
         let rows = sqlx::query(
             r#"
@@ -322,16 +336,21 @@ impl WorkerRepository for PostgresWorkerRepository {
         .await
         .map_err(|e| RepositoryErrorHelpers::worker_database_error(context.clone(), e))?;
 
-        let workers: SchedulerResult<Vec<WorkerInfo>> = rows.iter().map(Self::row_to_worker_info).collect();
+        let workers: SchedulerResult<Vec<WorkerInfo>> =
+            rows.iter().map(Self::row_to_worker_info).collect();
         let result = workers?;
-        
-        debug!("查询超时Worker成功，阈值{}秒，返回 {} 个Worker", timeout_seconds, result.len());
+
+        debug!(
+            "查询超时Worker成功，阈值{}秒，返回 {} 个Worker",
+            timeout_seconds,
+            result.len()
+        );
         Ok(result)
     }
     #[instrument(skip(self), fields(timeout_seconds = %timeout_seconds))]
     async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> SchedulerResult<u64> {
         let context = worker_context!(RepositoryOperation::Update)
-            .with_additional_info(format!("清理离线Worker，阈值: {}秒", timeout_seconds));
+            .with_additional_info(format!("清理离线Worker，阈值: {timeout_seconds}秒"));
 
         let result = sqlx::query(
             r#"
@@ -349,13 +368,13 @@ impl WorkerRepository for PostgresWorkerRepository {
         .map_err(|e| RepositoryErrorHelpers::worker_database_error(context.clone(), e))?;
 
         let updated_count = result.rows_affected();
-        
+
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &format!("离线Worker清理操作"),
-            Some(&format!("标记了 {} 个Worker为离线状态", updated_count))
+            &"离线Worker清理操作".to_string(),
+            Some(&format!("标记了 {updated_count} 个Worker为离线状态")),
         );
-        
+
         Ok(updated_count)
     }
     #[instrument(skip(self))]
@@ -440,7 +459,10 @@ impl WorkerRepository for PostgresWorkerRepository {
             });
         }
 
-        debug!("查询Worker负载统计成功，返回 {} 个Worker的统计数据", stats.len());
+        debug!(
+            "查询Worker负载统计成功，返回 {} 个Worker的统计数据",
+            stats.len()
+        );
         Ok(stats)
     }
     #[instrument(skip(self, worker_ids), fields(
@@ -459,7 +481,11 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         let context = worker_context!(RepositoryOperation::BatchUpdate)
             .with_status(status)
-            .with_additional_info(format!("批量更新 {} 个Worker状态为 {:?}", worker_ids.len(), status));
+            .with_additional_info(format!(
+                "批量更新 {} 个Worker状态为 {:?}",
+                worker_ids.len(),
+                status
+            ));
 
         let result = sqlx::query("UPDATE workers SET status = $1 WHERE id = ANY($2)")
             .bind(status)
@@ -470,8 +496,12 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &format!("批量Worker状态更新"),
-            Some(&format!("更新了 {} 个Worker的状态为 {:?}", result.rows_affected(), status))
+            &"批量Worker状态更新".to_string(),
+            Some(&format!(
+                "更新了 {} 个Worker的状态为 {:?}",
+                result.rows_affected(),
+                status
+            )),
         );
         Ok(())
     }

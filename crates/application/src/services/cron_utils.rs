@@ -61,7 +61,10 @@ impl CronScheduler {
         self.should_trigger(None, now)
     }
 
-    pub fn get_next_execution_time(&self, last_run: Option<DateTime<Utc>>) -> Option<DateTime<Utc>> {
+    pub fn get_next_execution_time(
+        &self,
+        last_run: Option<DateTime<Utc>>,
+    ) -> Option<DateTime<Utc>> {
         match last_run {
             Some(last) => self.schedule.after(&last).next(),
             None => self.schedule.upcoming(Utc).next(),
@@ -69,7 +72,10 @@ impl CronScheduler {
     }
 
     pub fn get_previous_execution_time(&self, before: DateTime<Utc>) -> Option<DateTime<Utc>> {
-        self.schedule.upcoming(Utc).take_while(|&time| time < before).last()
+        self.schedule
+            .upcoming(Utc)
+            .take_while(|&time| time < before)
+            .last()
     }
 
     pub fn validate_cron_expression(cron_expr: &str) -> SchedulerResult<()> {
