@@ -503,7 +503,7 @@ impl TaskRepository for SqliteTaskRepository {
 
         RepositoryErrorHelpers::log_operation_success(
             context,
-            &"批量任务状态更新".to_string(),
+            "批量任务状态更新",
             Some(&format!(
                 "更新了 {} 个任务的状态为 {}",
                 result.rows_affected(),

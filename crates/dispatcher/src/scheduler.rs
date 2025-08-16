@@ -235,10 +235,7 @@ impl TaskSchedulerService for TaskScheduler {
         )
         .await?;
         let task_execution = self.create_task_execution_message(&task, task_run);
-        let message = {
-            use scheduler_observability::MessageTracingExt;
-            Message::task_execution(task_execution).inject_current_trace_context()
-        };
+        let message = { Message::task_execution(task_execution).inject_current_trace_context() };
         let mq_start = std::time::Instant::now();
         {
             let mq_span = TaskTracer::message_queue_span("publish", &self.task_queue_name);

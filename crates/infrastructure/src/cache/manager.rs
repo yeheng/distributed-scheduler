@@ -141,26 +141,28 @@ impl CacheService for RedisCacheManager {
 
         let mut conn = self.get_connection().await?;
 
-        let result: Option<Vec<u8>> = redis::cmd("GET")
+        let result: Result<Option<Vec<u8>>, redis::RedisError> = redis::cmd("GET")
             .arg(&full_key)
             .query_async(&mut conn)
-            .await
-            .map_err(|e| {
-                error!("Cache GET failed for key {}: {}", full_key, e);
-                self.increment_errors();
-                SchedulerError::CacheError(e.to_string())
-            })?;
+            .await;
 
         match result {
-            Some(value) => {
-                debug!("Cache HIT: {}", full_key);
-                self.increment_hits().await;
-                Ok(Some(value))
-            }
-            None => {
-                debug!("Cache MISS: {}", full_key);
-                self.increment_misses().await;
-                Ok(None)
+            Ok(r) => match r {
+                Some(value) => {
+                    debug!("Cache HIT: {}", full_key);
+                    self.increment_hits().await;
+                    Ok(Some(value))
+                }
+                None => {
+                    debug!("Cache MISS: {}", full_key);
+                    self.increment_misses().await;
+                    Ok(None)
+                }
+            },
+            Err(e) => {
+                error!("Cache GET failed for key {}: {}", full_key, e);
+                self.increment_errors().await;
+                return Err(SchedulerError::CacheError(e.to_string()));
             }
         }
     }
@@ -173,21 +175,24 @@ impl CacheService for RedisCacheManager {
         let mut conn = self.get_connection().await?;
 
         let ttl_seconds = ttl.as_secs() as i64;
-        let _: () = redis::cmd("SETEX")
+        let r: Result<(), redis::RedisError> = redis::cmd("SETEX")
             .arg(&full_key)
             .arg(ttl_seconds)
             .arg(value)
             .query_async(&mut conn)
-            .await
-            .map_err(|e| {
+            .await;
+        match r {
+            Ok(_) => {
+                debug!("Cache SET success: {}", full_key);
+                self.increment_sets().await;
+                Ok(())
+            }
+            Err(e) => {
                 error!("Cache SET failed for key {}: {}", full_key, e);
-                self.increment_errors();
-                SchedulerError::CacheError(e.to_string())
-            })?;
-
-        debug!("Cache SET success: {}", full_key);
-        self.increment_sets().await;
-        Ok(())
+                self.increment_errors().await;
+                return Err(SchedulerError::CacheError(e.to_string()));
+            }
+        }
     }
 
     #[instrument(skip(self))]
@@ -197,25 +202,27 @@ impl CacheService for RedisCacheManager {
 
         let mut conn = self.get_connection().await?;
 
-        let result: i32 = redis::cmd("DEL")
+        let result: Result<i32, redis::RedisError> = redis::cmd("DEL")
             .arg(&full_key)
             .query_async(&mut conn)
-            .await
-            .map_err(|e| {
+            .await;
+        match result {
+            Ok(count) => {
+                let deleted = count > 0;
+                if deleted {
+                    debug!("Cache DELETE success: {}", full_key);
+                    self.increment_deletes().await;
+                } else {
+                    debug!("Cache DELETE key not found: {}", full_key);
+                }
+                Ok(deleted)
+            }
+            Err(e) => {
                 error!("Cache DELETE failed for key {}: {}", full_key, e);
-                self.increment_errors();
-                SchedulerError::CacheError(e.to_string())
-            })?;
-
-        let deleted = result > 0;
-        if deleted {
-            debug!("Cache DELETE success: {}", full_key);
-            self.increment_deletes().await;
-        } else {
-            debug!("Cache DELETE key not found: {}", full_key);
+                self.increment_errors().await;
+                Err(SchedulerError::CacheError(e.to_string()))
+            }
         }
-
-        Ok(deleted)
     }
 
     #[instrument(skip(self))]
@@ -225,17 +232,20 @@ impl CacheService for RedisCacheManager {
 
         let mut conn = self.get_connection().await?;
 
-        let result: i32 = redis::cmd("EXISTS")
+        let result: Result<i32, redis::RedisError> = redis::cmd("EXISTS")
             .arg(&full_key)
             .query_async(&mut conn)
-            .await
-            .map_err(|e| {
+            .await;
+        match result {
+            Ok(e) => {
+                return Ok(e > 0);
+            }
+            Err(e) => {
                 error!("Cache EXISTS failed for key {}: {}", full_key, e);
-                self.increment_errors();
-                SchedulerError::CacheError(e.to_string())
-            })?;
-
-        Ok(result > 0)
+                self.increment_errors().await;
+                return Err(SchedulerError::CacheError(format!("{e}")));
+            }
+        }
     }
 
     #[instrument(skip(self))]
@@ -319,16 +329,18 @@ impl CacheService for RedisCacheManager {
 
         let mut conn = self.get_connection().await?;
 
-        let result: String = redis::cmd("PING")
-            .query_async(&mut conn)
-            .await
-            .map_err(|e| {
+        let result: Result<String, redis::RedisError> =
+            redis::cmd("PING").query_async(&mut conn).await;
+        match result {
+            Ok(e) => {
+                return Ok(e == "PONG");
+            }
+            Err(e) => {
                 error!("Cache health check failed: {}", e);
-                self.increment_errors();
-                SchedulerError::CacheError(e.to_string())
-            })?;
-
-        Ok(result == "PONG")
+                self.increment_errors().await;
+                return Err(SchedulerError::CacheError(e.to_string()));
+            }
+        }
     }
 }
 

@@ -371,7 +371,7 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &"离线Worker清理操作".to_string(),
+            "离线Worker清理操作",
             Some(&format!("标记了 {updated_count} 个Worker为离线状态")),
         );
 
@@ -496,7 +496,7 @@ impl WorkerRepository for PostgresWorkerRepository {
 
         RepositoryErrorHelpers::log_operation_success_worker(
             context,
-            &"批量Worker状态更新".to_string(),
+            "批量Worker状态更新",
             Some(&format!(
                 "更新了 {} 个Worker的状态为 {:?}",
                 result.rows_affected(),

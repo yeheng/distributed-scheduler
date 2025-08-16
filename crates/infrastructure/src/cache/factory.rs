@@ -47,7 +47,7 @@ impl CacheFactory {
         let cache_service = Arc::new(cache_manager) as Arc<dyn CacheService>;
 
         // Create metrics if registry is provided
-        let metrics = registry.map(|registry| CacheMetrics::new(registry));
+        let metrics = registry.map(CacheMetrics::new);
 
         self.cache_service = Some(cache_service);
         self.metrics = metrics;
