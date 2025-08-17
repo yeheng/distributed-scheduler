@@ -11,19 +11,23 @@ pub mod validation;
 
 // Re-export commonly used types
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitState};
+pub use encrypted_config_storage::{EncryptedConfigStorage, EncryptionStatus};
+pub use enhanced_validation::{
+    ConfigValidator, ValidationError, ValidationResult, ValidationScore, ValidationWarning,
+};
 pub use environment::{ConfigProfile, Environment, ProfileRegistry};
+pub use jwt_secret_manager::{JwtSecret, JwtSecretManager, RotationStatus};
 pub use models::{
     ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
     MessageQueueConfig, MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig,
     RedisConfig, ResilienceConfig, WorkerConfig,
 };
+pub use secret_manager::{
+    RotationPolicy, SecretEntry, SecretManager, SecretType, SecretValidation,
+};
 pub use security::{
     ConfigSecurity, SecurityEvent, SecurityEventType, SecuritySeverity, SENSITIVE_PATTERNS,
 };
-pub use encrypted_config_storage::{EncryptedConfigStorage, EncryptionStatus};
-pub use enhanced_validation::{ConfigValidator, ValidationResult, ValidationError, ValidationWarning, ValidationScore};
-pub use jwt_secret_manager::{JwtSecretManager, JwtSecret, JwtRotationPolicy, RotationStatus};
-pub use secret_manager::{SecretManager, SecretEntry, SecretType, RotationPolicy, SecretValidation};
 
 /// Configuration error type
 pub type ConfigResult<T> = Result<T, ConfigError>;

@@ -85,20 +85,35 @@ async fn main() -> Result<()> {
 
     // 验证运行模式
     match mode_str.as_str() {
-        "dispatcher" | "worker" | "api" | "all" => {},
-        _ => return Err(anyhow::anyhow!("无效的运行模式: {}，支持的值: dispatcher, worker, api, all", mode_str)),
+        "dispatcher" | "worker" | "api" | "all" => {}
+        _ => {
+            return Err(anyhow::anyhow!(
+                "无效的运行模式: {}，支持的值: dispatcher, worker, api, all",
+                mode_str
+            ))
+        }
     }
 
     // 验证日志级别
     match log_level.as_str() {
-        "trace" | "debug" | "info" | "warn" | "error" => {},
-        _ => return Err(anyhow::anyhow!("无效的日志级别: {}，支持的值: trace, debug, info, warn, error", log_level)),
+        "trace" | "debug" | "info" | "warn" | "error" => {}
+        _ => {
+            return Err(anyhow::anyhow!(
+                "无效的日志级别: {}，支持的值: trace, debug, info, warn, error",
+                log_level
+            ))
+        }
     }
 
     // 验证日志格式
     match log_format.as_str() {
-        "json" | "pretty" => {},
-        _ => return Err(anyhow::anyhow!("无效的日志格式: {}，支持的值: json, pretty", log_format)),
+        "json" | "pretty" => {}
+        _ => {
+            return Err(anyhow::anyhow!(
+                "无效的日志格式: {}，支持的值: json, pretty",
+                log_format
+            ))
+        }
     }
 
     // 验证worker-id（在worker模式下必需）
@@ -175,8 +190,8 @@ async fn main() -> Result<()> {
 
 /// 初始化日志系统
 fn init_logging(log_level: &str, log_format: &str) -> Result<()> {
-    let env_filter = EnvFilter::try_from_default_env()
-        .unwrap_or_else(|_| EnvFilter::new(log_level));
+    let env_filter =
+        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
 
     let registry = tracing_subscriber::registry().with(env_filter);
 

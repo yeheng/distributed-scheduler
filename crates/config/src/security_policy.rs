@@ -34,7 +34,12 @@ impl Default for CorsPolicy {
         Self {
             enabled: false,
             allowed_origins: vec![],
-            allowed_methods: vec!["GET".to_string(), "POST".to_string(), "PUT".to_string(), "DELETE".to_string()],
+            allowed_methods: vec![
+                "GET".to_string(),
+                "POST".to_string(),
+                "PUT".to_string(),
+                "DELETE".to_string(),
+            ],
             allowed_headers: vec!["Content-Type".to_string(), "Authorization".to_string()],
             exposed_headers: vec![],
             allow_credentials: false,
@@ -305,10 +310,7 @@ impl Default for ValidationPolicy {
             strict_mode: false,
             validate_on_startup: true,
             validate_on_change: true,
-            required_fields: vec![
-                "database.url".to_string(),
-                "api.bind_address".to_string(),
-            ],
+            required_fields: vec!["database.url".to_string(), "api.bind_address".to_string()],
             forbidden_fields: vec![
                 "api.auth.jwt_secret".to_string(),
                 "database.password".to_string(),
@@ -555,40 +557,44 @@ impl SecurityPolicy {
     /// Load security policy from file
     pub fn from_file(file_path: &Path) -> ConfigResult<Self> {
         let content = std::fs::read_to_string(file_path)
-            .map_err(|e| ConfigError::File(format!("Failed to read security policy file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to read security policy file: {e}")))?;
 
         let policy: SecurityPolicy = serde_json::from_str(&content)
-            .map_err(|e| ConfigError::Parse(format!("Failed to parse security policy: {}", e)))?;
+            .map_err(|e| ConfigError::Parse(format!("Failed to parse security policy: {e}")))?;
 
         Ok(policy)
     }
 
     /// Save security policy to file
     pub fn to_file(&self, file_path: &Path) -> ConfigResult<()> {
-        let content = serde_json::to_string_pretty(self)
-            .map_err(|e| ConfigError::Security(format!("Failed to serialize security policy: {}", e)))?;
+        let content = serde_json::to_string_pretty(self).map_err(|e| {
+            ConfigError::Security(format!("Failed to serialize security policy: {e}"))
+        })?;
 
         std::fs::write(file_path, content)
-            .map_err(|e| ConfigError::File(format!("Failed to write security policy file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to write security policy file: {e}")))?;
 
         Ok(())
     }
 
     /// Validate configuration against this policy
-    pub fn validate_config(&self, config: &HashMap<String, serde_json::Value>) -> ConfigResult<Vec<String>> {
+    pub fn validate_config(
+        &self,
+        config: &HashMap<String, serde_json::Value>,
+    ) -> ConfigResult<Vec<String>> {
         let mut violations = Vec::new();
 
         // Check required fields
         for field in &self.validation_policy.required_fields {
             if !config.contains_key(field) {
-                violations.push(format!("Required field '{}' is missing", field));
+                violations.push(format!("Required field '{field}' is missing"));
             }
         }
 
         // Check forbidden fields
         for field in &self.validation_policy.forbidden_fields {
             if config.contains_key(field) {
-                violations.push(format!("Forbidden field '{}' is present", field));
+                violations.push(format!("Forbidden field '{field}' is present"));
             }
         }
 
@@ -598,7 +604,9 @@ impl SecurityPolicy {
                 for origin in origins {
                     if let Some(origin_str) = origin.as_str() {
                         if origin_str == "*" && self.environment == Environment::Production {
-                            violations.push("CORS wildcard origin '*' is not allowed in production".to_string());
+                            violations.push(
+                                "CORS wildcard origin '*' is not allowed in production".to_string(),
+                            );
                         }
                     }
                 }
@@ -607,7 +615,12 @@ impl SecurityPolicy {
 
         // Validate secret fields
         for (key, value) in config {
-            if self.encryption_policy.sensitive_fields.iter().any(|field| key.contains(field)) {
+            if self
+                .encryption_policy
+                .sensitive_fields
+                .iter()
+                .any(|field| key.contains(field))
+            {
                 if let Some(value_str) = value.as_str() {
                     if value_str.len() < self.secret_policy.minimum_length {
                         violations.push(format!(
@@ -623,7 +636,8 @@ impl SecurityPolicy {
         if let Some(bind_addr) = config.get("api.bind_address") {
             if let Some(addr) = bind_addr.as_str() {
                 if addr.starts_with("0.0.0.0") && self.environment == Environment::Development {
-                    violations.push("Binding to 0.0.0.0 is not recommended in development".to_string());
+                    violations
+                        .push("Binding to 0.0.0.0 is not recommended in development".to_string());
                 }
             }
         }
@@ -633,7 +647,8 @@ impl SecurityPolicy {
             if let Some(auth_enabled) = config.get("api.auth.enabled") {
                 if let Some(enabled) = auth_enabled.as_bool() {
                     if !enabled {
-                        violations.push("Authentication must be enabled in this environment".to_string());
+                        violations
+                            .push("Authentication must be enabled in this environment".to_string());
                     }
                 }
             }
@@ -648,7 +663,10 @@ impl SecurityPolicy {
             return false;
         }
 
-        self.encryption_policy.sensitive_fields.iter().any(|field| field_name.contains(field))
+        self.encryption_policy
+            .sensitive_fields
+            .iter()
+            .any(|field| field_name.contains(field))
     }
 
     /// Get security recommendations
@@ -657,7 +675,8 @@ impl SecurityPolicy {
 
         match self.environment {
             Environment::Development => {
-                recommendations.push("Consider enabling authentication for API testing".to_string());
+                recommendations
+                    .push("Consider enabling authentication for API testing".to_string());
                 recommendations.push("Use environment-specific configurations".to_string());
             }
             Environment::Testing => {
@@ -671,7 +690,8 @@ impl SecurityPolicy {
             Environment::Production => {
                 recommendations.push("Enable all security features".to_string());
                 recommendations.push("Implement intrusion detection".to_string());
-                recommendations.push("Use hardware security modules for key management".to_string());
+                recommendations
+                    .push("Use hardware security modules for key management".to_string());
             }
         }
 
@@ -681,8 +701,10 @@ impl SecurityPolicy {
     /// Merge with another policy (for customization)
     pub fn merge(&self, other: &SecurityPolicy) -> SecurityPolicy {
         SecurityPolicy {
-            environment: self.environment.clone(),
-            cors_policy: if other.cors_policy.allowed_origins != CorsPolicy::default().allowed_origins {
+            environment: self.environment,
+            cors_policy: if other.cors_policy.allowed_origins
+                != CorsPolicy::default().allowed_origins
+            {
                 other.cors_policy.clone()
             } else {
                 self.cors_policy.clone()
@@ -724,16 +746,24 @@ mod tests {
     #[test]
     fn test_config_validation() {
         let policy = SecurityPolicy::production_policy();
-        
+
         let mut config = HashMap::new();
-        config.insert("api.cors_origins".to_string(), serde_json::Value::Array(vec![
-            serde_json::Value::String("*".to_string())
-        ]));
-        config.insert("api.auth.enabled".to_string(), serde_json::Value::Bool(false));
+        config.insert(
+            "api.cors_origins".to_string(),
+            serde_json::Value::Array(vec![serde_json::Value::String("*".to_string())]),
+        );
+        config.insert(
+            "api.auth.enabled".to_string(),
+            serde_json::Value::Bool(false),
+        );
 
         let violations = policy.validate_config(&config).unwrap();
-        assert!(violations.iter().any(|v| v.contains("CORS wildcard origin")));
-        assert!(violations.iter().any(|v| v.contains("Authentication must be enabled")));
+        assert!(violations
+            .iter()
+            .any(|v| v.contains("CORS wildcard origin")));
+        assert!(violations
+            .iter()
+            .any(|v| v.contains("Authentication must be enabled")));
     }
 
     #[test]
@@ -753,8 +783,12 @@ mod tests {
         let dev_recs = dev_policy.get_recommendations();
         let prod_recs = prod_policy.get_recommendations();
 
-        assert!(dev_recs.iter().any(|r| r.contains("authentication for API testing")));
-        assert!(prod_recs.iter().any(|r| r.contains("hardware security modules")));
+        assert!(dev_recs
+            .iter()
+            .any(|r| r.contains("authentication for API testing")));
+        assert!(prod_recs
+            .iter()
+            .any(|r| r.contains("hardware security modules")));
     }
 
     #[test]
@@ -764,6 +798,9 @@ mod tests {
         custom.cors_policy.allowed_origins = vec!["https://example.com".to_string()];
 
         let merged = base.merge(&custom);
-        assert_eq!(merged.cors_policy.allowed_origins, vec!["https://example.com"]);
+        assert_eq!(
+            merged.cors_policy.allowed_origins,
+            vec!["https://example.com"]
+        );
     }
 }

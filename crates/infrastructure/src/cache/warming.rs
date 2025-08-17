@@ -3,8 +3,8 @@
 //! This module provides cache warming strategies to proactively load
 //! frequently accessed data into cache to improve performance.
 
-use super::{CacheService, CacheServiceExt, CachePrefix};
-use crate::cache::{task_cache_key, task_name_cache_key, worker_cache_key, task_run_cache_key};
+use super::{CacheService, CacheServiceExt};
+use crate::cache::{task_cache_key, task_name_cache_key, worker_cache_key};
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
 use scheduler_foundation::SchedulerResult;
@@ -30,7 +30,7 @@ pub enum WarmingStrategy {
 }
 
 /// Cache warming priority levels
-#[derive(Debug, Clone, PartialEq, PartialOrd, Ord)]
+#[derive(Debug, Clone, PartialEq, Eq, PartialOrd, Ord, Hash)]
 pub enum WarmingPriority {
     /// Low priority (nice to have)
     Low,
@@ -238,8 +238,9 @@ impl CacheWarmingManager {
 
     /// Add custom warming job
     pub fn add_job(&mut self, job: WarmingJob) {
+        let job_name = job.name.clone();
         self.jobs.push(job);
-        info!("Added cache warming job: {}", job.name);
+        info!("Added cache warming job: {}", job_name);
     }
 
     /// Remove warming job by name
@@ -247,11 +248,11 @@ impl CacheWarmingManager {
         let initial_len = self.jobs.len();
         self.jobs.retain(|job| job.name != job_name);
         let removed = self.jobs.len() < initial_len;
-        
+
         if removed {
             info!("Removed cache warming job: {}", job_name);
         }
-        
+
         removed
     }
 
@@ -264,12 +265,9 @@ impl CacheWarmingManager {
         }
 
         info!("Starting cache warm-up on startup");
-        
+
         // Filter enabled jobs
-        let enabled_jobs: Vec<&WarmingJob> = self.jobs
-            .iter()
-            .filter(|job| job.enabled)
-            .collect();
+        let enabled_jobs: Vec<&WarmingJob> = self.jobs.iter().filter(|job| job.enabled).collect();
 
         // Sort by priority (highest first)
         let mut sorted_jobs = enabled_jobs;
@@ -292,7 +290,10 @@ impl CacheWarmingManager {
                     }
                 }
             } else {
-                debug!("Skipping job '{}' due to unsatisfied dependencies", job.name);
+                debug!(
+                    "Skipping job '{}' due to unsatisfied dependencies",
+                    job.name
+                );
             }
         }
 
@@ -308,13 +309,12 @@ impl CacheWarmingManager {
         }
 
         debug!("Executing scheduled cache warming");
-        
+
         // Get jobs that meet priority threshold
-        let threshold_jobs: Vec<&WarmingJob> = self.jobs
+        let threshold_jobs: Vec<&WarmingJob> = self
+            .jobs
             .iter()
-            .filter(|job| {
-                job.enabled && self.meets_priority_threshold(&job.name)
-            })
+            .filter(|job| job.enabled && self.meets_priority_threshold(&job.name))
             .collect();
 
         let mut results = Vec::new();
@@ -324,7 +324,10 @@ impl CacheWarmingManager {
             if !self.is_job_running(&job.name).await {
                 match self.execute_warming_job(job).await {
                     Ok(result) => results.push(result),
-                    Err(e) => warn!("Failed to execute scheduled warming job '{}': {}", job.name, e),
+                    Err(e) => warn!(
+                        "Failed to execute scheduled warming job '{}': {}",
+                        job.name, e
+                    ),
                 }
             }
         }
@@ -336,7 +339,7 @@ impl CacheWarmingManager {
     async fn execute_warming_job(&self, job: &WarmingJob) -> SchedulerResult<WarmingResult> {
         let start_time = Instant::now();
         let job_name = job.name.clone();
-        
+
         // Mark job as running
         self.mark_job_running(&job_name).await;
 
@@ -448,7 +451,10 @@ impl CacheWarmingManager {
     /// Warm schedulable tasks cache
     async fn warm_schedulable_tasks(&self, job: &WarmingJob) -> SchedulerResult<usize> {
         let current_time = chrono::Utc::now();
-        let tasks = self.task_repository.get_schedulable_tasks(current_time).await?;
+        let tasks = self
+            .task_repository
+            .get_schedulable_tasks(current_time)
+            .await?;
         let mut keys_warmed = 0;
 
         // Cache with timestamp-based key
@@ -465,8 +471,7 @@ impl CacheWarmingManager {
     /// Warm high-priority tasks cache
     async fn warm_high_priority_tasks(&self, job: &WarmingJob) -> SchedulerResult<usize> {
         let filter = TaskFilter {
-            status: Some(TaskStatus::Pending),
-            priority: Some(TaskPriority::High),
+            status: Some(TaskStatus::Active),
             ..Default::default()
         };
 
@@ -511,16 +516,22 @@ impl CacheWarmingManager {
     }
 
     /// Check if job dependencies are satisfied
-    fn are_dependencies_satisfied(&self, job: &WarmingJob, completed_jobs: &HashSet<String>) -> bool {
-        job.dependencies.iter().all(|dep| completed_jobs.contains(dep))
+    fn are_dependencies_satisfied(
+        &self,
+        job: &WarmingJob,
+        completed_jobs: &HashSet<String>,
+    ) -> bool {
+        job.dependencies
+            .iter()
+            .all(|dep| completed_jobs.contains(dep))
     }
 
     /// Check if job meets priority threshold
     fn meets_priority_threshold(&self, job_name: &str) -> bool {
-        self.config.priority_thresholds.get(job_name)
-            .map_or(true, |threshold| {
-                *threshold >= WarmingPriority::Medium
-            })
+        self.config
+            .priority_thresholds
+            .get(job_name)
+            .is_none_or(|threshold| *threshold >= WarmingPriority::Medium)
     }
 
     /// Check if job is currently running
@@ -544,7 +555,7 @@ impl CacheWarmingManager {
     /// Update statistics
     async fn update_stats(&self, result: &WarmingResult) {
         let mut stats = self.stats.write().await;
-        
+
         stats.total_warming_operations += 1;
         stats.keys_warmed += result.keys_warmed as u64;
         stats.last_warming_time = Some(Instant::now());
@@ -552,17 +563,24 @@ impl CacheWarmingManager {
         if result.success {
             // Update average time
             let total_time_ms = result.duration_ms as f64;
-            stats.avg_warming_time_ms = (stats.avg_warming_time_ms * (stats.total_warming_operations - 1) as f64 + total_time) / stats.total_warming_operations as f64;
+            stats.avg_warming_time_ms = (stats.avg_warming_time_ms
+                * (stats.total_warming_operations - 1) as f64
+                + total_time_ms)
+                / stats.total_warming_operations as f64;
         } else {
             stats.failed_warming_operations += 1;
         }
 
         // Update by priority (this would need to be enhanced to track job priorities)
-        *stats.by_priority.entry(WarmingPriority::Medium).or_insert(0) += 1;
+        *stats
+            .by_priority
+            .entry(WarmingPriority::Medium)
+            .or_insert(0) += 1;
 
         // Update success rate
         stats.success_rate = if stats.total_warming_operations > 0 {
-            (stats.total_warming_operations - stats.failed_warming_operations) as f64 / stats.total_warming_operations as f64
+            (stats.total_warming_operations - stats.failed_warming_operations) as f64
+                / stats.total_warming_operations as f64
         } else {
             1.0
         };
@@ -587,7 +605,10 @@ impl CacheWarmingManager {
     pub fn set_job_enabled(&mut self, job_name: &str, enabled: bool) -> bool {
         if let Some(job) = self.jobs.iter_mut().find(|job| job.name == job_name) {
             job.enabled = enabled;
-            info!("Set warming job '{}' enabled state to: {}", job_name, enabled);
+            info!(
+                "Set warming job '{}' enabled state to: {}",
+                job_name, enabled
+            );
             true
         } else {
             false
@@ -628,11 +649,17 @@ pub mod convenience {
         ttl: Duration,
     ) -> SchedulerResult<()> {
         let cache_key = task_cache_key(task_id);
-        manager.cache_service.set_typed(&cache_key, task, ttl).await?;
+        manager
+            .cache_service
+            .set_typed(&cache_key, task, ttl)
+            .await?;
 
         if !task.name.is_empty() {
             let name_cache_key = task_name_cache_key(&task.name);
-            manager.cache_service.set_typed(&name_cache_key, task, ttl).await?;
+            manager
+                .cache_service
+                .set_typed(&name_cache_key, task, ttl)
+                .await?;
         }
 
         Ok(())
@@ -646,7 +673,10 @@ pub mod convenience {
         ttl: Duration,
     ) -> SchedulerResult<()> {
         let cache_key = worker_cache_key(worker_id);
-        manager.cache_service.set_typed(&cache_key, worker, ttl).await?;
+        manager
+            .cache_service
+            .set_typed(&cache_key, worker, ttl)
+            .await?;
         Ok(())
     }
 
@@ -660,12 +690,18 @@ pub mod convenience {
 
         for task in tasks {
             let cache_key = task_cache_key(task.id);
-            manager.cache_service.set_typed(&cache_key, task, ttl).await?;
+            manager
+                .cache_service
+                .set_typed(&cache_key, task, ttl)
+                .await?;
             keys_warmed += 1;
 
             if !task.name.is_empty() {
                 let name_cache_key = task_name_cache_key(&task.name);
-                manager.cache_service.set_typed(&name_cache_key, task, ttl).await?;
+                manager
+                    .cache_service
+                    .set_typed(&name_cache_key, task, ttl)
+                    .await?;
                 keys_warmed += 1;
             }
         }
@@ -676,6 +712,9 @@ pub mod convenience {
 
 #[cfg(test)]
 mod tests {
+    use async_trait::async_trait;
+    use scheduler_errors::SchedulerError;
+
     use super::*;
     use crate::cache::config::CacheConfig;
     use crate::cache::manager::RedisCacheManager;
@@ -693,91 +732,105 @@ mod tests {
         } else {
             // Create a mock cache service for testing
             use tokio::sync::Notify;
-            
+
             struct MockCacheService {
                 notify: Arc<Notify>,
             }
-            
+
             #[async_trait]
             impl CacheService for MockCacheService {
                 async fn get(&self, _key: &str) -> SchedulerResult<Option<Vec<u8>>> {
                     Ok(None)
                 }
-                
-                async fn set(&self, _key: &str, _value: &[u8], _ttl: Duration) -> SchedulerResult<()> {
+
+                async fn set(
+                    &self,
+                    _key: &str,
+                    _value: &[u8],
+                    _ttl: Duration,
+                ) -> SchedulerResult<()> {
                     Ok(())
                 }
-                
+
                 async fn delete(&self, _key: &str) -> SchedulerResult<bool> {
                     Ok(false)
                 }
-                
+
                 async fn exists(&self, _key: &str) -> SchedulerResult<bool> {
                     Ok(false)
                 }
-                
+
                 async fn get_stats(&self) -> CacheStats {
                     CacheStats::default()
                 }
-                
+
                 async fn clear_prefix(&self, _prefix: &str) -> SchedulerResult<usize> {
                     Ok(0)
                 }
-                
+
                 async fn health_check(&self) -> SchedulerResult<bool> {
                     Ok(true)
                 }
             }
-            
-            Arc::new(MockCacheService { notify: Arc::new(Notify::new()) }) as Arc<dyn CacheService>
+
+            Arc::new(MockCacheService {
+                notify: Arc::new(Notify::new()),
+            }) as Arc<dyn CacheService>
         };
 
         // Create mock repositories
         struct MockRepository;
-        
+
         #[async_trait]
         impl TaskRepository for MockRepository {
             async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
                 Err(SchedulerError::Database("Mock error".to_string()))
             }
-            
+
             async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<Task>> {
                 Ok(None)
             }
-            
+
             async fn get_by_name(&self, _name: &str) -> SchedulerResult<Option<Task>> {
                 Ok(None)
             }
-            
+
             async fn update(&self, _task: &Task) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn delete(&self, _id: i64) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn list(&self, _filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
                 Ok(Vec::new())
             }
-            
+
             async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
                 Ok(Vec::new())
             }
-            
-            async fn get_schedulable_tasks(&self, _current_time: chrono::DateTime<chrono::Utc>) -> SchedulerResult<Vec<Task>> {
+
+            async fn get_schedulable_tasks(
+                &self,
+                _current_time: chrono::DateTime<chrono::Utc>,
+            ) -> SchedulerResult<Vec<Task>> {
                 Ok(Vec::new())
             }
-            
+
             async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
                 Ok(true)
             }
-            
+
             async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
                 Ok(Vec::new())
             }
-            
-            async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+
+            async fn batch_update_status(
+                &self,
+                _task_ids: &[i64],
+                _status: TaskStatus,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
         }
@@ -787,51 +840,70 @@ mod tests {
             async fn register(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn unregister(&self, _worker_id: &str) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn get_by_id(&self, _worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
                 Ok(None)
             }
-            
+
             async fn update(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
                 Ok(Vec::new())
             }
-            
+
             async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
                 Ok(Vec::new())
             }
-            
-            async fn update_heartbeat(&self, _worker_id: &str, _heartbeat_time: chrono::DateTime<chrono::Utc>, _current_task_count: i32) -> SchedulerResult<()> {
+
+            async fn update_heartbeat(
+                &self,
+                _worker_id: &str,
+                _heartbeat_time: chrono::DateTime<chrono::Utc>,
+                _current_task_count: i32,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
-            
-            async fn batch_update_status(&self, _worker_ids: &[String], _status: WorkerStatus) -> SchedulerResult<()> {
+
+            async fn batch_update_status(
+                &self,
+                _worker_ids: &[String],
+                _status: WorkerStatus,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
-            
-            async fn get_workers_by_task_type(&self, _task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
+
+            async fn get_workers_by_task_type(
+                &self,
+                _task_type: &str,
+            ) -> SchedulerResult<Vec<WorkerInfo>> {
                 Ok(Vec::new())
             }
-            
-            async fn update_status(&self, _worker_id: &str, _status: WorkerStatus) -> SchedulerResult<()> {
+
+            async fn update_status(
+                &self,
+                _worker_id: &str,
+                _status: WorkerStatus,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
-            
-            async fn get_timeout_workers(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
+
+            async fn get_timeout_workers(
+                &self,
+                _timeout_seconds: i64,
+            ) -> SchedulerResult<Vec<WorkerInfo>> {
                 Ok(Vec::new())
             }
-            
+
             async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> SchedulerResult<u64> {
                 Ok(0)
             }
-            
+
             async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
                 Ok(Vec::new())
             }
@@ -842,55 +914,71 @@ mod tests {
             async fn create(&self, _task_run: &TaskRun) -> SchedulerResult<TaskRun> {
                 Err(SchedulerError::Database("Mock error".to_string()))
             }
-            
+
             async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<TaskRun>> {
                 Ok(None)
             }
-            
+
             async fn update(&self, _task_run: &TaskRun) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn delete(&self, _id: i64) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn list(&self, _filter: &TaskRunFilter) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
-            
+
             async fn get_by_task_id(&self, _task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
-            
+
             async fn get_by_worker_id(&self, _worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
-            
+
             async fn get_running_task_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
-            
-            async fn update_status(&self, _task_run_id: i64, _status: TaskRunStatus, _worker_id: Option<&str>) -> SchedulerResult<()> {
+
+            async fn update_status(
+                &self,
+                _task_run_id: i64,
+                _status: TaskRunStatus,
+                _worker_id: Option<&str>,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
-            
-            async fn update_result(&self, _task_run_id: i64, _result: Option<&str>, _error_message: Option<&str>) -> SchedulerResult<()> {
+
+            async fn update_result(
+                &self,
+                _task_run_id: i64,
+                _result: Option<&str>,
+                _error_message: Option<&str>,
+            ) -> SchedulerResult<()> {
                 Ok(())
             }
-            
+
             async fn get_task_run_stats(&self, _task_id: i64) -> SchedulerResult<TaskRunStats> {
                 Ok(TaskRunStats::default())
             }
-            
-            async fn cleanup_old_task_runs(&self, _older_than: chrono::DateTime<chrono::Utc>) -> SchedulerResult<u64> {
+
+            async fn cleanup_old_task_runs(
+                &self,
+                _older_than: chrono::DateTime<chrono::Utc>,
+            ) -> SchedulerResult<u64> {
                 Ok(0)
             }
-            
-            async fn get_failed_task_runs(&self, _since: chrono::DateTime<chrono::Utc>) -> SchedulerResult<Vec<TaskRun>> {
+
+            async fn get_failed_task_runs(
+                &self,
+                _since: chrono::DateTime<chrono::Utc>,
+            ) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
-            
+
             async fn retry_task_run(&self, _task_run_id: i64) -> SchedulerResult<TaskRun> {
                 Err(SchedulerError::Database("Mock error".to_string()))
             }
@@ -901,13 +989,8 @@ mod tests {
         let task_run_repo = Arc::new(MockRepository) as Arc<dyn TaskRunRepository>;
 
         let config = WarmingConfig::default();
-        let manager = CacheWarmingManager::new(
-            cache_service,
-            task_repo,
-            worker_repo,
-            task_run_repo,
-            config,
-        );
+        let manager =
+            CacheWarmingManager::new(cache_service, task_repo, worker_repo, task_run_repo, config);
 
         assert!(!manager.get_jobs().is_empty());
         assert!(!manager.get_enabled_jobs().is_empty());

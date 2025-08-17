@@ -310,7 +310,8 @@ impl CacheConfigHelper {
 
     /// Validate cache configuration
     pub fn validate(config: &CacheConfig) -> anyhow::Result<()> {
-        config.validate()
+        config.validate().map_err(|e| anyhow::anyhow!(e))?;
+        Ok(())
     }
 }
 

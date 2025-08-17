@@ -86,8 +86,9 @@ impl CacheMetrics {
             .register(Box::new(hit_rate.clone()))
             .expect("Failed to register cache hit rate gauge");
 
-        let miss_rate = Gauge::with_opts(Opts::new("cache_miss_rate", "Cache miss rate (0.0 to 1.0)"))
-            .expect("Failed to create cache miss rate gauge");
+        let miss_rate =
+            Gauge::with_opts(Opts::new("cache_miss_rate", "Cache miss rate (0.0 to 1.0)"))
+                .expect("Failed to create cache miss rate gauge");
         registry
             .register(Box::new(miss_rate.clone()))
             .expect("Failed to register cache miss rate gauge");
@@ -207,7 +208,7 @@ impl CacheMetrics {
     pub fn get_metrics_text(&self) -> String {
         let encoder = prometheus::TextEncoder::new();
         let metric_families = self.registry.gather();
-        
+
         match encoder.encode_to_string(&metric_families) {
             Ok(text) => text,
             Err(e) => {
@@ -225,13 +226,11 @@ impl CacheMetrics {
     /// Get detailed performance metrics
     pub async fn get_performance_metrics(&self) -> CachePerformanceMetrics {
         let stats = self.registry.gather();
-        let metric_families: Vec<prometheus::proto::MetricFamily> = stats
-            .into_iter()
-            .map(|mf| mf.into())
-            .collect();
+        let metric_families: Vec<prometheus::proto::MetricFamily> =
+            stats.into_iter().map(|mf| mf).collect();
 
         let mut metrics = CachePerformanceMetrics::default();
-        
+
         for mf in metric_families {
             match mf.get_name() {
                 "cache_hits_total" => {
@@ -247,9 +246,13 @@ impl CacheMetrics {
                 "cache_operation_duration_seconds" => {
                     if let Some(metric) = mf.get_metric().first() {
                         let histogram = metric.get_histogram();
-                        metrics.avg_operation_duration_ms = histogram.get_sample_sum() / histogram.get_sample_count() as f64 * 1000.0;
-                        metrics.p95_operation_duration_ms = Self::get_histogram_percentile(histogram, 0.95) * 1000.0;
-                        metrics.p99_operation_duration_ms = Self::get_histogram_percentile(histogram, 0.99) * 1000.0;
+                        metrics.avg_operation_duration_ms = histogram.get_sample_sum()
+                            / histogram.get_sample_count() as f64
+                            * 1000.0;
+                        metrics.p95_operation_duration_ms =
+                            Self::get_histogram_percentile(histogram, 0.95) * 1000.0;
+                        metrics.p99_operation_duration_ms =
+                            Self::get_histogram_percentile(histogram, 0.99) * 1000.0;
                     }
                 }
                 _ => {}
@@ -270,13 +273,16 @@ impl CacheMetrics {
         let mut cumulative_count = 0;
 
         for bucket in histogram.get_bucket() {
-            cumulative_count += bucket.get_cumulative_count() as u64;
+            cumulative_count += bucket.get_cumulative_count();
             if cumulative_count >= target_count {
                 return bucket.get_upper_bound();
             }
         }
 
-        histogram.get_bucket().last().map_or(0.0, |b| b.get_upper_bound())
+        histogram
+            .get_bucket()
+            .last()
+            .map_or(0.0, |b| b.get_upper_bound())
     }
 }
 
@@ -309,7 +315,7 @@ impl CachePerformanceMetrics {
     /// Calculate derived metrics
     pub fn calculate_derived_metrics(&mut self) {
         self.total_operations = self.total_hits + self.total_misses;
-        
+
         if self.total_operations > 0 {
             self.hit_rate = self.total_hits as f64 / self.total_operations as f64;
             self.miss_rate = self.total_misses as f64 / self.total_operations as f64;
@@ -346,19 +352,25 @@ impl CachePerformanceMetrics {
         let mut recommendations = Vec::new();
 
         if self.hit_rate < 0.5 {
-            recommendations.push("Consider increasing cache TTL or optimizing cache keys".to_string());
+            recommendations
+                .push("Consider increasing cache TTL or optimizing cache keys".to_string());
         }
 
         if self.avg_operation_duration_ms > 10.0 {
-            recommendations.push("Cache operations are slow, consider optimizing Redis configuration".to_string());
+            recommendations.push(
+                "Cache operations are slow, consider optimizing Redis configuration".to_string(),
+            );
         }
 
         if self.p99_operation_duration_ms > 50.0 {
-            recommendations.push("High latency detected, consider connection pooling optimization".to_string());
+            recommendations.push(
+                "High latency detected, consider connection pooling optimization".to_string(),
+            );
         }
 
         if self.error_rate > 0.01 {
-            recommendations.push("High error rate detected, check cache service health".to_string());
+            recommendations
+                .push("High error rate detected, check cache service health".to_string());
         }
 
         if recommendations.is_empty() {
@@ -485,24 +497,27 @@ impl CachePerformanceMonitor {
 
     /// Get comprehensive performance report
     pub async fn get_performance_report(&self, stats: &CacheStats) -> CachePerformanceReport {
-        let performance_metrics = self.metrics.get_performance_metrics().await;
+        let _performance_metrics = self.metrics.get_performance_metrics().await;
         let mut metrics = CachePerformanceMetrics::default();
-        
+
         // Populate basic metrics
         metrics.total_hits = stats.hits;
         metrics.total_misses = stats.misses;
         metrics.error_rate = stats.error_rate();
-        
+
         // Calculate derived metrics
         metrics.calculate_derived_metrics();
-        
+
         // Generate report
+        let assessment = metrics.get_performance_assessment();
+        let recommendations = metrics.get_recommendations();
+        let health_status = self.get_health_status(&metrics);
         CachePerformanceReport {
             metrics,
-            assessment: metrics.get_performance_assessment(),
-            recommendations: metrics.get_recommendations(),
+            assessment,
+            recommendations,
             timestamp: chrono::Utc::now(),
-            health_status: self.get_health_status(&metrics),
+            health_status,
         }
     }
 
@@ -547,7 +562,8 @@ impl CachePerformanceReport {
 
     /// Check if cache performance is acceptable
     pub fn is_performance_acceptable(&self) -> bool {
-        self.assessment != CachePerformanceAssessment::Poor && self.health_status != CacheHealthStatus::Unhealthy
+        self.assessment != CachePerformanceAssessment::Poor
+            && self.health_status != CacheHealthStatus::Unhealthy
     }
 
     /// Get critical issues (if any)
@@ -563,11 +579,17 @@ impl CachePerformanceReport {
         }
 
         if self.metrics.error_rate > 0.05 {
-            issues.push(format!("High error rate: {:.2}%", self.metrics.error_rate * 100.0));
+            issues.push(format!(
+                "High error rate: {:.2}%",
+                self.metrics.error_rate * 100.0
+            ));
         }
 
         if self.metrics.hit_rate < 0.3 {
-            issues.push(format!("Low hit rate: {:.2}%", self.metrics.hit_rate * 100.0));
+            issues.push(format!(
+                "Low hit rate: {:.2}%",
+                self.metrics.hit_rate * 100.0
+            ));
         }
 
         issues

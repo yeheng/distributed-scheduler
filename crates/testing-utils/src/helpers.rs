@@ -57,7 +57,7 @@ impl TestEnv {
     /// Generate unique test names based on timestamp
     pub fn unique_name(prefix: &str) -> String {
         let timestamp = Utc::now().timestamp_nanos_opt().unwrap_or(0);
-        format!("{}_{}", prefix, timestamp)
+        format!("{prefix}_{timestamp}")
     }
 
     /// Generate test timestamps with offsets
@@ -106,17 +106,13 @@ impl TestAssertions {
         assert_eq!(
             actual.len(),
             expected.len(),
-            "Collections have different lengths. Actual: {:?}, Expected: {:?}",
-            actual,
-            expected
+            "Collections have different lengths. Actual: {actual:?}, Expected: {expected:?}"
         );
 
         for expected_item in expected {
             assert!(
                 actual.contains(expected_item),
-                "Expected item {:?} not found in actual collection {:?}",
-                expected_item,
-                actual
+                "Expected item {expected_item:?} not found in actual collection {actual:?}"
             );
         }
     }
@@ -128,7 +124,7 @@ impl TestAssertions {
         T: std::fmt::Debug,
     {
         for item in items {
-            assert!(predicate(item), "{}: Failed for item {:?}", message, item);
+            assert!(predicate(item), "{message}: Failed for item {item:?}");
         }
     }
 
@@ -140,9 +136,7 @@ impl TestAssertions {
     {
         assert!(
             items.iter().any(predicate),
-            "{}: No item satisfied the predicate in {:?}",
-            message,
-            items
+            "{message}: No item satisfied the predicate in {items:?}"
         );
     }
 
@@ -154,9 +148,7 @@ impl TestAssertions {
     {
         assert!(
             !items.iter().any(predicate),
-            "{}: At least one item satisfied the predicate in {:?}",
-            message,
-            items
+            "{message}: At least one item satisfied the predicate in {items:?}"
         );
     }
 }

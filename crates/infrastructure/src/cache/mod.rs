@@ -5,19 +5,23 @@
 
 pub mod config;
 pub mod factory;
+pub mod integration;
 pub mod invalidation;
 pub mod manager;
 pub mod metrics;
 pub mod repository;
+pub mod validation;
 pub mod warming;
 
 use async_trait::async_trait;
 pub use config::*;
 pub use factory::*;
+pub use integration::*;
 pub use invalidation::*;
 pub use manager::*;
 pub use metrics::*;
 pub use repository::*;
+pub use validation::*;
 pub use warming::*;
 
 use scheduler_errors::SchedulerError;

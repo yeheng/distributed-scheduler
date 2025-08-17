@@ -1,11 +1,10 @@
-use anyhow::{Context, Result};
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Utc};
+use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::fs;
 use std::path::Path;
-use chrono::{DateTime, Utc};
-use ring::rand::{SecureRandom, SystemRandom};
-use base64::{Engine as _, engine::general_purpose};
 
 use crate::{ConfigError, ConfigResult, ConfigSecurity, Environment};
 
@@ -40,8 +39,8 @@ pub struct EncryptionMetadata {
 impl EncryptedConfigStorage {
     /// Create a new encrypted configuration storage
     pub fn new(environment: Environment) -> ConfigResult<Self> {
-        let security = ConfigSecurity::new(environment.clone());
-        
+        let security = ConfigSecurity::new(environment);
+
         Ok(Self {
             security,
             environment,
@@ -61,9 +60,13 @@ impl EncryptedConfigStorage {
     }
 
     /// Load and decrypt configuration from file
-    pub fn load_encrypted_config(&self, file_path: &Path) -> ConfigResult<HashMap<String, serde_json::Value>> {
+    pub fn load_encrypted_config(
+        &mut self,
+        file_path: &Path,
+    ) -> ConfigResult<HashMap<String, serde_json::Value>> {
         if !self.encryption_enabled {
             // If encryption is disabled, load regular config
+            eprintln!("DEBUG: Encryption disabled, loading plain config");
             return self.load_plain_config(file_path);
         }
 
@@ -72,17 +75,17 @@ impl EncryptedConfigStorage {
 
         // Load the encrypted configuration file
         let content = fs::read_to_string(file_path)
-            .map_err(|e| ConfigError::File(format!("Failed to read config file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to read config file: {e}")))?;
 
         let encrypted_config: EncryptedConfigFile = serde_json::from_str(&content)
-            .map_err(|e| ConfigError::Parse(format!("Failed to parse encrypted config: {}", e)))?;
+            .map_err(|e| ConfigError::Parse(format!("Failed to parse encrypted config: {e}")))?;
 
         // Validate the configuration is not expired
         if let Some(expires_at) = encrypted_config.metadata.expires_at {
             if Utc::now() > expires_at {
-                return Err(ConfigError::Security(
-                    format!("Configuration file expired at {}", expires_at)
-                ));
+                return Err(ConfigError::Security(format!(
+                    "Configuration file expired at {expires_at}"
+                )));
             }
         }
 
@@ -91,8 +94,8 @@ impl EncryptedConfigStorage {
         for field_name in &encrypted_config.metadata.encrypted_fields {
             if let Some(encrypted_value) = config.get(field_name) {
                 if let Some(value_str) = encrypted_value.as_str() {
-                    if value_str.starts_with("ENC:") {
-                        let encrypted_part = &value_str[4..]; // Remove "ENC:" prefix
+                    if let Some(encrypted_part) = value_str.strip_prefix("ENC:") {
+                        // Remove "ENC:" prefix
                         let decrypted = self.security.decrypt_value(encrypted_part)?;
                         config.insert(field_name.clone(), serde_json::Value::String(decrypted));
                     }
@@ -101,14 +104,16 @@ impl EncryptedConfigStorage {
         }
 
         // Cache the decrypted configuration
-        self.cache.insert(file_path.to_string_lossy().to_string(), CachedConfig {
-            config_data: config.clone(),
-            encrypted_fields: encrypted_config.metadata.encrypted_fields.clone(),
-            created_at: encrypted_config.metadata.created_at,
-            expires_at: encrypted_config.metadata.expires_at,
-            version: encrypted_config.metadata.key_rotation_version,
-        });
-
+        self.cache.insert(
+            file_path.to_string_lossy().to_string(),
+            CachedConfig {
+                config_data: config.clone(),
+                encrypted_fields: encrypted_config.metadata.encrypted_fields.clone(),
+                created_at: encrypted_config.metadata.created_at,
+                expires_at: encrypted_config.metadata.expires_at,
+                version: encrypted_config.metadata.key_rotation_version,
+            },
+        );
         Ok(config)
     }
 
@@ -135,7 +140,7 @@ impl EncryptedConfigStorage {
                         let encrypted = self.security.encrypt_value(value_str)?;
                         encrypted_config.insert(
                             field_name.clone(),
-                            serde_json::Value::String(format!("ENC:{}", encrypted)),
+                            serde_json::Value::String(format!("ENC:{encrypted}")),
                         );
                     }
                 }
@@ -155,11 +160,13 @@ impl EncryptedConfigStorage {
         };
 
         // Serialize and save
-        let content = serde_json::to_string_pretty(&encrypted_file)
-            .map_err(|e| ConfigError::Security(format!("Failed to serialize encrypted config: {}", e)))?;
+        let content = serde_json::to_string_pretty(&encrypted_file).map_err(|e| {
+            ConfigError::Security(format!("Failed to serialize encrypted config: {e}"))
+        })?;
 
-        fs::write(file_path, content)
-            .map_err(|e| ConfigError::File(format!("Failed to write encrypted config file: {}", e)))?;
+        fs::write(file_path, content).map_err(|e| {
+            ConfigError::File(format!("Failed to write encrypted config file: {e}"))
+        })?;
 
         // Set secure file permissions
         self.set_secure_file_permissions(file_path)?;
@@ -168,12 +175,15 @@ impl EncryptedConfigStorage {
     }
 
     /// Load plain configuration (fallback for development)
-    fn load_plain_config(&self, file_path: &Path) -> ConfigResult<HashMap<String, serde_json::Value>> {
+    fn load_plain_config(
+        &self,
+        file_path: &Path,
+    ) -> ConfigResult<HashMap<String, serde_json::Value>> {
         let content = fs::read_to_string(file_path)
-            .map_err(|e| ConfigError::File(format!("Failed to read config file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to read config file: {e}")))?;
 
         let config: HashMap<String, serde_json::Value> = serde_json::from_str(&content)
-            .map_err(|e| ConfigError::Parse(format!("Failed to parse config: {}", e)))?;
+            .map_err(|e| ConfigError::Parse(format!("Failed to parse config: {e}")))?;
 
         Ok(config)
     }
@@ -185,16 +195,19 @@ impl EncryptedConfigStorage {
         file_path: &Path,
     ) -> ConfigResult<()> {
         let content = serde_json::to_string_pretty(config)
-            .map_err(|e| ConfigError::Security(format!("Failed to serialize config: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to serialize config: {e}")))?;
 
         fs::write(file_path, content)
-            .map_err(|e| ConfigError::File(format!("Failed to write config file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to write config file: {e}")))?;
 
         Ok(())
     }
 
     /// Identify sensitive fields that should be encrypted
-    fn identify_sensitive_fields(&self, config: &HashMap<String, serde_json::Value>) -> Vec<String> {
+    fn identify_sensitive_fields(
+        &self,
+        config: &HashMap<String, serde_json::Value>,
+    ) -> Vec<String> {
         let mut sensitive_fields = Vec::new();
 
         for key in config.keys() {
@@ -211,15 +224,16 @@ impl EncryptedConfigStorage {
         #[cfg(unix)]
         {
             use std::os::unix::fs::PermissionsExt;
-            
+
             let metadata = fs::metadata(file_path)
-                .map_err(|e| ConfigError::Security(format!("Failed to read file metadata: {}", e)))?;
-            
+                .map_err(|e| ConfigError::Security(format!("Failed to read file metadata: {e}")))?;
+
             let mut permissions = metadata.permissions();
             permissions.set_mode(0o600); // Read/write for owner only
-            
-            fs::set_permissions(file_path, permissions)
-                .map_err(|e| ConfigError::Security(format!("Failed to set file permissions: {}", e)))?;
+
+            fs::set_permissions(file_path, permissions).map_err(|e| {
+                ConfigError::Security(format!("Failed to set file permissions: {e}"))
+            })?;
         }
 
         #[cfg(not(unix))]
@@ -235,14 +249,15 @@ impl EncryptedConfigStorage {
     pub fn generate_encryption_key(&self) -> ConfigResult<String> {
         let mut key_bytes = [0u8; 32]; // 256 bits for AES-256
         let rng = SystemRandom::new();
-        rng.fill(&mut key_bytes)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate encryption key: {}", e)))?;
-        
-        Ok(general_purpose::STANDARD.encode(&key_bytes))
+        rng.fill(&mut key_bytes).map_err(|e| {
+            ConfigError::Security(format!("Failed to generate encryption key: {e}"))
+        })?;
+
+        Ok(general_purpose::STANDARD.encode(key_bytes))
     }
 
     /// Rotate encryption key and re-encrypt configuration
-    pub fn rotate_encryption_key(&self, file_path: &Path) -> ConfigResult<()> {
+    pub fn rotate_encryption_key(&mut self, file_path: &Path) -> ConfigResult<()> {
         if !self.encryption_enabled {
             return Ok(());
         }
@@ -257,7 +272,7 @@ impl EncryptedConfigStorage {
     }
 
     /// Validate encrypted configuration file
-    pub fn validate_encrypted_config(&self, file_path: &Path) -> ConfigResult<Vec<String>> {
+    pub fn validate_encrypted_config(&mut self, file_path: &Path) -> ConfigResult<Vec<String>> {
         if !self.encryption_enabled {
             return Ok(vec![]);
         }
@@ -285,7 +300,7 @@ impl EncryptedConfigStorage {
     pub fn get_encryption_status(&self) -> EncryptionStatus {
         EncryptionStatus {
             enabled: self.encryption_enabled,
-            environment: self.environment.clone(),
+            environment: self.environment,
             algorithm: "AES-256-GCM".to_string(),
             key_rotation_supported: true,
             secure_permissions: self.encryption_enabled,
@@ -293,7 +308,7 @@ impl EncryptedConfigStorage {
     }
 
     /// Export configuration securely (for backup/migration)
-    pub fn export_secure_config(&self, file_path: &Path) -> ConfigResult<()> {
+    pub fn export_secure_config(&mut self, file_path: &Path) -> ConfigResult<()> {
         // Load the configuration
         let config = self.load_encrypted_config(file_path)?;
 
@@ -303,7 +318,7 @@ impl EncryptedConfigStorage {
         // Write to secure export file
         let export_path = file_path.with_extension("secure.json");
         fs::write(&export_path, secure_content)
-            .map_err(|e| ConfigError::File(format!("Failed to write secure export: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to write secure export: {e}")))?;
 
         // Set secure permissions
         self.set_secure_file_permissions(&export_path)?;
@@ -315,7 +330,7 @@ impl EncryptedConfigStorage {
     pub fn import_secure_config(&self, export_path: &Path, target_path: &Path) -> ConfigResult<()> {
         // Read the secure export
         let content = fs::read_to_string(export_path)
-            .map_err(|e| ConfigError::File(format!("Failed to read secure export: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to read secure export: {e}")))?;
 
         // Import using security module
         let config = self.security.import_secure_config(&content)?;
@@ -332,9 +347,12 @@ impl EncryptedConfigStorage {
     }
 
     /// Get cached configuration (if available and not expired)
-    pub fn get_cached_config(&self, file_path: &Path) -> Option<HashMap<String, serde_json::Value>> {
+    pub fn get_cached_config(
+        &self,
+        file_path: &Path,
+    ) -> Option<HashMap<String, serde_json::Value>> {
         let cache_key = file_path.to_string_lossy().to_string();
-        
+
         if let Some(cached) = self.cache.get(&cache_key) {
             // Check if cache is expired
             if let Some(expires_at) = cached.expires_at {
@@ -342,10 +360,10 @@ impl EncryptedConfigStorage {
                     return None;
                 }
             }
-            
+
             return Some(cached.config_data.clone());
         }
-        
+
         None
     }
 }
@@ -370,14 +388,14 @@ pub struct EncryptionStatus {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use temp_env;
+    use tempfile::NamedTempFile;
 
     #[test]
     fn test_encrypted_config_storage_creation() {
         let storage = EncryptedConfigStorage::new(Environment::Development);
         assert!(storage.is_ok());
-        
+
         let storage = storage.unwrap();
         assert!(!storage.encryption_enabled);
         assert_eq!(storage.environment, Environment::Development);
@@ -393,14 +411,23 @@ mod tests {
     #[test]
     fn test_sensitive_field_identification() {
         let storage = EncryptedConfigStorage::new(Environment::Development).unwrap();
-        
+
         let mut config = HashMap::new();
-        config.insert("database_url".to_string(), serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()));
-        config.insert("api_key".to_string(), serde_json::Value::String("secret_key".to_string()));
-        config.insert("log_level".to_string(), serde_json::Value::String("info".to_string()));
-        
+        config.insert(
+            "database_url".to_string(),
+            serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()),
+        );
+        config.insert(
+            "api_key".to_string(),
+            serde_json::Value::String("secret_key".to_string()),
+        );
+        config.insert(
+            "log_level".to_string(),
+            serde_json::Value::String("info".to_string()),
+        );
+
         let sensitive_fields = storage.identify_sensitive_fields(&config);
-        
+
         assert_eq!(sensitive_fields.len(), 2);
         assert!(sensitive_fields.contains(&"database_url".to_string()));
         assert!(sensitive_fields.contains(&"api_key".to_string()));
@@ -411,7 +438,7 @@ mod tests {
     fn test_encryption_status() {
         let storage = EncryptedConfigStorage::new(Environment::Production).unwrap();
         let status = storage.get_encryption_status();
-        
+
         assert!(status.enabled);
         assert_eq!(status.environment, Environment::Production);
         assert_eq!(status.algorithm, "AES-256-GCM");
@@ -422,7 +449,7 @@ mod tests {
     fn test_generate_encryption_key() {
         let storage = EncryptedConfigStorage::new(Environment::Development).unwrap();
         let key = storage.generate_encryption_key().unwrap();
-        
+
         // Should be a valid base64 string
         assert!(key.len() > 40); // Base64 encoded 32 bytes
         assert!(general_purpose::STANDARD.decode(&key).is_ok());
@@ -430,54 +457,79 @@ mod tests {
 
     #[tokio::test]
     async fn test_encrypted_config_save_and_load() {
-        temp_env::with_var("CONFIG_ENCRYPTION_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let storage = EncryptedConfigStorage::new(Environment::Testing).unwrap();
-            
-            let mut config = HashMap::new();
-            config.insert("database_url".to_string(), serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()));
-            config.insert("api_key".to_string(), serde_json::Value::String("secret_api_key_123".to_string()));
-            config.insert("log_level".to_string(), serde_json::Value::String("info".to_string()));
-            
-            // Save to temporary file
-            let temp_file = NamedTempFile::new().unwrap();
-            let file_path = temp_file.path();
-            
-            let result = storage.save_encrypted_config(&config, file_path);
-            assert!(result.is_ok());
-            
-            // Load back
-            let loaded_config = storage.load_encrypted_config(file_path).unwrap();
-            
-            // Verify sensitive fields are decrypted
-            assert_eq!(loaded_config.get("database_url").unwrap(), "postgresql://user:pass@localhost/db");
-            assert_eq!(loaded_config.get("api_key").unwrap(), "secret_api_key_123");
-            assert_eq!(loaded_config.get("log_level").unwrap(), "info");
-            
-            temp_file.close().unwrap();
-        });
+        temp_env::with_var(
+            "CONFIG_ENCRYPTION_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            || {
+                let mut storage = EncryptedConfigStorage::new(Environment::Testing).unwrap();
+
+                let mut config = HashMap::new();
+                config.insert(
+                    "database_url".to_string(),
+                    serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()),
+                );
+                config.insert(
+                    "api_key".to_string(),
+                    serde_json::Value::String("secret_api_key_123".to_string()),
+                );
+                config.insert(
+                    "log_level".to_string(),
+                    serde_json::Value::String("info".to_string()),
+                );
+
+                // Save to temporary file
+                let temp_file = NamedTempFile::new().unwrap();
+                let file_path = temp_file.path();
+
+                let result = storage.save_encrypted_config(&config, file_path);
+                assert!(result.is_ok());
+
+                // Load back
+                let loaded_config = storage.load_encrypted_config(file_path).unwrap();
+
+                // Verify sensitive fields are decrypted
+                assert_eq!(
+                    loaded_config.get("database_url").unwrap(),
+                    "postgresql://user:pass@localhost/db"
+                );
+                assert_eq!(loaded_config.get("api_key").unwrap(), "secret_api_key_123");
+                assert_eq!(loaded_config.get("log_level").unwrap(), "info");
+
+                temp_file.close().unwrap();
+            },
+        );
     }
 
     #[test]
     fn test_encryption_disabled_in_development() {
-        let storage = EncryptedConfigStorage::new(Environment::Development).unwrap();
-        
+        let mut storage = EncryptedConfigStorage::new(Environment::Development).unwrap();
+
         let mut config = HashMap::new();
-        config.insert("database_url".to_string(), serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()));
-        config.insert("log_level".to_string(), serde_json::Value::String("debug".to_string()));
-        
+        config.insert(
+            "database_url".to_string(),
+            serde_json::Value::String("postgresql://user:pass@localhost/db".to_string()),
+        );
+        config.insert(
+            "log_level".to_string(),
+            serde_json::Value::String("debug".to_string()),
+        );
+
         // Save to temporary file
         let temp_file = NamedTempFile::new().unwrap();
         let file_path = temp_file.path();
-        
+
         let result = storage.save_encrypted_config(&config, file_path);
         assert!(result.is_ok());
-        
+
         // Load back
         let loaded_config = storage.load_encrypted_config(file_path).unwrap();
-        
+
         // Should be plain text in development
-        assert_eq!(loaded_config.get("database_url").unwrap(), "postgresql://user:pass@localhost/db");
-        
+        assert_eq!(
+            loaded_config.get("database_url").unwrap(),
+            "postgresql://user:pass@localhost/db"
+        );
+
         temp_file.close().unwrap();
     }
 }

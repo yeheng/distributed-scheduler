@@ -3,11 +3,10 @@
 //! This module provides various cache invalidation strategies including
 //! time-based, event-based, and dependency-based invalidation.
 
-use super::{CacheService, CachePrefix};
-use crate::cache::{task_cache_key, task_name_cache_key, task_run_cache_key, worker_cache_key};
-use scheduler_domain::entities::*;
+use super::CacheService;
+use crate::cache::{task_cache_key, task_run_cache_key, worker_cache_key};
 use scheduler_foundation::SchedulerResult;
-use std::collections::{HashMap, HashSet};
+use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::RwLock;
@@ -50,7 +49,10 @@ pub enum InvalidationEvent {
     /// Batch operation completed
     BatchOperationCompleted { operation_type: String },
     /// Custom event
-    Custom { event_type: String, data: HashMap<String, String> },
+    Custom {
+        event_type: String,
+        data: HashMap<String, String>,
+    },
 }
 
 /// Cache invalidation rule
@@ -159,9 +161,10 @@ impl CacheInvalidationManager {
         self.rules.push(InvalidationRule {
             name: "task_updated".to_string(),
             strategy: InvalidationStrategy::EventBased,
-            trigger_events: vec![
-                InvalidationEvent::TaskChanged { task_id: 0, task_name: "".to_string() },
-            ],
+            trigger_events: vec![InvalidationEvent::TaskChanged {
+                task_id: 0,
+                task_name: "".to_string(),
+            }],
             targets: vec![
                 InvalidationTarget::Task { task_id: 0 }, // Will be replaced with actual task_id
                 InvalidationTarget::Prefix("task".to_string()),
@@ -176,11 +179,13 @@ impl CacheInvalidationManager {
         self.rules.push(InvalidationRule {
             name: "worker_updated".to_string(),
             strategy: InvalidationStrategy::EventBased,
-            trigger_events: vec![
-                InvalidationEvent::WorkerChanged { worker_id: "".to_string() },
-            ],
+            trigger_events: vec![InvalidationEvent::WorkerChanged {
+                worker_id: "".to_string(),
+            }],
             targets: vec![
-                InvalidationTarget::Worker { worker_id: "".to_string() }, // Will be replaced
+                InvalidationTarget::Worker {
+                    worker_id: "".to_string(),
+                }, // Will be replaced
                 InvalidationTarget::Prefix("worker".to_string()),
             ],
             active: true,
@@ -192,11 +197,15 @@ impl CacheInvalidationManager {
         self.rules.push(InvalidationRule {
             name: "task_run_updated".to_string(),
             strategy: InvalidationStrategy::EventBased,
-            trigger_events: vec![
-                InvalidationEvent::TaskRunChanged { task_run_id: 0, task_id: 0 },
-            ],
+            trigger_events: vec![InvalidationEvent::TaskRunChanged {
+                task_run_id: 0,
+                task_id: 0,
+            }],
             targets: vec![
-                InvalidationTarget::TaskRun { task_run_id: 0, task_id: 0 },
+                InvalidationTarget::TaskRun {
+                    task_run_id: 0,
+                    task_id: 0,
+                },
                 InvalidationTarget::Prefix("task_run".to_string()),
             ],
             active: true,
@@ -222,9 +231,7 @@ impl CacheInvalidationManager {
         self.rules.push(InvalidationRule {
             name: "dependencies_changed".to_string(),
             strategy: InvalidationStrategy::DependencyBased,
-            trigger_events: vec![
-                InvalidationEvent::DependenciesChanged { task_id: 0 },
-            ],
+            trigger_events: vec![InvalidationEvent::DependenciesChanged { task_id: 0 }],
             targets: vec![
                 InvalidationTarget::Task { task_id: 0 },
                 InvalidationTarget::Prefix("dependencies".to_string()),
@@ -237,8 +244,9 @@ impl CacheInvalidationManager {
 
     /// Add custom invalidation rule
     pub fn add_rule(&mut self, rule: InvalidationRule) {
+        let rule_name = rule.name.clone();
         self.rules.push(rule);
-        info!("Added cache invalidation rule: {}", rule.name);
+        info!("Added cache invalidation rule: {}", rule_name);
     }
 
     /// Remove invalidation rule by name
@@ -246,11 +254,11 @@ impl CacheInvalidationManager {
         let initial_len = self.rules.len();
         self.rules.retain(|rule| rule.name != rule_name);
         let removed = self.rules.len() < initial_len;
-        
+
         if removed {
             info!("Removed cache invalidation rule: {}", rule_name);
         }
-        
+
         removed
     }
 
@@ -261,12 +269,13 @@ impl CacheInvalidationManager {
         event: InvalidationEvent,
     ) -> SchedulerResult<Vec<InvalidationResult>> {
         let start_time = Instant::now();
-        
+
         // Record event in history
         self.record_event(event.clone()).await;
 
         // Find matching rules
-        let matching_rules: Vec<&InvalidationRule> = self.rules
+        let matching_rules: Vec<&InvalidationRule> = self
+            .rules
             .iter()
             .filter(|rule| rule.active && self.event_matches_rule(&event, rule))
             .collect();
@@ -300,29 +309,43 @@ impl CacheInvalidationManager {
 
     /// Check if event matches rule
     fn event_matches_rule(&self, event: &InvalidationEvent, rule: &InvalidationRule) -> bool {
-        rule.trigger_events.iter().any(|trigger_event| {
-            self.events_match(event, trigger_event)
-        })
+        rule.trigger_events
+            .iter()
+            .any(|trigger_event| self.events_match(event, trigger_event))
     }
 
     /// Check if two events match (pattern matching)
     fn events_match(&self, event: &InvalidationEvent, pattern: &InvalidationEvent) -> bool {
         match (event, pattern) {
             (
-                InvalidationEvent::TaskChanged { task_id, task_name },
-                InvalidationEvent::TaskChanged { task_id: _, task_name: _ },
+                InvalidationEvent::TaskChanged {
+                    task_id: _,
+                    task_name: _,
+                },
+                InvalidationEvent::TaskChanged {
+                    task_id: _,
+                    task_name: _,
+                },
             ) => true, // Any task change matches the pattern
             (
-                InvalidationEvent::WorkerChanged { worker_id },
+                InvalidationEvent::WorkerChanged { worker_id: _ },
                 InvalidationEvent::WorkerChanged { worker_id: _ },
             ) => true, // Any worker change matches the pattern
             (
-                InvalidationEvent::TaskRunChanged { task_run_id, task_id },
-                InvalidationEvent::TaskRunChanged { task_run_id: _, task_id: _ },
+                InvalidationEvent::TaskRunChanged {
+                    task_run_id: _,
+                    task_id: _,
+                },
+                InvalidationEvent::TaskRunChanged {
+                    task_run_id: _,
+                    task_id: _,
+                },
             ) => true, // Any task run change matches the pattern
-            (InvalidationEvent::SystemConfigChanged, InvalidationEvent::SystemConfigChanged) => true,
+            (InvalidationEvent::SystemConfigChanged, InvalidationEvent::SystemConfigChanged) => {
+                true
+            }
             (
-                InvalidationEvent::DependenciesChanged { task_id },
+                InvalidationEvent::DependenciesChanged { task_id: _ },
                 InvalidationEvent::DependenciesChanged { task_id: _ },
             ) => true,
             (a, b) => a == b,
@@ -341,11 +364,13 @@ impl CacheInvalidationManager {
 
         for target in &rule.targets {
             let resolved_targets = self.resolve_target(target, event);
-            
+
             for resolved_target in resolved_targets {
                 match self.invalidate_target(&resolved_target).await {
                     Ok(count) => keys_invalidated += count,
-                    Err(e) => errors.push(format!("Failed to invalidate target '{}': {}", resolved_target, e)),
+                    Err(e) => errors.push(format!(
+                        "Failed to invalidate target '{resolved_target}': {e}"
+                    )),
                 }
             }
         }
@@ -360,27 +385,45 @@ impl CacheInvalidationManager {
     }
 
     /// Resolve invalidation target with event data
-    fn resolve_target(&self, target: &InvalidationTarget, event: &InvalidationEvent) -> Vec<String> {
+    fn resolve_target(
+        &self,
+        target: &InvalidationTarget,
+        event: &InvalidationEvent,
+    ) -> Vec<String> {
         match target {
             InvalidationTarget::Key(key) => vec![key.clone()],
             InvalidationTarget::Prefix(prefix) => vec![prefix.clone()],
             InvalidationTarget::Pattern(pattern) => vec![pattern.clone()],
             InvalidationTarget::Task { task_id } => {
-                if let InvalidationEvent::TaskChanged { task_id: event_task_id, .. } = event {
+                if let InvalidationEvent::TaskChanged {
+                    task_id: event_task_id,
+                    ..
+                } = event
+                {
                     vec![task_cache_key(*event_task_id)]
                 } else {
                     vec![task_cache_key(*task_id)]
                 }
             }
             InvalidationTarget::Worker { worker_id } => {
-                if let InvalidationEvent::WorkerChanged { worker_id: event_worker_id } = event {
+                if let InvalidationEvent::WorkerChanged {
+                    worker_id: event_worker_id,
+                } = event
+                {
                     vec![worker_cache_key(event_worker_id)]
                 } else {
                     vec![worker_cache_key(worker_id)]
                 }
             }
-            InvalidationTarget::TaskRun { task_run_id, task_id } => {
-                if let InvalidationEvent::TaskRunChanged { task_run_id: event_task_run_id, .. } = event {
+            InvalidationTarget::TaskRun {
+                task_run_id,
+                task_id,
+            } => {
+                if let InvalidationEvent::TaskRunChanged {
+                    task_run_id: event_task_run_id,
+                    ..
+                } = event
+                {
                     vec![
                         task_run_cache_key(*event_task_run_id),
                         format!("task_runs:task:{}", event_task_run_id),
@@ -421,7 +464,7 @@ impl CacheInvalidationManager {
     async fn record_event(&self, event: InvalidationEvent) {
         let mut history = self.event_history.write().await;
         history.push(event);
-        
+
         // Trim history if needed
         if history.len() > self.max_history_size {
             history.remove(0);
@@ -431,17 +474,25 @@ impl CacheInvalidationManager {
     /// Update statistics
     async fn update_stats(&self, results: &[InvalidationResult], duration: Duration) {
         let mut stats = self.stats.write().await;
-        
+
         stats.total_invalidations += results.len() as u64;
         stats.keys_invalidated += results.iter().map(|r| r.keys_invalidated).sum::<usize>() as u64;
-        stats.failed_invalidations += results.iter().filter(|r| !r.errors.is_empty()).count() as u64;
-        
+        stats.failed_invalidations +=
+            results.iter().filter(|r| !r.errors.is_empty()).count() as u64;
+
         let total_time_ms = duration.as_millis() as f64;
-        let avg_time = if results.is_empty() { 0.0 } else { total_time_ms / results.len() as f64 };
-        stats.avg_invalidation_time_ms = (stats.avg_invalidation_time_ms * (stats.total_invalidations - results.len() as u64) as f64 + avg_time * results.len() as f64) / stats.total_invalidations as f64;
-        
+        let avg_time = if results.is_empty() {
+            0.0
+        } else {
+            total_time_ms / results.len() as f64
+        };
+        stats.avg_invalidation_time_ms = (stats.avg_invalidation_time_ms
+            * (stats.total_invalidations - results.len() as u64) as f64
+            + avg_time * results.len() as f64)
+            / stats.total_invalidations as f64;
+
         stats.last_invalidation = Some(Instant::now());
-        
+
         // Update by event type
         for result in results {
             let event_type = self.get_event_type_name(&result.event);
@@ -460,7 +511,9 @@ impl CacheInvalidationManager {
             InvalidationEvent::TaskRunDeleted { .. } => "task_run_deleted".to_string(),
             InvalidationEvent::SystemConfigChanged => "system_config_changed".to_string(),
             InvalidationEvent::DependenciesChanged { .. } => "dependencies_changed".to_string(),
-            InvalidationEvent::BatchOperationCompleted { .. } => "batch_operation_completed".to_string(),
+            InvalidationEvent::BatchOperationCompleted { .. } => {
+                "batch_operation_completed".to_string()
+            }
             InvalidationEvent::Custom { event_type, .. } => event_type.clone(),
         }
     }
@@ -493,14 +546,14 @@ impl CacheInvalidationManager {
     pub async fn invalidate_all(&self) -> SchedulerResult<usize> {
         let mut total_invalidated = 0;
         let prefixes = ["task", "worker", "system_stats", "task_run", "dependencies"];
-        
+
         for prefix in &prefixes {
             match self.invalidate_prefix(prefix).await {
                 Ok(count) => total_invalidated += count,
                 Err(e) => warn!("Failed to invalidate prefix '{}': {}", prefix, e),
             }
         }
-        
+
         Ok(total_invalidated)
     }
 
@@ -513,7 +566,10 @@ impl CacheInvalidationManager {
     pub fn set_rule_active(&mut self, rule_name: &str, active: bool) -> bool {
         if let Some(rule) = self.rules.iter_mut().find(|rule| rule.name == rule_name) {
             rule.active = active;
-            info!("Set invalidation rule '{}' active state to: {}", rule_name, active);
+            info!(
+                "Set invalidation rule '{}' active state to: {}",
+                rule_name, active
+            );
             true
         } else {
             false
@@ -555,7 +611,10 @@ pub mod convenience {
         task_run_id: i64,
         task_id: i64,
     ) -> SchedulerResult<Vec<InvalidationResult>> {
-        let event = InvalidationEvent::TaskRunChanged { task_run_id, task_id };
+        let event = InvalidationEvent::TaskRunChanged {
+            task_run_id,
+            task_id,
+        };
         manager.invalidate_on_event(event).await
     }
 
@@ -579,9 +638,12 @@ pub mod convenience {
 
 #[cfg(test)]
 mod tests {
+    use async_trait::async_trait;
+
     use super::*;
     use crate::cache::config::CacheConfig;
     use crate::cache::manager::RedisCacheManager;
+    use crate::cache::CacheStats;
 
     #[tokio::test]
     async fn test_invalidation_manager_creation() {
@@ -596,45 +658,51 @@ mod tests {
             Arc::new(manager) as Arc<dyn CacheService>
         } else {
             // Create a mock cache service for testing
-            use std::sync::Mutex;
             use tokio::sync::Notify;
-            
+
             struct MockCacheService {
                 notify: Arc<Notify>,
             }
-            
+
             #[async_trait]
             impl CacheService for MockCacheService {
                 async fn get(&self, _key: &str) -> SchedulerResult<Option<Vec<u8>>> {
                     Ok(None)
                 }
-                
-                async fn set(&self, _key: &str, _value: &[u8], _ttl: Duration) -> SchedulerResult<()> {
+
+                async fn set(
+                    &self,
+                    _key: &str,
+                    _value: &[u8],
+                    _ttl: Duration,
+                ) -> SchedulerResult<()> {
                     Ok(())
                 }
-                
+
                 async fn delete(&self, _key: &str) -> SchedulerResult<bool> {
                     Ok(false)
                 }
-                
+
                 async fn exists(&self, _key: &str) -> SchedulerResult<bool> {
                     Ok(false)
                 }
-                
+
                 async fn get_stats(&self) -> CacheStats {
                     CacheStats::default()
                 }
-                
+
                 async fn clear_prefix(&self, _prefix: &str) -> SchedulerResult<usize> {
                     Ok(0)
                 }
-                
+
                 async fn health_check(&self) -> SchedulerResult<bool> {
                     Ok(true)
                 }
             }
-            
-            Arc::new(MockCacheService { notify: Arc::new(Notify::new()) }) as Arc<dyn CacheService>
+
+            Arc::new(MockCacheService {
+                notify: Arc::new(Notify::new()),
+            }) as Arc<dyn CacheService>
         };
 
         let manager = CacheInvalidationManager::new(cache_service);
@@ -651,7 +719,7 @@ mod tests {
             task_id: 123,
             task_name: "test_task".to_string(),
         };
-        
+
         let pattern = InvalidationEvent::TaskChanged {
             task_id: 0,
             task_name: "".to_string(),
@@ -673,7 +741,7 @@ mod tests {
 
         let target = InvalidationTarget::Task { task_id: 0 };
         let resolved = manager.resolve_target(&target, &event);
-        
+
         assert_eq!(resolved, vec!["task:123"]);
     }
 }

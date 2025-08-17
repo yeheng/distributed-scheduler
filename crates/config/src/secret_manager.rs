@@ -1,4 +1,7 @@
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Duration, Utc};
+use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::env;
@@ -6,9 +9,6 @@ use std::fs;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc, Duration};
-use ring::rand::{SecureRandom, SystemRandom};
-use base64::{Engine as _, engine::general_purpose};
 
 use crate::{ConfigError, ConfigResult, Environment};
 
@@ -78,7 +78,7 @@ impl SecretManager {
     /// Create a new secret manager
     pub async fn new(environment: Environment) -> ConfigResult<Self> {
         let encryption_key = Self::load_encryption_key()?;
-        
+
         Ok(Self {
             secrets: Arc::new(RwLock::new(HashMap::new())),
             encryption_key,
@@ -98,16 +98,17 @@ impl SecretManager {
             .ok()
             .or_else(|| env::var("CONFIG_ENCRYPTION_KEY").ok())
             .map(|key| {
-                let decoded = general_purpose::STANDARD.decode(&key)
+                let decoded = general_purpose::STANDARD
+                    .decode(&key)
                     .unwrap_or_else(|_| key.clone().into_bytes());
                 if decoded.len() != 32 {
                     panic!("Encryption key must be exactly 32 bytes (256 bits)");
                 }
                 decoded
             })
-            .ok_or_else(|| ConfigError::Security(
-                "SECRET_MANAGER_KEY environment variable not set".to_string()
-            ))
+            .ok_or_else(|| {
+                ConfigError::Security("SECRET_MANAGER_KEY environment variable not set".to_string())
+            })
     }
 
     /// Store a secret securely
@@ -116,7 +117,7 @@ impl SecretManager {
         name: &str,
         value: &str,
         secret_type: SecretType,
-        expires_in_days: Option<u32>,
+        expires_in_days: Option<i32>,
     ) -> ConfigResult<()> {
         let encrypted_value = self.encrypt_value(value)?;
         let now = Utc::now();
@@ -142,14 +143,14 @@ impl SecretManager {
     /// Retrieve a secret
     pub async fn get_secret(&self, name: &str) -> ConfigResult<Option<String>> {
         let secrets = self.secrets.read().await;
-        
+
         match secrets.get(name) {
             Some(entry) => {
                 // Check if secret is expired
                 if let Some(expires_at) = entry.expires_at {
                     if Utc::now() > expires_at {
                         return Err(ConfigError::Security(format!(
-                            "Secret '{}' has expired at {}", name, expires_at
+                            "Secret '{name}' has expired at {expires_at}"
                         )));
                     }
                 }
@@ -164,7 +165,7 @@ impl SecretManager {
     /// Rotate a secret
     pub async fn rotate_secret(&self, name: &str) -> ConfigResult<String> {
         let mut secrets = self.secrets.write().await;
-        
+
         match secrets.get_mut(name) {
             Some(entry) => {
                 // Generate new secret value based on type
@@ -175,7 +176,7 @@ impl SecretManager {
                     SecretType::EncryptionKey => self.generate_encryption_key(),
                     SecretType::Certificate => {
                         return Err(ConfigError::Security(
-                            "Certificate rotation requires manual intervention".to_string()
+                            "Certificate rotation requires manual intervention".to_string(),
                         ))
                     }
                     SecretType::OAuthSecret => self.generate_oauth_secret(),
@@ -195,7 +196,7 @@ impl SecretManager {
 
                 Ok(new_value)
             }
-            None => Err(ConfigError::Security(format!("Secret '{}' not found", name))),
+            None => Err(ConfigError::Security(format!("Secret '{name}' not found"))),
         }
     }
 
@@ -212,11 +213,11 @@ impl SecretManager {
             // Check expiration
             if let Some(expires_at) = entry.expires_at {
                 let expires_in = expires_at - now;
-                
+
                 if expires_in <= Duration::zero() {
-                    issues.push(format!("Secret '{}' has expired", name));
+                    issues.push(format!("Secret '{name}' has expired"));
                 } else if expires_in <= Duration::days(7) {
-                    warnings.push(format!("Secret '{}' expires in 7 days", name));
+                    warnings.push(format!("Secret '{name}' expires in 7 days"));
                 }
 
                 if min_expires_in.is_none() || expires_in < min_expires_in.unwrap() {
@@ -227,10 +228,10 @@ impl SecretManager {
             // Check for weak secrets
             if let Ok(decrypted) = self.decrypt_value(&entry.encrypted_value) {
                 if decrypted.len() < 8 {
-                    issues.push(format!("Secret '{}' is too short", name));
+                    issues.push(format!("Secret '{name}' is too short"));
                 }
                 if decrypted.chars().all(|c| c.is_ascii_alphanumeric()) {
-                    warnings.push(format!("Secret '{}' could be stronger", name));
+                    warnings.push(format!("Secret '{name}' could be stronger"));
                 }
             }
         }
@@ -252,14 +253,14 @@ impl SecretManager {
     fn generate_password(&self, length: usize) -> ConfigResult<String> {
         if length < 12 {
             return Err(ConfigError::Security(
-                "Password length must be at least 12 characters".to_string()
+                "Password length must be at least 12 characters".to_string(),
             ));
         }
 
         let mut bytes = vec![0u8; length];
         let rng = SystemRandom::new();
         rng.fill(&mut bytes)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate secure random: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to generate secure random: {e}")))?;
 
         // Use a mix of character types for better security
         let charset = b"ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789!@#$%^&*()";
@@ -276,17 +277,18 @@ impl SecretManager {
     fn generate_api_key(&self) -> ConfigResult<String> {
         let prefix = "sk_";
         let key_part = self.generate_password(32)?;
-        Ok(format!("{}{}", prefix, key_part))
+        Ok(format!("{prefix}{key_part}"))
     }
 
     /// Generate an encryption key
     fn generate_encryption_key(&self) -> ConfigResult<String> {
         let mut key = [0u8; 32];
         let rng = SystemRandom::new();
-        rng.fill(&mut key)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate encryption key: {}", e)))?;
-        
-        Ok(general_purpose::STANDARD.encode(&key))
+        rng.fill(&mut key).map_err(|e| {
+            ConfigError::Security(format!("Failed to generate encryption key: {e}"))
+        })?;
+
+        Ok(general_purpose::STANDARD.encode(key))
     }
 
     /// Generate an OAuth secret
@@ -301,18 +303,17 @@ impl SecretManager {
         }
 
         use ring::{aead, aead::NonceSequence};
-        
+
         // Generate random nonce
         let mut nonce_bytes = [0u8; 12];
         let rng = SystemRandom::new();
-        rng.fill(&mut nonce_bytes).map_err(|e| {
-            ConfigError::Security(format!("Failed to generate nonce: {}", e))
-        })?;
+        rng.fill(&mut nonce_bytes)
+            .map_err(|e| ConfigError::Security(format!("Failed to generate nonce: {e}")))?;
 
         // Create sealing key
         let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &self.encryption_key)
-            .map_err(|e| ConfigError::Security(format!("Failed to create encryption key: {}", e)))?;
-        
+            .map_err(|e| ConfigError::Security(format!("Failed to create encryption key: {e}")))?;
+
         // Simple nonce sequence
         struct SingleNonce([u8; 12]);
         impl NonceSequence for SingleNonce {
@@ -320,16 +321,18 @@ impl SecretManager {
                 Ok(ring::aead::Nonce::assume_unique_for_key(self.0))
             }
         }
-        
+
         let nonce_seq = SingleNonce(nonce_bytes);
-        let mut sealing_key: aead::SealingKey<SingleNonce> = aead::BoundKey::new(unbound_key, nonce_seq);
+        let mut sealing_key: aead::SealingKey<SingleNonce> =
+            aead::BoundKey::new(unbound_key, nonce_seq);
 
         // Encrypt the value
         let plaintext = value.as_bytes();
         let mut in_out = plaintext.to_vec();
         let aad = aead::Aad::empty();
-        sealing_key.seal_in_place_append_tag(aad, &mut in_out)
-            .map_err(|e| ConfigError::Security(format!("Encryption failed: {}", e)))?;
+        sealing_key
+            .seal_in_place_append_tag(aad, &mut in_out)
+            .map_err(|e| ConfigError::Security(format!("Encryption failed: {e}")))?;
 
         // Combine nonce and ciphertext
         let mut result = nonce_bytes.to_vec();
@@ -345,12 +348,15 @@ impl SecretManager {
         }
 
         use ring::{aead, aead::NonceSequence};
-        
-        let data = general_purpose::STANDARD.decode(encrypted_value)
-            .map_err(|e| ConfigError::Security(format!("Base64 decode failed: {}", e)))?;
+
+        let data = general_purpose::STANDARD
+            .decode(encrypted_value)
+            .map_err(|e| ConfigError::Security(format!("Base64 decode failed: {e}")))?;
 
         if data.len() < 12 {
-            return Err(ConfigError::Security("Invalid encrypted data length".to_string()));
+            return Err(ConfigError::Security(
+                "Invalid encrypted data length".to_string(),
+            ));
         }
 
         // Extract nonce and ciphertext
@@ -358,8 +364,8 @@ impl SecretManager {
 
         // Create opening key
         let unbound_key = aead::UnboundKey::new(&aead::AES_256_GCM, &self.encryption_key)
-            .map_err(|e| ConfigError::Security(format!("Failed to create decryption key: {}", e)))?;
-        
+            .map_err(|e| ConfigError::Security(format!("Failed to create decryption key: {e}")))?;
+
         // Simple nonce sequence
         struct SingleNonce([u8; 12]);
         impl NonceSequence for SingleNonce {
@@ -367,20 +373,24 @@ impl SecretManager {
                 Ok(ring::aead::Nonce::assume_unique_for_key(self.0))
             }
         }
-        
-        let nonce_seq = SingleNonce(nonce_bytes.try_into().map_err(|_| {
-            ConfigError::Security("Invalid nonce length".to_string())
-        })?);
-        let mut opening_key: aead::OpeningKey<SingleNonce> = aead::BoundKey::new(unbound_key, nonce_seq);
+
+        let nonce_seq = SingleNonce(
+            nonce_bytes
+                .try_into()
+                .map_err(|_| ConfigError::Security("Invalid nonce length".to_string()))?,
+        );
+        let mut opening_key: aead::OpeningKey<SingleNonce> =
+            aead::BoundKey::new(unbound_key, nonce_seq);
 
         // Decrypt the value
         let mut in_out = ciphertext.to_vec();
         let aad = aead::Aad::empty();
-        let plaintext = opening_key.open_in_place(aad, &mut in_out)
-            .map_err(|e| ConfigError::Security(format!("Decryption failed: {}", e)))?;
+        let plaintext = opening_key
+            .open_in_place(aad, &mut in_out)
+            .map_err(|e| ConfigError::Security(format!("Decryption failed: {e}")))?;
 
-        Ok(String::from_utf8(plaintext.to_vec())
-            .map_err(|e| ConfigError::Security(format!("UTF-8 conversion failed: {}", e)))?)
+        String::from_utf8(plaintext.to_vec())
+            .map_err(|e| ConfigError::Security(format!("UTF-8 conversion failed: {e}")))
     }
 
     /// Load secrets from persistent storage
@@ -390,10 +400,10 @@ impl SecretManager {
         }
 
         let content = fs::read_to_string(file_path)
-            .map_err(|e| ConfigError::File(format!("Failed to read secrets file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to read secrets file: {e}")))?;
 
         let secrets: HashMap<String, SecretEntry> = serde_json::from_str(&content)
-            .map_err(|e| ConfigError::Parse(format!("Failed to parse secrets file: {}", e)))?;
+            .map_err(|e| ConfigError::Parse(format!("Failed to parse secrets file: {e}")))?;
 
         let mut current_secrets = self.secrets.write().await;
         *current_secrets = secrets;
@@ -404,12 +414,12 @@ impl SecretManager {
     /// Save secrets to persistent storage
     pub async fn save_to_file(&self, file_path: &Path) -> ConfigResult<()> {
         let secrets = self.secrets.read().await;
-        
+
         let content = serde_json::to_string_pretty(&*secrets)
-            .map_err(|e| ConfigError::Security(format!("Failed to serialize secrets: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to serialize secrets: {e}")))?;
 
         fs::write(file_path, content)
-            .map_err(|e| ConfigError::File(format!("Failed to write secrets file: {}", e)))?;
+            .map_err(|e| ConfigError::File(format!("Failed to write secrets file: {e}")))?;
 
         Ok(())
     }
@@ -442,140 +452,170 @@ impl SecretManager {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use tempfile::NamedTempFile;
     use temp_env;
+    use tempfile::NamedTempFile;
 
     #[tokio::test]
     async fn test_secret_manager_creation() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await;
-            assert!(manager.is_ok());
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await;
+                assert!(manager.is_ok());
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_store_and_retrieve_secret() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            let result = manager.store_secret(
-                "test_secret",
-                "test_value",
-                SecretType::ApiKey,
-                None,
-            ).await;
-            assert!(result.is_ok());
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            let retrieved = manager.get_secret("test_secret").await;
-            assert!(retrieved.is_ok());
-            assert_eq!(retrieved.unwrap().unwrap(), "test_value");
-        });
+                let result = manager
+                    .store_secret("test_secret", "test_value", SecretType::ApiKey, None)
+                    .await;
+                assert!(result.is_ok());
+
+                let retrieved = manager.get_secret("test_secret").await;
+                assert!(retrieved.is_ok());
+                assert_eq!(retrieved.unwrap().unwrap(), "test_value");
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_secret_rotation() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            manager.store_secret(
-                "test_jwt",
-                "old_secret",
-                SecretType::JwtSecret,
-                None,
-            ).await.unwrap();
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            let new_secret = manager.rotate_secret("test_jwt").await.unwrap();
-            assert_ne!(new_secret, "old_secret");
-            assert!(new_secret.len() >= 64);
+                manager
+                    .store_secret("test_jwt", "old_secret", SecretType::JwtSecret, None)
+                    .await
+                    .unwrap();
 
-            // Verify the secret was actually updated
-            let retrieved = manager.get_secret("test_jwt").await.unwrap();
-            assert_eq!(retrieved.unwrap(), new_secret);
-        });
+                let new_secret = manager.rotate_secret("test_jwt").await.unwrap();
+                assert_ne!(new_secret, "old_secret");
+                assert!(new_secret.len() >= 64);
+
+                // Verify the secret was actually updated
+                let retrieved = manager.get_secret("test_jwt").await.unwrap();
+                assert_eq!(retrieved.unwrap(), new_secret);
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_secret_validation() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            // Store a weak secret
-            manager.store_secret(
-                "weak_secret",
-                "short",
-                SecretType::ApiKey,
-                None,
-            ).await.unwrap();
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            let validation = manager.validate_all_secrets().await.unwrap();
-            assert!(!validation.is_valid);
-            assert!(validation.issues.iter().any(|issue| issue.contains("too short")));
-        });
+                // Store a weak secret
+                manager
+                    .store_secret("weak_secret", "short", SecretType::ApiKey, None)
+                    .await
+                    .unwrap();
+
+                let validation = manager.validate_all_secrets().await.unwrap();
+                assert!(!validation.is_valid);
+                assert!(validation
+                    .issues
+                    .iter()
+                    .any(|issue| issue.contains("too short")));
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_file_persistence() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            manager.store_secret(
-                "persistent_secret",
-                "test_value",
-                SecretType::ApiKey,
-                None,
-            ).await.unwrap();
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            // Save to file
-            let temp_file = NamedTempFile::new().unwrap();
-            let file_path = temp_file.path();
-            manager.save_to_file(file_path).await.unwrap();
+                manager
+                    .store_secret("persistent_secret", "test_value", SecretType::ApiKey, None)
+                    .await
+                    .unwrap();
 
-            // Create new manager and load
-            let manager2 = SecretManager::new(Environment::Development).await.unwrap();
-            manager2.load_from_file(file_path).await.unwrap();
+                // Save to file
+                let temp_file = NamedTempFile::new().unwrap();
+                let file_path = temp_file.path();
+                manager.save_to_file(file_path).await.unwrap();
 
-            // Verify secret was loaded
-            let retrieved = manager2.get_secret("persistent_secret").await.unwrap();
-            assert_eq!(retrieved.unwrap(), "test_value");
-        });
+                // Create new manager and load
+                let manager2 = SecretManager::new(Environment::Development).await.unwrap();
+                manager2.load_from_file(file_path).await.unwrap();
+
+                // Verify secret was loaded
+                let retrieved = manager2.get_secret("persistent_secret").await.unwrap();
+                assert_eq!(retrieved.unwrap(), "test_value");
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_secret_expiration() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            // Store an expired secret
-            manager.store_secret(
-                "expired_secret",
-                "test_value",
-                SecretType::ApiKey,
-                Some(-1), // Expired yesterday
-            ).await.unwrap();
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            let result = manager.get_secret("expired_secret").await;
-            assert!(result.is_err());
-            assert!(result.unwrap_err().to_string().contains("expired"));
-        });
+                // Store an expired secret
+                manager
+                    .store_secret(
+                        "expired_secret",
+                        "test_value",
+                        SecretType::ApiKey,
+                        Some(-1), // Expired yesterday
+                    )
+                    .await
+                    .unwrap();
+
+                let result = manager.get_secret("expired_secret").await;
+                assert!(result.is_err());
+                assert!(result.unwrap_err().to_string().contains("expired"));
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_secret_deletion() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let manager = SecretManager::new(Environment::Development).await.unwrap();
-            
-            manager.store_secret(
-                "to_delete",
-                "test_value",
-                SecretType::ApiKey,
-                None,
-            ).await.unwrap();
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let manager = SecretManager::new(Environment::Development).await.unwrap();
 
-            assert!(manager.has_secret("to_delete").await);
+                manager
+                    .store_secret("to_delete", "test_value", SecretType::ApiKey, None)
+                    .await
+                    .unwrap();
 
-            let deleted = manager.delete_secret("to_delete").await.unwrap();
-            assert!(deleted);
-            assert!(!manager.has_secret("to_delete").await);
-        });
+                assert!(manager.has_secret("to_delete").await);
+
+                let deleted = manager.delete_secret("to_delete").await.unwrap();
+                assert!(deleted);
+                assert!(!manager.has_secret("to_delete").await);
+            },
+        )
+        .await;
     }
 }

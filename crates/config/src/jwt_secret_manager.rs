@@ -1,12 +1,12 @@
 use anyhow::Result;
+use base64::{engine::general_purpose, Engine as _};
+use chrono::{DateTime, Duration, Utc};
+use ring::rand::{SecureRandom, SystemRandom};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use chrono::{DateTime, Utc, Duration};
 use uuid::Uuid;
-use ring::rand::{SecureRandom, SystemRandom};
-use base64::{Engine as _, engine::general_purpose};
 
 use crate::{ConfigError, ConfigResult, Environment, SecretManager};
 
@@ -15,7 +15,7 @@ pub struct JwtSecretManager {
     current_secret: Arc<RwLock<JwtSecret>>,
     previous_secrets: Arc<RwLock<HashMap<String, JwtSecret>>>,
     secret_manager: Arc<SecretManager>,
-    rotation_policy: JwtRotationPolicy,
+    rotation_policy: JwtJwtRotationPolicy,
     environment: Environment,
 }
 
@@ -52,7 +52,7 @@ pub struct JwtValidation {
     pub expires_in: Option<Duration>,
 }
 
-impl Default for JwtRotationPolicy {
+impl Default for JwtJwtRotationPolicy {
     fn default() -> Self {
         Self {
             enabled: true,
@@ -73,7 +73,7 @@ impl JwtSecretManager {
         environment: Environment,
     ) -> ConfigResult<Self> {
         let rotation_policy = Self::get_rotation_policy_for_environment(&environment);
-        
+
         let manager = Self {
             current_secret: Arc::new(RwLock::new(JwtSecret::new()?)),
             previous_secrets: Arc::new(RwLock::new(HashMap::new())),
@@ -89,28 +89,28 @@ impl JwtSecretManager {
     }
 
     /// Get rotation policy for environment
-    fn get_rotation_policy_for_environment(environment: &Environment) -> JwtRotationPolicy {
+    fn get_rotation_policy_for_environment(environment: &Environment) -> JwtJwtRotationPolicy {
         match environment {
-            Environment::Development => JwtRotationPolicy {
+            Environment::Development => JwtJwtRotationPolicy {
                 enabled: false, // No rotation in development
                 rotation_interval_days: 365,
                 overlap_days: 30,
                 auto_rotate: false,
                 ..Default::default()
             },
-            Environment::Testing => JwtRotationPolicy {
+            Environment::Testing => JwtJwtRotationPolicy {
                 rotation_interval_days: 7, // Frequent rotation for testing
                 overlap_days: 1,
                 auto_rotate: true,
                 ..Default::default()
             },
-            Environment::Staging => JwtRotationPolicy {
+            Environment::Staging => JwtJwtRotationPolicy {
                 rotation_interval_days: 14, // Medium rotation for staging
                 overlap_days: 3,
                 auto_rotate: true,
                 ..Default::default()
             },
-            Environment::Production => JwtRotationPolicy {
+            Environment::Production => JwtJwtRotationPolicy {
                 rotation_interval_days: 30, // Standard rotation for production
                 overlap_days: 7,
                 warning_days_before: 3,
@@ -123,7 +123,7 @@ impl JwtSecretManager {
     /// Get current active JWT secret
     pub async fn get_current_secret(&self) -> ConfigResult<String> {
         let current = self.current_secret.read().await;
-        
+
         // Check if current secret is expired
         if Utc::now() > current.expires_at {
             drop(current);
@@ -133,7 +133,7 @@ impl JwtSecretManager {
         }
 
         // Check if rotation is needed
-        if self.rotation_policy.enabled && self.should_rotate_secret(&*current).await {
+        if self.rotation_policy.enabled && self.should_rotate_secret(&current).await {
             drop(current);
             self.rotate_secret().await?;
             let new_current = self.current_secret.read().await;
@@ -162,7 +162,8 @@ impl JwtSecretManager {
             // Check if token is near expiration
             if let Some(exp) = claims.get("exp") {
                 if let Some(exp_timestamp) = exp.as_u64() {
-                    let exp_datetime = DateTime::from_timestamp(exp_timestamp as i64, 0).unwrap_or_default();
+                    let exp_datetime =
+                        DateTime::from_timestamp(exp_timestamp as i64, 0).unwrap_or_default();
                     if exp_datetime - Utc::now() < Duration::hours(1) {
                         warnings.push("Token expires soon".to_string());
                     }
@@ -195,7 +196,7 @@ impl JwtSecretManager {
     pub async fn rotate_secret(&self) -> ConfigResult<String> {
         if !self.rotation_policy.enabled {
             return Err(ConfigError::Security(
-                "JWT secret rotation is disabled in this environment".to_string()
+                "JWT secret rotation is disabled in this environment".to_string(),
             ));
         }
 
@@ -214,12 +215,14 @@ impl JwtSecretManager {
         *current = new_secret.clone();
 
         // Store the new secret in the secret manager
-        self.secret_manager.store_secret(
-            &format!("jwt_secret_{}", new_secret.id),
-            &new_secret.secret,
-            crate::secret_manager::SecretType::JwtSecret,
-            Some(self.rotation_policy.rotation_interval_days),
-        ).await?;
+        self.secret_manager
+            .store_secret(
+                &format!("jwt_secret_{}", new_secret.id),
+                &new_secret.secret,
+                crate::secret_manager::SecretType::JwtSecret,
+                Some(self.rotation_policy.rotation_interval_days as i32),
+            )
+            .await?;
 
         Ok(new_secret.secret)
     }
@@ -264,8 +267,9 @@ impl JwtSecretManager {
         }
 
         let now = Utc::now();
-        let rotation_threshold = secret.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
-        
+        let rotation_threshold =
+            secret.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
+
         now >= rotation_threshold
     }
 
@@ -273,15 +277,18 @@ impl JwtSecretManager {
     async fn cleanup_expired_secrets(&self, secrets: &mut HashMap<String, JwtSecret>) {
         let now = Utc::now();
         secrets.retain(|_, secret| {
-            secret.expires_at > now && 
-            (now - secret.created_at) < Duration::days(self.rotation_policy.overlap_days as i64 * 2)
+            secret.expires_at > now
+                && (now - secret.created_at)
+                    < Duration::days(self.rotation_policy.overlap_days as i64 * 2)
         });
 
         // Ensure we don't exceed maximum secrets
         while secrets.len() > self.rotation_policy.maximum_secrets as usize {
-            if let Some((oldest_id, _)) = secrets.iter()
+            if let Some((oldest_id, _)) = secrets
+                .iter()
                 .min_by_key(|(_, s)| s.created_at)
-                .map(|(id, _)| (id.clone(), ())) {
+                .map(|(id, _)| (id.clone(), ()))
+            {
                 secrets.remove(&oldest_id);
             } else {
                 break;
@@ -309,10 +316,10 @@ impl JwtSecretManager {
 
         // Load previous secrets
         for i in 1..=5 {
-            let key = format!("jwt_secret_previous_{}", i);
+            let key = format!("jwt_secret_previous_{i}");
             if let Ok(Some(secret)) = self.secret_manager.get_secret(&key).await {
                 let previous_secret = JwtSecret {
-                    id: format!("previous_{}", i),
+                    id: format!("previous_{i}"),
                     secret,
                     created_at: Utc::now() - Duration::days(30 + i as i64 * 10),
                     expires_at: Utc::now() + Duration::days(5),
@@ -333,21 +340,25 @@ impl JwtSecretManager {
         let previous = self.previous_secrets.read().await;
 
         // Save current secret
-        self.secret_manager.store_secret(
-            "jwt_secret_current",
-            &current.secret,
-            crate::secret_manager::SecretType::JwtSecret,
-            Some(self.rotation_policy.rotation_interval_days),
-        ).await?;
+        self.secret_manager
+            .store_secret(
+                "jwt_secret_current",
+                &current.secret,
+                crate::secret_manager::SecretType::JwtSecret,
+                Some(self.rotation_policy.rotation_interval_days as i32),
+            )
+            .await?;
 
         // Save previous secrets
         for (i, (_, secret)) in previous.iter().take(5).enumerate() {
-            self.secret_manager.store_secret(
-                &format!("jwt_secret_previous_{}", i + 1),
-                &secret.secret,
-                crate::secret_manager::SecretType::JwtSecret,
-                Some(self.rotation_policy.rotation_interval_days),
-            ).await?;
+            self.secret_manager
+                .store_secret(
+                    &format!("jwt_secret_previous_{}", i + 1),
+                    &secret.secret,
+                    crate::secret_manager::SecretType::JwtSecret,
+                    Some(self.rotation_policy.rotation_interval_days as i32),
+                )
+                .await?;
         }
 
         Ok(())
@@ -358,8 +369,9 @@ impl JwtSecretManager {
         let current = self.current_secret.read().await;
         let previous = self.previous_secrets.read().await;
 
-        let now = Utc::now();
-        let next_rotation = current.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
+        let _now = Utc::now();
+        let next_rotation =
+            current.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
         let needs_rotation = self.should_rotate_secret(&current).await;
 
         Ok(RotationStatus {
@@ -375,17 +387,27 @@ impl JwtSecretManager {
     }
 
     /// Get rotation warnings
-    async fn get_rotation_warnings(&self, current: &JwtSecret, previous: &HashMap<String, JwtSecret>) -> Vec<String> {
+    async fn get_rotation_warnings(
+        &self,
+        current: &JwtSecret,
+        previous: &HashMap<String, JwtSecret>,
+    ) -> Vec<String> {
         let mut warnings = Vec::new();
         let now = Utc::now();
 
         // Check if current secret is expiring soon
-        if current.expires_at - now < Duration::days(self.rotation_policy.warning_days_before as i64) {
-            warnings.push(format!("Current JWT secret expires in {}", current.expires_at - now));
+        if current.expires_at - now
+            < Duration::days(self.rotation_policy.warning_days_before as i64)
+        {
+            warnings.push(format!(
+                "Current JWT secret expires in {}",
+                current.expires_at - now
+            ));
         }
 
         // Check if rotation is overdue
-        let rotation_threshold = current.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
+        let rotation_threshold =
+            current.created_at + Duration::days(self.rotation_policy.rotation_interval_days as i64);
         if now > rotation_threshold && self.rotation_policy.enabled {
             warnings.push("JWT secret rotation is overdue".to_string());
         }
@@ -399,11 +421,11 @@ impl JwtSecretManager {
     }
 
     /// Simple JWT token decoder (for validation purposes)
-    fn decode_token_with_secret(&self, token: &str, secret: &str) -> Result<serde_json::Value> {
+    fn decode_token_with_secret(&self, token: &str, _secret: &str) -> Result<serde_json::Value> {
         // This is a simplified implementation
         // In a real application, you would use a proper JWT library like jsonwebtoken
-        use base64::{Engine as _, engine::general_purpose};
-        
+        use base64::{engine::general_purpose, Engine as _};
+
         let parts: Vec<&str> = token.split('.').collect();
         if parts.len() != 3 {
             return Err(anyhow::anyhow!("Invalid JWT token format"));
@@ -411,7 +433,7 @@ impl JwtSecretManager {
 
         // Decode header (not validated in this simplified version)
         let _header = general_purpose::URL_SAFE_NO_PAD.decode(parts[0])?;
-        
+
         // Decode payload
         let payload = general_purpose::URL_SAFE_NO_PAD.decode(parts[1])?;
         let payload_str = String::from_utf8(payload)?;
@@ -427,7 +449,7 @@ impl JwtSecretManager {
         let mut bytes = vec![0u8; 64]; // 64 bytes for strong JWT secret
         let rng = SystemRandom::new();
         rng.fill(&mut bytes)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate JWT secret: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to generate JWT secret: {e}")))?;
 
         // Use URL-safe base64 encoding for JWT compatibility
         Ok(general_purpose::URL_SAFE_NO_PAD.encode(&bytes))
@@ -451,13 +473,13 @@ impl JwtSecret {
     /// Create a new JWT secret
     pub fn new() -> ConfigResult<Self> {
         let rng = SystemRandom::new();
-        let mut bytes = [0u8; 32];
+        let mut bytes = [0u8; 16];
         rng.fill(&mut bytes)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate secret ID: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to generate secret ID: {e}")))?;
 
         let mut secret_bytes = vec![0u8; 64];
         rng.fill(&mut secret_bytes)
-            .map_err(|e| ConfigError::Security(format!("Failed to generate JWT secret: {}", e)))?;
+            .map_err(|e| ConfigError::Security(format!("Failed to generate JWT secret: {e}")))?;
 
         Ok(Self {
             id: Uuid::from_bytes(bytes).to_string(),
@@ -479,74 +501,115 @@ mod tests {
 
     #[tokio::test]
     async fn test_jwt_secret_manager_creation() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
-            let secret_manager_arc = Arc::new(secret_manager);
-            
-            let jwt_manager = JwtSecretManager::new(secret_manager_arc, Environment::Development).await;
-            assert!(jwt_manager.is_ok());
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
+                let secret_manager_arc = Arc::new(secret_manager);
+
+                let jwt_manager =
+                    JwtSecretManager::new(secret_manager_arc, Environment::Development).await;
+                assert!(jwt_manager.is_ok());
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_get_current_secret() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
-            let secret_manager_arc = Arc::new(secret_manager);
-            
-            let jwt_manager = JwtSecretManager::new(secret_manager_arc, Environment::Development).await.unwrap();
-            let secret = jwt_manager.get_current_secret().await.unwrap();
-            
-            assert!(!secret.is_empty());
-            assert!(secret.len() >= 32);
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
+                let secret_manager_arc = Arc::new(secret_manager);
+
+                let jwt_manager =
+                    JwtSecretManager::new(secret_manager_arc, Environment::Development)
+                        .await
+                        .unwrap();
+                let secret = jwt_manager.get_current_secret().await.unwrap();
+
+                assert!(!secret.is_empty());
+                assert!(secret.len() >= 32);
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_jwt_validation() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
-            let secret_manager_arc = Arc::new(secret_manager);
-            
-            let jwt_manager = JwtSecretManager::new(secret_manager_arc, Environment::Development).await.unwrap();
-            
-            // Create a fake JWT token for testing
-            let fake_token = "header.payload.signature";
-            let validation = jwt_manager.validate_token_with_secrets(fake_token).await.unwrap();
-            
-            // In a real test, this would validate properly
-            // For now, we just check the structure
-            assert!(!validation.is_valid); // Should fail with fake token
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
+                let secret_manager_arc = Arc::new(secret_manager);
+
+                let jwt_manager =
+                    JwtSecretManager::new(secret_manager_arc, Environment::Development)
+                        .await
+                        .unwrap();
+
+                // Create a fake JWT token for testing
+                let fake_token = "header.payload.signature";
+                let validation = jwt_manager
+                    .validate_token_with_secrets(fake_token)
+                    .await
+                    .unwrap();
+
+                // In a real test, this would validate properly
+                // For now, we just check the structure
+                assert!(!validation.is_valid); // Should fail with fake token
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_force_rotate_secret() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
-            let secret_manager_arc = Arc::new(secret_manager);
-            
-            let jwt_manager = JwtSecretManager::new(secret_manager_arc, Environment::Development).await.unwrap();
-            
-            let original_secret = jwt_manager.get_current_secret().await.unwrap();
-            let new_secret = jwt_manager.force_rotate_secret().await.unwrap();
-            
-            assert_ne!(original_secret, new_secret);
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
+                let secret_manager_arc = Arc::new(secret_manager);
+
+                let jwt_manager =
+                    JwtSecretManager::new(secret_manager_arc, Environment::Development)
+                        .await
+                        .unwrap();
+
+                let original_secret = jwt_manager.get_current_secret().await.unwrap();
+                let new_secret = jwt_manager.force_rotate_secret().await.unwrap();
+
+                assert_ne!(original_secret, new_secret);
+            },
+        )
+        .await;
     }
 
     #[tokio::test]
     async fn test_rotation_status() {
-        temp_env::with_var("SECRET_MANAGER_KEY", Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"), || {
-            let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
-            let secret_manager_arc = Arc::new(secret_manager);
-            
-            let jwt_manager = JwtSecretManager::new(secret_manager_arc, Environment::Development).await.unwrap();
-            let status = jwt_manager.get_rotation_status().await.unwrap();
-            
-            assert!(!status.current_secret_id.is_empty());
-            assert!(status.current_secret_expires > Utc::now());
-        });
+        temp_env::with_var(
+            "SECRET_MANAGER_KEY",
+            Some("MTIzNDU2Nzg5MDEyMzQ1Njc4OTAxMjM0NTY3ODkwMTIzNDU2Nzg5"),
+            async || {
+                let secret_manager = SecretManager::new(Environment::Development).await.unwrap();
+                let secret_manager_arc = Arc::new(secret_manager);
+
+                let jwt_manager =
+                    JwtSecretManager::new(secret_manager_arc, Environment::Development)
+                        .await
+                        .unwrap();
+                let status = jwt_manager.get_rotation_status().await.unwrap();
+
+                assert!(!status.current_secret_id.is_empty());
+                assert!(status.current_secret_expires > Utc::now());
+            },
+        )
+        .await;
     }
 
     #[test]
@@ -561,10 +624,12 @@ mod tests {
 
     #[test]
     fn test_rotation_policy_for_environment() {
-        let dev_policy = JwtSecretManager::get_rotation_policy_for_environment(&Environment::Development);
+        let dev_policy =
+            JwtSecretManager::get_rotation_policy_for_environment(&Environment::Development);
         assert!(!dev_policy.enabled);
 
-        let prod_policy = JwtSecretManager::get_rotation_policy_for_environment(&Environment::Production);
+        let prod_policy =
+            JwtSecretManager::get_rotation_policy_for_environment(&Environment::Production);
         assert!(prod_policy.enabled);
         assert_eq!(prod_policy.rotation_interval_days, 30);
     }

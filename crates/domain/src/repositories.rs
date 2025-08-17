@@ -89,7 +89,7 @@ pub trait WorkerRepository: Send + Sync {
     ) -> SchedulerResult<()>;
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct TaskExecutionStats {
     pub task_id: i64,
     pub total_runs: i64,
@@ -101,7 +101,7 @@ pub struct TaskExecutionStats {
     pub last_execution: Option<DateTime<Utc>>,
 }
 
-#[derive(Debug, Clone, serde::Serialize)]
+#[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
 pub struct WorkerLoadStats {
     pub worker_id: String,
     pub current_task_count: i32,

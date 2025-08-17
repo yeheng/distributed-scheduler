@@ -39,10 +39,8 @@ impl DatabaseTestContainer {
         let container = postgres_image.start().await?;
         let port = container.get_host_port_ipv4(5432).await?;
 
-        let database_url = format!(
-            "postgresql://test_user:test_password@localhost:{}/scheduler_test",
-            port
-        );
+        let database_url =
+            format!("postgresql://test_user:test_password@localhost:{port}/scheduler_test");
 
         // Retry connection with backoff
         let mut retry_count = 0;
@@ -83,12 +81,9 @@ impl DatabaseTestContainer {
         ];
 
         for table in tables {
-            sqlx::query(&format!(
-                "TRUNCATE TABLE {} RESTART IDENTITY CASCADE",
-                table
-            ))
-            .execute(&self.pool)
-            .await?;
+            sqlx::query(&format!("TRUNCATE TABLE {table} RESTART IDENTITY CASCADE"))
+                .execute(&self.pool)
+                .await?;
         }
         Ok(())
     }
@@ -163,7 +158,7 @@ impl DatabaseTestContainer {
 
     /// Get count of records in a table
     pub async fn get_table_count(&self, table_name: &str) -> Result<i64> {
-        let row = sqlx::query(&format!("SELECT COUNT(*) as count FROM {}", table_name))
+        let row = sqlx::query(&format!("SELECT COUNT(*) as count FROM {table_name}"))
             .fetch_one(&self.pool)
             .await?;
 
