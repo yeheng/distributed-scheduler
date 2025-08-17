@@ -57,11 +57,24 @@ task_poll_interval_seconds = 10
 
 [api]
 enabled = true
-bind_address = "0.0.0.0:8080"
+bind_address = "0.0.0.0:8443"
 cors_enabled = false
 cors_origins = []
 request_timeout_seconds = 60
 max_request_size_mb = 50
+
+[api.auth]
+enabled = true
+jwt_secret = "placeholder_for_secret_manager"
+jwt_expiration_hours = 8
+api_keys = {}
+
+[api.rate_limiting]
+enabled = true
+max_requests_per_minute = 30
+refill_rate_per_second = 0.5
+burst_size = 5
+endpoint_limits = {}
 
 [observability]
 tracing_enabled = true

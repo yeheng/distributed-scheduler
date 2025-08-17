@@ -1,0 +1,150 @@
+# Production Environment Configuration Template
+# This template provides secure production-ready settings
+# Copy to config/production.toml and customize as needed
+
+[database]
+# Use secure PostgreSQL connection with SSL
+url = "postgresql://scheduler:${DB_PASSWORD}@db-prod.internal:5432/scheduler_prod?sslmode=require"
+max_connections = 50
+min_connections = 10
+connection_timeout_seconds = 60
+idle_timeout_seconds = 1800
+# Additional connection pool settings
+max_lifetime_seconds = 3600
+health_check_interval_seconds = 30
+
+[message_queue]
+# Redis Stream for production (recommended for high performance)
+type = "redis_stream"
+url = "redis://redis-prod.internal:6379"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 5
+retry_delay_seconds = 120
+connection_timeout_seconds = 60
+
+# Redis Stream production configuration
+[message_queue.redis]
+host = "redis-prod.internal"
+port = 6379
+database = 0
+connection_timeout_seconds = 60
+max_retry_attempts = 5
+retry_delay_seconds = 2
+# Production Redis cluster settings
+cluster_mode = false
+sentinel_mode = false
+password = "${REDIS_PASSWORD}"
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 30
+max_concurrent_dispatches = 500
+worker_timeout_seconds = 180
+dispatch_strategy = "load_balancer"
+# Production dispatcher settings
+enable_metrics = true
+enable_health_checks = true
+graceful_shutdown_timeout_seconds = 30
+
+[worker]
+enabled = true
+worker_id = "${WORKER_ID:-prod-worker-001}"
+hostname = "${HOSTNAME:-worker-host}"
+ip_address = "${WORKER_IP:-10.0.0.100}"
+max_concurrent_tasks = 20
+supported_task_types = ["shell", "http", "python", "node"]
+heartbeat_interval_seconds = 60
+task_poll_interval_seconds = 10
+# Production worker settings
+enable_health_checks = true
+graceful_shutdown_timeout_seconds = 30
+max_task_duration_seconds = 3600
+
+[api]
+# Production API with HTTPS
+enabled = true
+bind_address = "0.0.0.0:8443"
+cors_enabled = false
+cors_origins = []
+request_timeout_seconds = 60
+max_request_size_mb = 50
+# Production API settings
+enable_tls = true
+tls_cert_path = "/etc/ssl/certs/scheduler.crt"
+tls_key_path = "/etc/ssl/private/scheduler.key"
+enable_compression = true
+enable_metrics = true
+
+[api.auth]
+# Authentication enabled in production
+enabled = true
+jwt_secret = "${JWT_SECRET}"  # Use secret manager for this
+jwt_expiration_hours = 8
+jwt_refresh_expiration_hours = 24
+issuer = "scheduler-system"
+audience = "scheduler-api"
+# API keys for service accounts
+api_keys = {}
+
+[api.rate_limiting]
+# Rate limiting enabled in production
+enabled = true
+max_requests_per_minute = 30
+refill_rate_per_second = 0.5
+burst_size = 5
+endpoint_limits = {}
+# Production rate limiting settings
+enable_ip_based_limiting = true
+enable_user_based_limiting = true
+redis_url = "redis://redis-prod.internal:6379"
+
+[observability]
+# Production observability settings
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "warn"
+jaeger_endpoint = "http://jaeger.internal:14268/api/traces"
+# Additional production settings
+enable_structured_logging = true
+log_format = "json"
+enable_distributed_tracing = true
+enable_health_checks = true
+
+# Production security settings
+[security]
+enable_encryption = true
+encryption_key_path = "/etc/ssl/encryption.key"
+enable_audit_logging = true
+audit_log_retention_days = 730
+enable_request_signing = true
+enable_response_validation = true
+
+# Production backup settings
+[backup]
+enabled = true
+schedule = "0 2 * * *"  # Daily at 2 AM
+retention_days = 30
+compression_enabled = true
+encryption_enabled = true
+backup_storage_path = "/backups/scheduler"
+
+# Production monitoring settings
+[monitoring]
+enabled = true
+metrics_retention_days = 90
+alerting_enabled = true
+health_check_interval_seconds = 30
+performance_baseline_file = "/etc/scheduler/performance-baseline.json"
+
+# Production disaster recovery settings
+[disaster_recovery]
+enabled = true
+failover_enabled = true
+replication_lag_threshold_seconds = 30
+data_consistency_check_enabled = true
+recovery_point_objective_minutes = 15
+recovery_time_objective_minutes = 30

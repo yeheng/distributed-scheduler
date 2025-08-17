@@ -99,9 +99,10 @@ impl CacheFactory {
         &self,
         inner: Arc<dyn TaskRunRepository>,
     ) -> Arc<dyn TaskRunRepository> {
-        if let Some(_cache_service) = &self.cache_service {
-            // TODO: Implement CachedTaskRunRepository
-            inner
+        if let Some(cache_service) = &self.cache_service {
+            let ttl = self.config.ttl.to_cache_ttl().task_run;
+            let cached_repo = CachedTaskRunRepository::new(inner, cache_service.clone(), ttl);
+            Arc::new(cached_repo) as Arc<dyn TaskRunRepository>
         } else {
             inner
         }

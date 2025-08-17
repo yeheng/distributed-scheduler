@@ -1,0 +1,83 @@
+# Staging Environment Configuration Template
+# This template provides production-like settings for staging environment
+# Copy to config/staging.toml and customize as needed
+
+[database]
+# Use PostgreSQL with SSL for staging
+url = "postgresql://scheduler:${DB_PASSWORD}@db-staging.internal:5432/scheduler_staging?sslmode=require"
+max_connections = 25
+min_connections = 5
+connection_timeout_seconds = 45
+idle_timeout_seconds = 900
+
+[message_queue]
+# Redis Stream for staging
+type = "redis_stream"
+url = "redis://redis-staging.internal:6379"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 5
+retry_delay_seconds = 60
+connection_timeout_seconds = 45
+
+[message_queue.redis]
+host = "redis-staging.internal"
+port = 6379
+database = 0
+connection_timeout_seconds = 45
+max_retry_attempts = 5
+retry_delay_seconds = 2
+password = "${REDIS_PASSWORD}"
+
+[dispatcher]
+enabled = true
+schedule_interval_seconds = 15
+max_concurrent_dispatches = 250
+worker_timeout_seconds = 120
+dispatch_strategy = "load_balancer"
+
+[worker]
+enabled = true
+worker_id = "${WORKER_ID:-staging-worker-001}"
+hostname = "${HOSTNAME:-worker-staging}"
+ip_address = "${WORKER_IP:-10.0.0.100}"
+max_concurrent_tasks = 15
+supported_task_types = ["shell", "http", "python"]
+heartbeat_interval_seconds = 45
+task_poll_interval_seconds = 8
+
+[api]
+# Staging API with restricted CORS
+enabled = true
+bind_address = "0.0.0.0:8443"
+cors_enabled = true
+cors_origins = ["https://staging.example.com", "https://staging-api.example.com"]
+request_timeout_seconds = 45
+max_request_size_mb = 25
+
+[api.auth]
+# Authentication enabled in staging
+enabled = true
+jwt_secret = "${JWT_SECRET}"
+jwt_expiration_hours = 12
+jwt_refresh_expiration_hours = 48
+issuer = "scheduler-system"
+audience = "scheduler-api"
+
+[api.rate_limiting]
+# Rate limiting enabled in staging
+enabled = true
+max_requests_per_minute = 60
+refill_rate_per_second = 1.0
+burst_size = 10
+endpoint_limits = {}
+
+[observability]
+# Staging observability settings
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
+jaeger_endpoint = "http://jaeger-staging.internal:14268/api/traces"

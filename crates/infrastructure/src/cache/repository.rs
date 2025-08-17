@@ -2,7 +2,7 @@
 
 use super::{
     task_cache_key, task_dependencies_cache_key, task_name_cache_key, worker_cache_key,
-    CacheService, CacheServiceExt,
+    task_run_cache_key, CacheService, CacheServiceExt,
 };
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
@@ -465,5 +465,280 @@ impl WorkerRepository for CachedWorkerRepository {
 
     async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
         self.inner.get_worker_load_stats().await
+    }
+}
+
+/// Cached task run repository wrapper
+pub struct CachedTaskRunRepository {
+    inner: Arc<dyn TaskRunRepository>,
+    cache: Arc<dyn CacheService>,
+    task_run_ttl: Duration,
+}
+
+impl CachedTaskRunRepository {
+    pub fn new(
+        inner: Arc<dyn TaskRunRepository>,
+        cache: Arc<dyn CacheService>,
+        task_run_ttl: Duration,
+    ) -> Self {
+        Self {
+            inner,
+            cache,
+            task_run_ttl,
+        }
+    }
+
+    async fn invalidate_task_run_cache(&self, task_run_id: i64) -> SchedulerResult<()> {
+        let cache_key = task_run_cache_key(task_run_id);
+        self.cache.delete(&cache_key).await?;
+        Ok(())
+    }
+
+    async fn invalidate_task_runs_cache(&self, task_id: i64) -> SchedulerResult<()> {
+        let cache_key = format!("task_runs:task:{}", task_id);
+        self.cache.delete(&cache_key).await?;
+        Ok(())
+    }
+}
+
+#[async_trait::async_trait]
+impl TaskRunRepository for CachedTaskRunRepository {
+    #[instrument(skip(self, task_run))]
+    async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
+        let result = self.inner.create(task_run).await?;
+
+        // Cache the newly created task run
+        let cache_key = task_run_cache_key(result.id);
+        self.cache
+            .set_typed(&cache_key, &result, self.task_run_ttl)
+            .await?;
+
+        // Invalidate cache for task runs list
+        self.invalidate_task_runs_cache(result.task_id).await?;
+
+        Ok(result)
+    }
+
+    #[instrument(skip(self))]
+    async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
+        let cache_key = task_run_cache_key(id);
+
+        // Try cache first
+        if let Some(cached_task_run) = self.cache.get_typed::<TaskRun>(&cache_key).await? {
+            debug!("Cache hit for task run ID: {}", id);
+            return Ok(Some(cached_task_run));
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for task run ID: {}", id);
+        let task_run = self.inner.get_by_id(id).await?;
+
+        if let Some(ref task_run) = task_run {
+            // Cache the result
+            self.cache
+                .set_typed(&cache_key, task_run, self.task_run_ttl)
+                .await?;
+        }
+
+        Ok(task_run)
+    }
+
+    #[instrument(skip(self, task_run))]
+    async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
+        let result = self.inner.update(task_run).await?;
+
+        // Invalidate cache for this task run
+        self.invalidate_task_run_cache(task_run.id).await?;
+        self.invalidate_task_runs_cache(task_run.task_id).await?;
+
+        Ok(result)
+    }
+
+    #[instrument(skip(self))]
+    async fn delete(&self, id: i64) -> SchedulerResult<()> {
+        // Get task run info before deletion for cache invalidation
+        if let Some(task_run) = self.inner.get_by_id(id).await? {
+            let result = self.inner.delete(id).await?;
+
+            // Invalidate cache
+            self.invalidate_task_run_cache(task_run.id).await?;
+            self.invalidate_task_runs_cache(task_run.task_id).await?;
+
+            Ok(result)
+        } else {
+            self.inner.delete(id).await
+        }
+    }
+
+    #[instrument(skip(self, filter))]
+    async fn list(&self, filter: &TaskRunFilter) -> SchedulerResult<Vec<TaskRun>> {
+        // For list operations, we don't cache individual filter results
+        // as they can be too varied and time-sensitive
+        self.inner.list(filter).await
+    }
+
+    #[instrument(skip(self))]
+    async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
+        let cache_key = format!("task_runs:task:{}", task_id);
+
+        // Try cache first
+        if let Some(cached_task_runs) = self.cache.get_typed::<Vec<TaskRun>>(&cache_key).await? {
+            debug!("Cache hit for task runs by task ID: {}", task_id);
+            return Ok(cached_task_runs);
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for task runs by task ID: {}", task_id);
+        let task_runs = self.inner.get_by_task_id(task_id).await?;
+
+        // Cache for shorter duration (60 seconds) as task runs change frequently
+        self.cache
+            .set_typed(&cache_key, &task_runs, Duration::from_secs(60))
+            .await?;
+
+        Ok(task_runs)
+    }
+
+    #[instrument(skip(self))]
+    async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
+        let cache_key = format!("task_runs:worker:{}", worker_id);
+
+        // Try cache first
+        if let Some(cached_task_runs) = self.cache.get_typed::<Vec<TaskRun>>(&cache_key).await? {
+            debug!("Cache hit for task runs by worker ID: {}", worker_id);
+            return Ok(cached_task_runs);
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for task runs by worker ID: {}", worker_id);
+        let task_runs = self.inner.get_by_worker_id(worker_id).await?;
+
+        // Cache for shorter duration (30 seconds) as worker assignments change frequently
+        self.cache
+            .set_typed(&cache_key, &task_runs, Duration::from_secs(30))
+            .await?;
+
+        Ok(task_runs)
+    }
+
+    #[instrument(skip(self))]
+    async fn get_running_task_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
+        let cache_key = "task_runs:running";
+
+        // Try cache first
+        if let Some(cached_task_runs) = self.cache.get_typed::<Vec<TaskRun>>(&cache_key).await? {
+            debug!("Cache hit for running task runs");
+            return Ok(cached_task_runs);
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for running task runs");
+        let task_runs = self.inner.get_running_task_runs().await?;
+
+        // Cache for very short duration (15 seconds) as running status changes frequently
+        self.cache
+            .set_typed(&cache_key, &task_runs, Duration::from_secs(15))
+            .await?;
+
+        Ok(task_runs)
+    }
+
+    #[instrument(skip(self))]
+    async fn update_status(&self, task_run_id: i64, status: TaskRunStatus, worker_id: Option<&str>) -> SchedulerResult<()> {
+        let result = self.inner.update_status(task_run_id, status, worker_id).await?;
+
+        // Invalidate cache for this task run
+        self.invalidate_task_run_cache(task_run_id).await?;
+
+        // Also get the task run to invalidate task-specific cache
+        if let Some(task_run) = self.inner.get_by_id(task_run_id).await? {
+            self.invalidate_task_runs_cache(task_run.task_id).await?;
+        }
+
+        Ok(result)
+    }
+
+    #[instrument(skip(self, task_run_id, result))]
+    async fn update_result(&self, task_run_id: i64, result: Option<&str>, error_message: Option<&str>) -> SchedulerResult<()> {
+        let result = self.inner.update_result(task_run_id, result, error_message).await?;
+
+        // Invalidate cache for this task run
+        self.invalidate_task_run_cache(task_run_id).await?;
+
+        // Also get the task run to invalidate task-specific cache
+        if let Some(task_run) = self.inner.get_by_id(task_run_id).await? {
+            self.invalidate_task_runs_cache(task_run.task_id).await?;
+        }
+
+        Ok(result)
+    }
+
+    #[instrument(skip(self))]
+    async fn get_task_run_stats(&self, task_id: i64) -> SchedulerResult<TaskRunStats> {
+        let cache_key = format!("task_runs:stats:{}", task_id);
+
+        // Try cache first
+        if let Some(cached_stats) = self.cache.get_typed::<TaskRunStats>(&cache_key).await? {
+            debug!("Cache hit for task run stats: {}", task_id);
+            return Ok(cached_stats);
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for task run stats: {}", task_id);
+        let stats = self.inner.get_task_run_stats(task_id).await?;
+
+        // Cache stats for 5 minutes
+        self.cache
+            .set_typed(&cache_key, &stats, Duration::from_secs(300))
+            .await?;
+
+        Ok(stats)
+    }
+
+    #[instrument(skip(self))]
+    async fn cleanup_old_task_runs(&self, older_than: chrono::DateTime<chrono::Utc>) -> SchedulerResult<u64> {
+        let result = self.inner.cleanup_old_task_runs(older_than).await?;
+
+        // Clear all task run cache since we don't know which ones were deleted
+        self.cache.clear_prefix("task_runs").await?;
+
+        Ok(result)
+    }
+
+    #[instrument(skip(self))]
+    async fn get_failed_task_runs(&self, since: chrono::DateTime<chrono::Utc>) -> SchedulerResult<Vec<TaskRun>> {
+        let cache_key = format!("task_runs:failed:{}", since.timestamp());
+
+        // Try cache first
+        if let Some(cached_task_runs) = self.cache.get_typed::<Vec<TaskRun>>(&cache_key).await? {
+            debug!("Cache hit for failed task runs since {}", since);
+            return Ok(cached_task_runs);
+        }
+
+        // Cache miss, get from database
+        debug!("Cache miss for failed task runs since {}", since);
+        let task_runs = self.inner.get_failed_task_runs(since).await?;
+
+        // Cache for 2 minutes
+        self.cache
+            .set_typed(&cache_key, &task_runs, Duration::from_secs(120))
+            .await?;
+
+        Ok(task_runs)
+    }
+
+    #[instrument(skip(self))]
+    async fn retry_task_run(&self, task_run_id: i64) -> SchedulerResult<TaskRun> {
+        let result = self.inner.retry_task_run(task_run_id).await?;
+
+        // Invalidate cache for this task run
+        self.invalidate_task_run_cache(task_run_id).await?;
+
+        // Also get the task run to invalidate task-specific cache
+        if let Some(task_run) = self.inner.get_by_id(task_run_id).await? {
+            self.invalidate_task_runs_cache(task_run.task_id).await?;
+        }
+
+        Ok(result)
     }
 }

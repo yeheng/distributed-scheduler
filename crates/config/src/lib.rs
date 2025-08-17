@@ -1,7 +1,12 @@
 pub mod circuit_breaker;
+pub mod encrypted_config_storage;
+pub mod enhanced_validation;
 pub mod environment;
+pub mod jwt_secret_manager;
 pub mod models;
+pub mod secret_manager;
 pub mod security;
+pub mod security_policy;
 pub mod validation;
 
 // Re-export commonly used types
@@ -15,6 +20,10 @@ pub use models::{
 pub use security::{
     ConfigSecurity, SecurityEvent, SecurityEventType, SecuritySeverity, SENSITIVE_PATTERNS,
 };
+pub use encrypted_config_storage::{EncryptedConfigStorage, EncryptionStatus};
+pub use enhanced_validation::{ConfigValidator, ValidationResult, ValidationError, ValidationWarning, ValidationScore};
+pub use jwt_secret_manager::{JwtSecretManager, JwtSecret, JwtRotationPolicy, RotationStatus};
+pub use secret_manager::{SecretManager, SecretEntry, SecretType, RotationPolicy, SecretValidation};
 
 /// Configuration error type
 pub type ConfigResult<T> = Result<T, ConfigError>;
