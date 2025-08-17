@@ -34,6 +34,8 @@ pub struct CacheMetrics {
     memory_usage: Gauge,
     /// Last update timestamp
     last_update: Arc<RwLock<Instant>>,
+    /// Prometheus registry for metrics gathering
+    registry: Arc<Registry>,
 }
 
 impl CacheMetrics {
@@ -119,6 +121,7 @@ impl CacheMetrics {
             cache_size,
             memory_usage,
             last_update: Arc::new(RwLock::new(Instant::now())),
+            registry: Arc::new(registry.clone()),
         }
     }
 
@@ -182,8 +185,16 @@ impl CacheMetrics {
 
     /// Get metrics as text for Prometheus
     pub fn get_metrics_text(&self) -> String {
-        // TODO: Fix metrics encoding - for now return empty string
-        String::new()
+        let encoder = prometheus::TextEncoder::new();
+        let metric_families = self.registry.gather();
+        
+        match encoder.encode_to_string(&metric_families) {
+            Ok(text) => text,
+            Err(e) => {
+                warn!("Failed to encode cache metrics: {}", e);
+                String::new()
+            }
+        }
     }
 
     /// Get time since last update

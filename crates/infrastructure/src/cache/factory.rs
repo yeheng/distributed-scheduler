@@ -99,7 +99,7 @@ impl CacheFactory {
         &self,
         inner: Arc<dyn TaskRunRepository>,
     ) -> Arc<dyn TaskRunRepository> {
-        if let Some(ref cache_service) = self.cache_service {
+        if let Some(_cache_service) = &self.cache_service {
             // TODO: Implement CachedTaskRunRepository
             inner
         } else {

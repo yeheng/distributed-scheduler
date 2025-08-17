@@ -64,11 +64,47 @@ async fn main() -> Result<()> {
         .get_matches();
 
     // 获取命令行参数
-    let config_path = matches.get_one::<String>("config").unwrap();
-    let mode_str = matches.get_one::<String>("mode").unwrap();
+    let config_path = matches
+        .get_one::<String>("config")
+        .ok_or_else(|| anyhow::anyhow!("配置文件路径参数缺失"))?;
+    let mode_str = matches
+        .get_one::<String>("mode")
+        .ok_or_else(|| anyhow::anyhow!("运行模式参数缺失"))?;
     let worker_id = matches.get_one::<String>("worker-id");
-    let log_level = matches.get_one::<String>("log-level").unwrap();
-    let log_format = matches.get_one::<String>("log-format").unwrap();
+    let log_level = matches
+        .get_one::<String>("log-level")
+        .ok_or_else(|| anyhow::anyhow!("日志级别参数缺失"))?;
+    let log_format = matches
+        .get_one::<String>("log-format")
+        .ok_or_else(|| anyhow::anyhow!("日志格式参数缺失"))?;
+
+    // 验证配置文件路径
+    if !std::path::Path::new(config_path).exists() {
+        return Err(anyhow::anyhow!("配置文件不存在: {}", config_path));
+    }
+
+    // 验证运行模式
+    match mode_str.as_str() {
+        "dispatcher" | "worker" | "api" | "all" => {},
+        _ => return Err(anyhow::anyhow!("无效的运行模式: {}，支持的值: dispatcher, worker, api, all", mode_str)),
+    }
+
+    // 验证日志级别
+    match log_level.as_str() {
+        "trace" | "debug" | "info" | "warn" | "error" => {},
+        _ => return Err(anyhow::anyhow!("无效的日志级别: {}，支持的值: trace, debug, info, warn, error", log_level)),
+    }
+
+    // 验证日志格式
+    match log_format.as_str() {
+        "json" | "pretty" => {},
+        _ => return Err(anyhow::anyhow!("无效的日志格式: {}，支持的值: json, pretty", log_format)),
+    }
+
+    // 验证worker-id（在worker模式下必需）
+    if mode_str == "worker" && worker_id.is_none() {
+        return Err(anyhow::anyhow!("Worker模式下必须提供--worker-id参数"));
+    }
 
     // 初始化日志系统
     init_logging(log_level, log_format)?;
@@ -139,8 +175,8 @@ async fn main() -> Result<()> {
 
 /// 初始化日志系统
 fn init_logging(log_level: &str, log_format: &str) -> Result<()> {
-    let env_filter =
-        EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new(log_level));
+    let env_filter = EnvFilter::try_from_default_env()
+        .unwrap_or_else(|_| EnvFilter::new(log_level));
 
     let registry = tracing_subscriber::registry().with(env_filter);
 
@@ -194,15 +230,21 @@ fn parse_app_mode(mode_str: &str, config: &AppConfig) -> Result<AppMode> {
 /// 等待关闭信号
 async fn wait_for_shutdown_signal() {
     let ctrl_c = async {
-        signal::ctrl_c().await.expect("安装Ctrl+C信号处理器失败");
+        signal::ctrl_c().await.unwrap_or_else(|e| {
+            error!("安装Ctrl+C信号处理器失败: {}", e);
+            std::process::exit(1);
+        })
     };
 
     #[cfg(unix)]
     let terminate = async {
-        signal::unix::signal(signal::unix::SignalKind::terminate())
-            .expect("安装SIGTERM信号处理器失败")
-            .recv()
-            .await;
+        match signal::unix::signal(signal::unix::SignalKind::terminate()) {
+            Ok(mut signal) => signal.recv().await,
+            Err(e) => {
+                error!("安装SIGTERM信号处理器失败: {}", e);
+                std::process::exit(1);
+            }
+        }
     };
 
     #[cfg(not(unix))]

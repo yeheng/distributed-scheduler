@@ -1,6 +1,7 @@
 pub mod circuit_breaker;
 pub mod environment;
 pub mod models;
+pub mod security;
 pub mod validation;
 
 // Re-export commonly used types
@@ -10,6 +11,9 @@ pub use models::{
     ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
     MessageQueueConfig, MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig,
     RedisConfig, ResilienceConfig, WorkerConfig,
+};
+pub use security::{
+    ConfigSecurity, SecurityEvent, SecurityEventType, SecuritySeverity, SENSITIVE_PATTERNS,
 };
 
 /// Configuration error type
@@ -32,6 +36,9 @@ pub enum ConfigError {
 
     #[error("Environment error: {0}")]
     Environment(String),
+
+    #[error("Security error: {0}")]
+    Security(String),
 }
 
 impl From<anyhow::Error> for ConfigError {

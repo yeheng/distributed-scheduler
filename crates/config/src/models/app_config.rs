@@ -298,6 +298,29 @@ connection_timeout_seconds = 30
 database_circuit_breaker = { failure_threshold = 5, recovery_timeout = 60, success_threshold = 3, call_timeout = 30, backoff_multiplier = 2.0, max_recovery_timeout = 300 }
 message_queue_circuit_breaker = { failure_threshold = 3, recovery_timeout = 30, success_threshold = 2, call_timeout = 10, backoff_multiplier = 1.5, max_recovery_timeout = 180 }
 external_service_circuit_breaker = { failure_threshold = 3, recovery_timeout = 45, success_threshold = 3, call_timeout = 15, backoff_multiplier = 2.0, max_recovery_timeout = 240 }
+[executor]
+enabled = true
+default_executor = "shell"
+[executor.executors.shell]
+executor_type = "shell"
+supported_task_types = ["shell"]
+priority = 100
+max_concurrent_tasks = 10
+timeout_seconds = 300
+
+[executor.executors.http]
+executor_type = "http"
+supported_task_types = ["http"]
+priority = 90
+max_concurrent_tasks = 20
+timeout_seconds = 60
+
+[executor.executor_factory]
+auto_discovery = false
+discovery_path = "./executors"
+dynamic_loading = false
+plugin_directories = ["./plugins"]
+validation_enabled = true
 "#;
 
         let config = AppConfig::from_toml(toml_str).expect("Failed to parse TOML");
