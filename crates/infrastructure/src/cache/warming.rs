@@ -718,6 +718,7 @@ mod tests {
     use super::*;
     use crate::cache::config::CacheConfig;
     use crate::cache::manager::RedisCacheManager;
+    use crate::cache::CacheStats;
 
     #[tokio::test]
     async fn test_warming_manager_creation() {
@@ -784,7 +785,7 @@ mod tests {
         #[async_trait]
         impl TaskRepository for MockRepository {
             async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
-                Err(SchedulerError::Database("Mock error".to_string()))
+                Err(SchedulerError::Internal("Mock error".to_string()))
             }
 
             async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<Task>> {
@@ -912,7 +913,7 @@ mod tests {
         #[async_trait]
         impl TaskRunRepository for MockRepository {
             async fn create(&self, _task_run: &TaskRun) -> SchedulerResult<TaskRun> {
-                Err(SchedulerError::Database("Mock error".to_string()))
+                Err(SchedulerError::Internal("Mock error".to_string()))
             }
 
             async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<TaskRun>> {
@@ -927,10 +928,6 @@ mod tests {
                 Ok(())
             }
 
-            async fn list(&self, _filter: &TaskRunFilter) -> SchedulerResult<Vec<TaskRun>> {
-                Ok(Vec::new())
-            }
-
             async fn get_by_task_id(&self, _task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
@@ -939,13 +936,25 @@ mod tests {
                 Ok(Vec::new())
             }
 
-            async fn get_running_task_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
+            async fn get_by_status(&self, _status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
+                Ok(Vec::new())
+            }
+
+            async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
+                Ok(Vec::new())
+            }
+
+            async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
+                Ok(Vec::new())
+            }
+
+            async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
 
             async fn update_status(
                 &self,
-                _task_run_id: i64,
+                _id: i64,
                 _status: TaskRunStatus,
                 _worker_id: Option<&str>,
             ) -> SchedulerResult<()> {
@@ -954,33 +963,44 @@ mod tests {
 
             async fn update_result(
                 &self,
-                _task_run_id: i64,
+                _id: i64,
                 _result: Option<&str>,
                 _error_message: Option<&str>,
             ) -> SchedulerResult<()> {
                 Ok(())
             }
 
-            async fn get_task_run_stats(&self, _task_id: i64) -> SchedulerResult<TaskRunStats> {
-                Ok(TaskRunStats::default())
-            }
-
-            async fn cleanup_old_task_runs(
-                &self,
-                _older_than: chrono::DateTime<chrono::Utc>,
-            ) -> SchedulerResult<u64> {
-                Ok(0)
-            }
-
-            async fn get_failed_task_runs(
-                &self,
-                _since: chrono::DateTime<chrono::Utc>,
-            ) -> SchedulerResult<Vec<TaskRun>> {
+            async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
 
-            async fn retry_task_run(&self, _task_run_id: i64) -> SchedulerResult<TaskRun> {
-                Err(SchedulerError::Database("Mock error".to_string()))
+            async fn get_execution_stats(
+                &self,
+                _task_id: i64,
+                _days: i32,
+            ) -> SchedulerResult<TaskExecutionStats> {
+                Ok(TaskExecutionStats {
+                    task_id: _task_id,
+                    total_runs: 0,
+                    successful_runs: 0,
+                    failed_runs: 0,
+                    timeout_runs: 0,
+                    average_execution_time_ms: None,
+                    success_rate: 0.0,
+                    last_execution: None,
+                })
+            }
+
+            async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
+                Ok(0)
+            }
+
+            async fn batch_update_status(
+                &self,
+                _run_ids: &[i64],
+                _status: TaskRunStatus,
+            ) -> SchedulerResult<()> {
+                Ok(())
             }
         }
 
