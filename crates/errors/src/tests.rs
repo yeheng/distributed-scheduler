@@ -1,8 +1,6 @@
 #[cfg(test)]
-mod tests {
+mod error_tests {
     use crate::*;
-    use serde_json;
-    use sqlx;
 
     #[test]
     fn test_scheduler_error_display() {
@@ -203,12 +201,12 @@ mod tests {
     fn test_scheduler_result_type() {
         // Test SchedulerResult with Ok value
         let result: SchedulerResult<i32> = Ok(42);
-        assert_eq!(result.unwrap(), 42);
+        assert_eq!(result.expect("Should be Ok"), 42);
 
         // Test SchedulerResult with Err value
         let result: SchedulerResult<i32> = Err(SchedulerError::TaskNotFound { id: 123 });
         assert!(result.is_err());
-        assert!(matches!(result.unwrap_err(), SchedulerError::TaskNotFound { .. }));
+        assert!(matches!(result.expect_err("Should be Err"), SchedulerError::TaskNotFound { .. }));
     }
 
     #[test]
@@ -300,7 +298,7 @@ mod tests {
         let result: Result<(), SchedulerError> = Err(SchedulerError::TaskNotFound { id: 123 });
         let anyhow_result: Result<(), anyhow::Error> = result.map_err(|e| e.into());
         assert!(anyhow_result.is_err());
-        assert!(anyhow_result.unwrap_err().to_string().contains("任务未找到"));
+        assert!(anyhow_result.expect_err("Should be Err").to_string().contains("任务未找到"));
     }
 
     #[test]

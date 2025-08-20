@@ -198,7 +198,7 @@ impl ConfigValidator {
         &self,
         config: &HashMap<String, serde_json::Value>,
         errors: &mut Vec<ValidationError>,
-        _warnings: &mut Vec<ValidationWarning>,
+        _warnings: &mut [ValidationWarning],
     ) {
         // Check for insecure defaults in production
         if self.environment == Environment::Production {
@@ -539,6 +539,13 @@ impl ConfigValidator {
         errors: &mut Vec<ValidationError>,
         warnings: &mut Vec<ValidationWarning>,
     ) {
+        use once_cell::sync::Lazy;
+        
+        static FALLBACK_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r".*").unwrap());
+        static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
+            Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
+        });
+        
         let rules = self.get_validation_rules();
 
         for rule in rules {
@@ -554,7 +561,7 @@ impl ConfigValidator {
                             ValidationType::Required => !value_str.is_empty(),
                             ValidationType::Regex(pattern) => {
                                 let re = Regex::new(pattern)
-                                    .unwrap_or_else(|_| Regex::new(r".*").unwrap());
+                                    .unwrap_or_else(|_| FALLBACK_REGEX.clone());
                                 re.is_match(value_str)
                             }
                             ValidationType::MinLength(min) => value_str.len() >= *min as usize,
@@ -574,10 +581,7 @@ impl ConfigValidator {
                             }
                             ValidationType::Url => Url::parse(value_str).is_ok(),
                             ValidationType::Email => {
-                                let email_regex =
-                                    Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$")
-                                        .unwrap();
-                                email_regex.is_match(value_str)
+                                EMAIL_REGEX.is_match(value_str)
                             }
                             ValidationType::PasswordStrength => {
                                 // Check for password strength
@@ -680,7 +684,7 @@ impl ConfigValidator {
 
         let total_deductions = errors.len() * error_weight + warnings.len() * warning_weight;
         let max_score = 100;
-        let overall = (max_score - total_deductions as u8);
+        let overall = max_score - total_deductions as u8;
 
         // Calculate category scores
         let security_errors = errors
@@ -697,13 +701,13 @@ impl ConfigValidator {
             })
             .count();
         let security_score =
-            (100 - (security_errors * error_weight + security_warnings * warning_weight) as u8);
+            100 - (security_errors * error_weight + security_warnings * warning_weight) as u8;
 
         let performance_issues = warnings
             .iter()
             .filter(|w| matches!(w.warning_type, ValidationWarningType::PerformanceImpact))
             .count();
-        let performance_score = (100 - (performance_issues * warning_weight) as u8);
+        let performance_score = 100 - (performance_issues * warning_weight) as u8;
 
         let reliability_errors = errors
             .iter()
@@ -715,7 +719,7 @@ impl ConfigValidator {
                 )
             })
             .count();
-        let reliability_score = (100 - (reliability_errors * error_weight) as u8);
+        let reliability_score = 100 - (reliability_errors * error_weight) as u8;
 
         let maintainability_issues = warnings
             .iter()
@@ -727,7 +731,7 @@ impl ConfigValidator {
                 )
             })
             .count();
-        let maintainability_score = (100 - (maintainability_issues * warning_weight) as u8);
+        let maintainability_score = 100 - (maintainability_issues * warning_weight) as u8;
 
         ValidationScore {
             overall,
