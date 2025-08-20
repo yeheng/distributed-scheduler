@@ -4,7 +4,7 @@
 //! including database calls, message queue operations, and external service calls.
 
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use std::future::Future;
 use std::time::Duration;
 use tokio::time::timeout;

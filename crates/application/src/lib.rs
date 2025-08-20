@@ -1,8 +1,10 @@
 pub mod interfaces;
 pub mod services;
+pub mod ports;
 
-pub use interfaces::*;
+// Re-export services and ports, but not interfaces to avoid duplicates
 pub use services::*;
+pub use ports::*;
 
 #[cfg(test)]
 mod tests {

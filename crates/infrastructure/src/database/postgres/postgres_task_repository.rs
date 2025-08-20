@@ -5,7 +5,7 @@ use scheduler_domain::{
     repositories::TaskRepository,
     task_query_builder::{TaskQueryBuilder, TaskQueryParam},
 };
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use sqlx::{PgPool, Row};
 use tracing::{debug, instrument};
 

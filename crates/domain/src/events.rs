@@ -2,6 +2,8 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use uuid::Uuid;
 
+use crate::entities::TaskRunStatus;
+
 pub trait DomainEvent: Send + Sync {
     fn event_id(&self) -> Uuid;
     fn event_type(&self) -> &str;
@@ -131,4 +133,15 @@ impl DomainEvent for WorkerEvent {
             WorkerEvent::WorkerHealthChanged { worker_id, .. } => worker_id.clone(),
         }
     }
+}
+
+/// Task status update event for communication between components
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct TaskStatusUpdate {
+    pub task_run_id: i64,
+    pub status: TaskRunStatus,
+    pub worker_id: String,
+    pub result: Option<String>,
+    pub error_message: Option<String>,
+    pub timestamp: DateTime<Utc>,
 }

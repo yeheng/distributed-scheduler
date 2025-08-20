@@ -1,6 +1,7 @@
 pub mod entities;
 pub mod events;
 pub mod models;
+pub mod ports;
 pub mod repositories;
 pub mod services;
 pub mod task_dependency_service;
@@ -8,6 +9,7 @@ pub mod task_query_builder;
 pub mod value_objects;
 pub use entities::*;
 pub use events::*;
+pub use ports::*;
 pub use repositories::*;
 pub use scheduler_errors::{SchedulerError, SchedulerResult};
 pub use services::*;

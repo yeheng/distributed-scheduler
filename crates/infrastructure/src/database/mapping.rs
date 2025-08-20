@@ -5,7 +5,7 @@
 
 use scheduler_domain::entities::ShardConfig;
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 /// Helper functions for parsing database fields across different database types
 pub struct MappingHelpers;

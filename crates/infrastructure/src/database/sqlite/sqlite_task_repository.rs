@@ -4,7 +4,7 @@ use scheduler_domain::{
     entities::{Task, TaskFilter, TaskStatus},
     repositories::TaskRepository,
 };
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use sqlx::{Row, SqlitePool};
 use tracing::{debug, instrument};
 

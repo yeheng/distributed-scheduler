@@ -5,7 +5,8 @@ mod strategies_tests {
     use chrono::Utc;
     use scheduler_dispatcher::strategies::*;
     use scheduler_domain::TaskStatus;
-    use scheduler_foundation::{traits::TaskDispatchStrategy, Task, WorkerInfo, WorkerStatus};
+    use scheduler_application::ports::TaskDispatchStrategy;
+    use scheduler_domain::{Task, WorkerInfo, WorkerStatus};
     use serde_json::json;
     fn create_test_task(task_type: &str) -> Task {
         Task {

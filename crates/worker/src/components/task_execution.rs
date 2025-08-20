@@ -3,10 +3,8 @@ use std::sync::Arc;
 
 use chrono::Utc;
 use scheduler_domain::entities::{TaskExecutionMessage, TaskRun, TaskRunStatus};
-use scheduler_foundation::{
-    traits::{ExecutorRegistry, ResourceLimits, TaskExecutionContext},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_application::ports::{ExecutorRegistry, ResourceLimits, TaskExecutionContext};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 

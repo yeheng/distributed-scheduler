@@ -2,9 +2,9 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use scheduler_domain::entities::TaskControlMessage;
-use scheduler_foundation::{
-    models::task_status_update::TaskStatusUpdate, SchedulerError, SchedulerResult, ServiceLocator,
-};
+use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_errors::{SchedulerError, SchedulerResult};
+use scheduler_core::ServiceLocator;
 use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{error, info, warn};

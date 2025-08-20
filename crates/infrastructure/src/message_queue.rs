@@ -6,8 +6,8 @@ use lapin::{
 use scheduler_config::models::MessageQueueConfig;
 use scheduler_domain::entities::Message;
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::traits::MessageQueue;
-use scheduler_foundation::SchedulerResult;
+use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_errors::SchedulerResult;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 use tracing::{debug, instrument};

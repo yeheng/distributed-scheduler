@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-scheduler-foundation = { path = "../foundation" }
+scheduler-application = { path = "../application" }
 scheduler-domain = { path = "../domain" }
 scheduler-infrastructure = { path = "../infrastructure" }
 scheduler-errors = { path = "../errors" }

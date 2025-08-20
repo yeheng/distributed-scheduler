@@ -6,7 +6,7 @@ use tracing::{debug, warn};
 
 use scheduler_domain::entities::Message;
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 use super::config::RedisStreamConfig;
 use super::connection_manager::RedisConnectionManager;

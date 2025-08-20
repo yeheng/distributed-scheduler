@@ -4,10 +4,8 @@ use std::sync::Arc;
 use anyhow::Context;
 use async_trait::async_trait;
 use scheduler_config::models::ExecutorConfig;
-use scheduler_foundation::{
-    traits::{ExecutorRegistry, TaskExecutor},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_application::ports::{ExecutorRegistry, TaskExecutor, ExecutorStatus};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
 
@@ -184,7 +182,7 @@ impl ExecutorFactory {
     /// Get executor status for all executors
     pub async fn get_all_executor_status(
         &self,
-    ) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
+    ) -> SchedulerResult<HashMap<String, ExecutorStatus>> {
         let registry = self.registry.read().await;
         let mut statuses = HashMap::new();
 
@@ -197,7 +195,7 @@ impl ExecutorFactory {
                     error!("Failed to get status for executor '{}': {}", name, e);
                     statuses.insert(
                         name.clone(),
-                        scheduler_foundation::traits::ExecutorStatus {
+                        ExecutorStatus {
                             name: executor.name().to_string(),
                             version: executor.version().to_string(),
                             healthy: false,
@@ -306,7 +304,7 @@ impl ExecutorRegistry for ExecutorFactory {
 
     async fn get_all_status(
         &self,
-    ) -> SchedulerResult<HashMap<String, scheduler_foundation::traits::ExecutorStatus>> {
+    ) -> SchedulerResult<HashMap<String, ExecutorStatus>> {
         self.get_all_executor_status().await
     }
 

@@ -4,7 +4,7 @@ use super::{CacheService, CacheStats};
 use crate::cache::config::CacheConfig;
 use async_trait::async_trait;
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;

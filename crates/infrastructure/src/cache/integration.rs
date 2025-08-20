@@ -14,7 +14,7 @@ use crate::cache::{
     CacheService, CacheStats,
 };
 use scheduler_domain::repositories::*;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;

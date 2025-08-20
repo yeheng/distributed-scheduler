@@ -8,10 +8,8 @@ use scheduler_domain::entities::{
     Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus,
 };
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
-use scheduler_foundation::{
-    traits::{MessageQueue, StateListenerService},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_application::ports::{MessageQueue, StateListenerService};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 use crate::retry_service::RetryService;
 

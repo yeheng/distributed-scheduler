@@ -11,7 +11,7 @@ path = "src/main.rs"
 
 [dependencies]
 # 工作区内部crates
-scheduler-foundation = { path = "crates/foundation" }
+scheduler-core = { path = "crates/core" }
 scheduler-domain = { path = "crates/domain" }
 scheduler-application = { path = "crates/application" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
@@ -68,6 +68,7 @@ criterion = { version = "0.7", features = ["html_reports"] }
 resolver = "2"
 members = [
     "crates/foundation",
+    "crates/core",
     "crates/domain",
     "crates/application",
     "crates/dispatcher",

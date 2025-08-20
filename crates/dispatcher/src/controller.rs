@@ -8,10 +8,8 @@ use scheduler_domain::entities::{
     Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus,
 };
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_foundation::{
-    traits::{scheduler::TaskControlService, MessageQueue},
-    SchedulerError, SchedulerResult,
-};
+use scheduler_application::ports::{TaskControlService, MessageQueue};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Default, Clone)]
 pub struct TaskStatusSummary {

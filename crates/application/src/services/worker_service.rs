@@ -1,20 +1,21 @@
 // Worker service implementation placeholder
 use crate::interfaces::service_interfaces::MessageQueue;
-use crate::interfaces::WorkerServiceTrait;
+use crate::ports::WorkerService;
 use chrono::Utc;
 use scheduler_domain::entities::{
     TaskRun, TaskRunStatus, WorkerHeartbeat, WorkerInfo, WorkerStatus,
 };
 use scheduler_domain::repositories::TaskRunRepository;
 use scheduler_domain::repositories::WorkerRepository;
-use scheduler_foundation::{models::TaskStatusUpdate, SchedulerResult};
+use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_errors::SchedulerResult;
 use std::collections::HashMap;
 use std::env::VarError;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{debug, error, info, instrument, warn};
 
-pub struct WorkerService {
+pub struct WorkerServiceImpl {
     worker_id: String,
     worker_repository: Arc<dyn WorkerRepository>,
     task_run_repository: Arc<dyn TaskRunRepository>,
@@ -25,7 +26,7 @@ pub struct WorkerService {
     current_task_count: Arc<RwLock<i32>>,
 }
 
-impl WorkerService {
+impl WorkerServiceImpl {
     pub fn new(
         worker_id: String,
         worker_repository: Arc<dyn WorkerRepository>,
@@ -173,7 +174,7 @@ impl WorkerService {
 }
 
 #[async_trait::async_trait]
-impl WorkerServiceTrait for WorkerService {
+impl WorkerService for WorkerServiceImpl {
     #[instrument(skip(self))]
     async fn start(&self) -> SchedulerResult<()> {
         info!("启动Worker服务: {}", self.worker_id);
@@ -391,7 +392,7 @@ fn get_hostname() -> SchedulerResult<String> {
     std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME").or_else(|_| Ok("unknown".to_string())))
         .map_err(|e: VarError| {
-            scheduler_foundation::SchedulerError::Configuration(format!(
+            scheduler_errors::SchedulerError::Configuration(format!(
                 "Failed to get hostname: {e}"
             ))
         })
@@ -404,7 +405,7 @@ fn get_local_ip() -> SchedulerResult<String> {
             Ok(get_local_ip_address().unwrap_or_else(|_| "127.0.0.1".to_string()))
         })
         .map_err(|e: VarError| {
-            scheduler_foundation::SchedulerError::Configuration(format!(
+            scheduler_errors::SchedulerError::Configuration(format!(
                 "Failed to get local IP: {e}"
             ))
         })

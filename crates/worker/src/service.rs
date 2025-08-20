@@ -1,11 +1,10 @@
 use std::sync::Arc;
 
 use scheduler_domain::entities::TaskRun;
-use scheduler_foundation::{
-    models::task_status_update::TaskStatusUpdate,
-    traits::{ExecutorRegistry, WorkerServiceTrait},
-    SchedulerResult, ServiceLocator,
-};
+use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_application::{ExecutorRegistry, WorkerService};
+use scheduler_errors::SchedulerResult;
+use scheduler_core::ServiceLocator;
 
 use crate::components::{
     DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
@@ -93,14 +92,14 @@ impl WorkerConfigBuilder {
     }
 }
 
-pub struct WorkerService {
+pub struct WorkerServiceImpl {
     task_execution_manager: Arc<TaskExecutionManager>,
     dispatcher_client: Arc<DispatcherClient>,
     heartbeat_manager: Arc<HeartbeatManager>,
     worker_lifecycle: Arc<WorkerLifecycle>,
 }
 
-impl WorkerService {
+impl WorkerServiceImpl {
     pub fn new(
         config: WorkerConfig,
         service_locator: Arc<ServiceLocator>,
@@ -155,7 +154,7 @@ impl WorkerService {
 }
 
 #[async_trait::async_trait]
-impl WorkerServiceTrait for WorkerService {
+impl WorkerService for WorkerServiceImpl {
     async fn start(&self) -> SchedulerResult<()> {
         self.worker_lifecycle.start().await
     }
@@ -197,7 +196,7 @@ impl WorkerServiceTrait for WorkerService {
         self.dispatcher_client.send_heartbeat(current_count).await
     }
 }
-impl WorkerService {
+impl WorkerServiceImpl {
     pub async fn get_supported_task_types(&self) -> Vec<String> {
         self.task_execution_manager.get_supported_task_types().await
     }
@@ -272,14 +271,14 @@ impl WorkerServiceBuilder {
         self
     }
 
-    pub async fn build(self) -> SchedulerResult<WorkerService> {
+    pub async fn build(self) -> SchedulerResult<WorkerServiceImpl> {
         let executor_registry = self.executor_registry.ok_or_else(|| {
-            scheduler_foundation::SchedulerError::Internal(
+            scheduler_errors::SchedulerError::Internal(
                 "Executor registry is required".to_string(),
             )
         })?;
 
-        Ok(WorkerService::new(
+        Ok(WorkerServiceImpl::new(
             self.config,
             self.service_locator,
             executor_registry,

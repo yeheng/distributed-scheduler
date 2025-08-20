@@ -1,6 +1,6 @@
 use crate::database::{DatabaseManager, DatabaseType};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 pub struct ApplicationService {
     db_manager: DatabaseManager,

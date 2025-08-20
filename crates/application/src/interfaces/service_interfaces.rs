@@ -6,7 +6,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 
 use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 pub mod task_services {
     use super::*;

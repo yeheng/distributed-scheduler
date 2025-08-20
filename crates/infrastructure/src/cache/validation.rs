@@ -5,7 +5,7 @@
 
 use crate::cache::config::{CacheConfig, CacheValidationReport};
 use crate::cache::warming::{WarmingConfig, WarmingStrategy};
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use std::collections::HashMap;
 use std::time::Duration;
 

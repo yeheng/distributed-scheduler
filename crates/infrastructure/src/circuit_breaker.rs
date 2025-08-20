@@ -10,7 +10,7 @@ use tokio::sync::RwLock;
 
 use scheduler_config::{CircuitBreakerConfig, CircuitState};
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 /// Circuit breaker statistics
 #[derive(Debug, Clone)]

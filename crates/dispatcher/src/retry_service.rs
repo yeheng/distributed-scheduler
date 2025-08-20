@@ -7,7 +7,8 @@ use tracing::{debug, error, info, warn};
 
 use scheduler_domain::entities::{Message, TaskExecutionMessage, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
+use scheduler_application::ports::MessageQueue;
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone)]
 pub struct RetryConfig {

@@ -5,7 +5,7 @@ mod message_queue_test {
     use chrono::Utc;
     use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
     use scheduler_domain::entities::*;
-    use scheduler_foundation::{MessageQueue as _, TaskResult, TaskRunStatus};
+    use scheduler_domain::{MessageQueue as _, TaskResult, TaskRunStatus};
     use scheduler_infrastructure::RabbitMQMessageQueue;
     use testcontainers::{core::IntoContainerPort, runners::AsyncRunner, GenericImage, ImageExt};
     use tokio::time::{sleep, Duration};
@@ -71,7 +71,7 @@ mod message_queue_test {
     }
 
     async fn create_rabbit_mqmessage_queue(
-    ) -> scheduler_foundation::SchedulerResult<RabbitMQMessageQueue> {
+    ) -> scheduler_errors::SchedulerResult<RabbitMQMessageQueue> {
         let rabbitmq_image = GenericImage::new("rabbitmq", "3-management")
             .with_exposed_port(5672.tcp())
             .with_exposed_port(15672.tcp())

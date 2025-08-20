@@ -15,7 +15,7 @@ use scheduler_domain::{
         TaskExecutionStats, TaskRepository, TaskRunRepository, WorkerLoadStats, WorkerRepository,
     },
 };
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 /// Circuit breaker wrapper for TaskRepository
 pub struct CircuitBreakerTaskRepository {
@@ -530,7 +530,7 @@ mod tests {
         async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
             // Simulate network delay
             tokio::time::sleep(Duration::from_millis(10)).await;
-            Err(scheduler_foundation::SchedulerError::Internal(
+            Err(scheduler_domain::SchedulerError::Internal(
                 "Mock database error".to_string(),
             ))
         }

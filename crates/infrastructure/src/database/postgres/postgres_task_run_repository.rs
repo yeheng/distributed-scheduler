@@ -4,7 +4,7 @@ use scheduler_domain::{
     entities::{TaskRun, TaskRunStatus},
     repositories::{TaskExecutionStats, TaskRunRepository},
 };
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use sqlx::{PgPool, Row};
 use tracing::{debug, instrument};
 

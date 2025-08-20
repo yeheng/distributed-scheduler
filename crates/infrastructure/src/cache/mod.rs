@@ -25,7 +25,7 @@ pub use validation::*;
 pub use warming::*;
 
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 /// Cache key prefix patterns for different data types
 #[derive(Debug, Clone, PartialEq)]

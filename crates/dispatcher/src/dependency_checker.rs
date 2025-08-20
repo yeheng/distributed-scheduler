@@ -6,7 +6,7 @@ use tracing::{debug, warn};
 
 use scheduler_domain::entities::Task;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_foundation::{SchedulerError, SchedulerResult};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 pub struct DependencyChecker {
     task_repo: Arc<dyn TaskRepository>,

@@ -5,7 +5,7 @@ use scheduler_domain::{
     repositories::{WorkerLoadStats, WorkerRepository},
 };
 use scheduler_errors::SchedulerError;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use sqlx::{Row, SqlitePool};
 use tracing::debug;
 

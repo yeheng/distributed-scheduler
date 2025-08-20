@@ -267,16 +267,6 @@ pub struct TaskResult {
     pub execution_time_ms: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct TaskStatusUpdate {
-    pub task_run_id: i64,
-    pub status: TaskRunStatus,
-    pub worker_id: String,
-    pub result: Option<String>,
-    pub error_message: Option<String>,
-    pub timestamp: DateTime<Utc>,
-}
-
 impl TaskRun {
     pub fn new(task_id: i64, scheduled_at: DateTime<Utc>) -> Self {
         let now = Utc::now();

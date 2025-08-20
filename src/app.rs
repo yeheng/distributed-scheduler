@@ -3,14 +3,11 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::interfaces::TaskSchedulerService;
+use scheduler_application::ports::{TaskControlService, ExecutorRegistry, StateListenerService, WorkerService};
 use scheduler_config::AppConfig;
+use scheduler_core::ServiceLocator;
 use scheduler_dispatcher::{
     controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
-};
-use scheduler_foundation::traits::scheduler::TaskControlService;
-use scheduler_foundation::{
-    container::ServiceLocator,
-    traits::{ExecutorRegistry, StateListenerService, WorkerServiceTrait},
 };
 use scheduler_infrastructure::{
     database::postgres::{
@@ -19,7 +16,7 @@ use scheduler_infrastructure::{
     message_queue::RabbitMQMessageQueue,
 };
 use scheduler_observability::MetricsCollector;
-use scheduler_worker::WorkerService;
+use scheduler_worker::WorkerServiceImpl;
 use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};
 use tracing::{error, info};
@@ -62,13 +59,13 @@ impl Application {
         let worker_repo = Arc::new(PostgresWorkerRepository::new(db_pool.clone()));
 
         // 创建应用上下文
-        let mut app_context = scheduler_foundation::container::ApplicationContext::new();
+        let mut app_context = scheduler_core::ApplicationContext::new();
         app_context
             .register_core_services(task_repo, task_run_repo, worker_repo, message_queue)
             .await?;
 
         // 创建服务定位器
-        let service_locator = Arc::new(scheduler_foundation::container::ServiceLocator::new(
+        let service_locator = Arc::new(scheduler_core::ServiceLocator::new(
             Arc::new(app_context),
         ));
 
@@ -171,7 +168,7 @@ impl Application {
         let executor_registry: Arc<dyn ExecutorRegistry> = executor_factory;
 
         // 创建Worker服务
-        let worker_service = WorkerService::builder(
+        let worker_service = WorkerServiceImpl::builder(
             self.config.worker.worker_id.clone(),
             Arc::clone(&self.service_locator),
             self.config.message_queue.task_queue.clone(),

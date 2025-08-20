@@ -5,7 +5,7 @@ use super::{
     CacheService,
 };
 use scheduler_domain::repositories::*;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn};

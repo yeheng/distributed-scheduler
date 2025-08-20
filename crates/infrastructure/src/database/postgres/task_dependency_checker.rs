@@ -2,7 +2,7 @@ use scheduler_domain::{
     entities::{Task, TaskRunStatus},
     task_dependency_service::TaskDependencyService,
 };
-use scheduler_foundation::{SchedulerError, SchedulerResult};
+use scheduler_domain::{SchedulerError, SchedulerResult};
 use sqlx::{PgPool, Row};
 use std::collections::HashSet;
 use tracing::{debug, instrument};

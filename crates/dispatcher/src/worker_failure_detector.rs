@@ -7,7 +7,7 @@ use tracing::{debug, error, info, warn};
 
 use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 use scheduler_domain::repositories::WorkerRepository;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 use crate::retry_service::RetryService;
 

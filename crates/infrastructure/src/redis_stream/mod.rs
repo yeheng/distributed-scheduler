@@ -11,7 +11,8 @@ pub use stream_operations::RedisStreamOperations;
 
 use async_trait::async_trait;
 use scheduler_domain::entities::Message;
-use scheduler_foundation::{traits::MessageQueue, SchedulerResult};
+use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_errors::SchedulerResult;
 use std::sync::Arc;
 
 #[derive(Debug, Clone)]

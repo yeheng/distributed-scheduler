@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_domain::{TaskRunStatus, TaskStatus, WorkerStatus};
-use scheduler_foundation::*;
+use scheduler_errors::*;
 use scheduler_testing_utils::{
     MockMessageQueue, MockTaskRepository, MockTaskRunRepository, MockWorkerRepository, TaskBuilder,
     TaskRunBuilder, WorkerInfoBuilder,

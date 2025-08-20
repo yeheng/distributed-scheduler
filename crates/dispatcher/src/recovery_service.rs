@@ -7,7 +7,8 @@ use tracing::{debug, error, info, warn};
 
 use scheduler_domain::entities::{TaskRun, TaskRunStatus, WorkerStatus};
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
-use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
+use scheduler_application::ports::MessageQueue;
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone)]
 pub struct RecoveryConfig {
