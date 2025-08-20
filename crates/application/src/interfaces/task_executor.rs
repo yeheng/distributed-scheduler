@@ -6,7 +6,7 @@ use std::sync::Arc;
 
 use scheduler_domain::entities::TaskResult;
 use scheduler_domain::entities::TaskRun;
-use scheduler_foundation::SchedulerResult;
+use scheduler_errors::SchedulerResult;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct TaskExecutionContextTrait {

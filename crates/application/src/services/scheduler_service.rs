@@ -6,7 +6,8 @@ use tracing::{debug, error, info};
 use crate::interfaces::service_interfaces::{task_services::TaskSchedulerService, SchedulerStats};
 use scheduler_domain::entities::{Message, Task, TaskRun};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_foundation::{traits::MessageQueue, SchedulerError, SchedulerResult};
+use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 use crate::services::cron_utils::CronScheduler;
 use crate::services::dependency_checker::{DependencyCheckService, DependencyCheckServiceTrait};

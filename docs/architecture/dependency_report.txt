@@ -1,0 +1,20 @@
+依赖关系分析报告
+==================================================
+
+总计crate数量: 11
+总计依赖关系: 32
+平均每个crate的依赖数: 2.91
+
+各crate依赖关系:
+------------------------------
+core: domain, errors
+config: 无依赖
+dispatcher: errors, domain, infrastructure, application, observability
+observability: domain, config
+testing-utils: domain, errors
+api: application, domain, infrastructure, errors, config, observability
+application: domain, errors, infrastructure
+errors: 无依赖
+worker: core, domain, application, infrastructure, errors, config, observability
+infrastructure: domain, errors, config, observability
+domain: errors

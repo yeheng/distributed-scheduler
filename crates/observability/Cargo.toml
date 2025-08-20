@@ -5,7 +5,6 @@ edition = "2021"
 description = "Observability and monitoring for the distributed task scheduler"
 
 [dependencies]
-scheduler-foundation = { path = "../foundation" }
 scheduler-domain = { path = "../domain" }
 scheduler-config = { path = "../config" }
 tokio = { workspace = true }

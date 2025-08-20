@@ -3,7 +3,7 @@ use cron::Schedule;
 use std::str::FromStr;
 use tracing::{debug, warn};
 
-use scheduler_foundation::{SchedulerError, SchedulerResult};
+use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug)]
 pub struct CronScheduler {

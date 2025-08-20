@@ -67,7 +67,6 @@ criterion = { version = "0.7", features = ["html_reports"] }
 [workspace]
 resolver = "2"
 members = [
-    "crates/foundation",
     "crates/core",
     "crates/domain",
     "crates/application",

@@ -1,0 +1,126 @@
+{
+  "summary": {
+    "total_crates": 11,
+    "total_dependencies": 32,
+    "average_dependencies_per_crate": 2.91,
+    "cycles_found": 0,
+    "architecture_violations": 0
+  },
+  "dependencies": {
+    "core": [
+      "domain",
+      "errors"
+    ],
+    "config": [],
+    "dispatcher": [
+      "errors",
+      "domain",
+      "infrastructure",
+      "application",
+      "observability"
+    ],
+    "observability": [
+      "domain",
+      "config"
+    ],
+    "testing-utils": [
+      "domain",
+      "errors"
+    ],
+    "api": [
+      "application",
+      "domain",
+      "infrastructure",
+      "errors",
+      "config",
+      "observability"
+    ],
+    "application": [
+      "domain",
+      "errors",
+      "infrastructure"
+    ],
+    "errors": [],
+    "worker": [
+      "core",
+      "domain",
+      "application",
+      "infrastructure",
+      "errors",
+      "config",
+      "observability"
+    ],
+    "infrastructure": [
+      "domain",
+      "errors",
+      "config",
+      "observability"
+    ],
+    "domain": [
+      "errors"
+    ]
+  },
+  "reverse_dependencies": {
+    "domain": [
+      "core",
+      "dispatcher",
+      "observability",
+      "testing-utils",
+      "api",
+      "application",
+      "worker",
+      "infrastructure"
+    ],
+    "errors": [
+      "core",
+      "dispatcher",
+      "testing-utils",
+      "api",
+      "application",
+      "worker",
+      "infrastructure",
+      "domain"
+    ],
+    "infrastructure": [
+      "dispatcher",
+      "api",
+      "application",
+      "worker"
+    ],
+    "application": [
+      "dispatcher",
+      "api",
+      "worker"
+    ],
+    "observability": [
+      "dispatcher",
+      "api",
+      "worker",
+      "infrastructure"
+    ],
+    "config": [
+      "observability",
+      "api",
+      "worker",
+      "infrastructure"
+    ],
+    "core": [
+      "worker"
+    ]
+  },
+  "cycles": [],
+  "architecture_violations": [],
+  "layer_mapping": {
+    "errors": 0,
+    "config": 0,
+    "domain": 1,
+    "core": 2,
+    "application": 3,
+    "infrastructure": 3,
+    "observability": 3,
+    "testing-utils": 3,
+    "dispatcher": 4,
+    "worker": 4,
+    "api": 4
+  }
+}

@@ -4,7 +4,6 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-scheduler-application = { path = "../application" }
 scheduler-domain = { path = "../domain" }
 scheduler-errors = { path = "../errors" }
 tokio = { workspace = true }
