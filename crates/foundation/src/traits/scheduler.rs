@@ -359,3 +359,6 @@ impl MessageQueue for MockMessageQueue {
         Ok(())
     }
 }
+
+#[cfg(test)]
+mod tests;

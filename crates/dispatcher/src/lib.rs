@@ -8,5 +8,4 @@ pub mod state_listener;
 pub mod strategies;
 pub mod worker_failure_detector;
 
-#[cfg(test)]
 pub mod test_utils;

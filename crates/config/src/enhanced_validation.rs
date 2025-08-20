@@ -864,6 +864,10 @@ mod tests {
             "api.auth.jwt_secret".to_string(),
             serde_json::Value::String("strong_random_jwt_secret_1234567890".to_string()),
         );
+        config.insert(
+            "api.rate_limiting.enabled".to_string(),
+            serde_json::Value::Bool(true),
+        );
 
         let result = validator.validate_config(&config);
 

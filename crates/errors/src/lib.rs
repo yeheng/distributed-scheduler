@@ -122,3 +122,6 @@ impl From<anyhow::Error> for SchedulerError {
         SchedulerError::Internal(err.to_string())
     }
 }
+
+#[cfg(test)]
+mod tests;

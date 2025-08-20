@@ -458,3 +458,4 @@ fn get_memory_usage() -> SchedulerResult<u64> {
     // Fallback value
     Ok(0)
 }
+

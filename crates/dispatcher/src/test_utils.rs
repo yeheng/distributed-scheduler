@@ -1,4 +1,3 @@
-#[cfg(test)]
 pub mod mocks {
     // Re-export shared mock implementations from testing-utils
     pub use scheduler_testing_utils::{

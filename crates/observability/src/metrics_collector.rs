@@ -4,7 +4,7 @@ use std::sync::Arc;
 use tokio::sync::RwLock;
 use tracing::{info, warn, error};
 
-#[derive(Clone)]
+#[derive(Clone, Debug)]
 pub struct PerformanceMetrics {
     pub cpu_usage_percent: f64,
     pub memory_usage_mb: f64,
@@ -477,5 +477,532 @@ impl MetricsCollector {
             latest.disk_usage_mb,
             latest.network_io_mb
         ))
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use std::time::SystemTime;
+
+    #[test]
+    fn test_metrics_collector_new() {
+        // Test that MetricsCollector can be created
+        let result = MetricsCollector::new();
+        assert!(result.is_ok());
+    }
+
+    #[test]
+    fn test_performance_metrics_creation() {
+        let timestamp = SystemTime::now();
+        let metrics = PerformanceMetrics {
+            cpu_usage_percent: 50.5,
+            memory_usage_mb: 1024.0,
+            disk_usage_mb: 2048.0,
+            network_io_mb: 100.0,
+            timestamp,
+        };
+
+        assert_eq!(metrics.cpu_usage_percent, 50.5);
+        assert_eq!(metrics.memory_usage_mb, 1024.0);
+        assert_eq!(metrics.disk_usage_mb, 2048.0);
+        assert_eq!(metrics.network_io_mb, 100.0);
+        assert_eq!(metrics.timestamp, timestamp);
+    }
+
+    #[test]
+    fn test_performance_metrics_clone() {
+        let timestamp = SystemTime::now();
+        let metrics = PerformanceMetrics {
+            cpu_usage_percent: 75.0,
+            memory_usage_mb: 2048.0,
+            disk_usage_mb: 4096.0,
+            network_io_mb: 200.0,
+            timestamp,
+        };
+
+        let cloned_metrics = metrics.clone();
+        assert_eq!(cloned_metrics.cpu_usage_percent, metrics.cpu_usage_percent);
+        assert_eq!(cloned_metrics.memory_usage_mb, metrics.memory_usage_mb);
+        assert_eq!(cloned_metrics.disk_usage_mb, metrics.disk_usage_mb);
+        assert_eq!(cloned_metrics.network_io_mb, metrics.network_io_mb);
+        assert_eq!(cloned_metrics.timestamp, metrics.timestamp);
+    }
+
+    #[test]
+    fn test_performance_metrics_debug() {
+        let timestamp = SystemTime::now();
+        let metrics = PerformanceMetrics {
+            cpu_usage_percent: 25.0,
+            memory_usage_mb: 512.0,
+            disk_usage_mb: 1024.0,
+            network_io_mb: 50.0,
+            timestamp,
+        };
+
+        let debug_str = format!("{:?}", metrics);
+        assert!(debug_str.contains("PerformanceMetrics"));
+        assert!(debug_str.contains("cpu_usage_percent"));
+        assert!(debug_str.contains("memory_usage_mb"));
+    }
+
+    #[tokio::test]
+    async fn test_record_task_execution() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording successful task execution
+        collector.record_task_execution("shell", "completed", 1.5);
+        
+        // Test recording failed task execution
+        collector.record_task_execution("http", "failed", 2.0);
+        
+        // Test with different task types
+        collector.record_task_execution("database", "completed", 0.5);
+    }
+
+    #[tokio::test]
+    async fn test_record_task_failure() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording different types of task failures
+        collector.record_task_failure("shell", "timeout");
+        collector.record_task_failure("http", "connection_error");
+        collector.record_task_failure("database", "query_error");
+    }
+
+    #[tokio::test]
+    async fn test_record_task_retry() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording task retries with different counts
+        collector.record_task_retry("shell", 1);
+        collector.record_task_retry("http", 5);
+        collector.record_task_retry("database", 10);
+    }
+
+    #[tokio::test]
+    async fn test_update_active_workers() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating active workers count
+        collector.update_active_workers(5.0);
+        collector.update_active_workers(10.0);
+        collector.update_active_workers(0.0);
+    }
+
+    #[tokio::test]
+    async fn test_update_worker_capacity() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating worker capacity
+        collector.update_worker_capacity("worker-1", 10.0);
+        collector.update_worker_capacity("worker-2", 20.0);
+        collector.update_worker_capacity("worker-3", 5.0);
+    }
+
+    #[tokio::test]
+    async fn test_update_worker_load() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating worker load
+        collector.update_worker_load("worker-1", 3.0);
+        collector.update_worker_load("worker-2", 8.0);
+        collector.update_worker_load("worker-3", 1.0);
+    }
+
+    #[tokio::test]
+    async fn test_update_queue_depth() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating queue depth
+        collector.update_queue_depth(100.0);
+        collector.update_queue_depth(500.0);
+        collector.update_queue_depth(0.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_scheduling_duration() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording scheduling duration
+        collector.record_scheduling_duration(0.1);
+        collector.record_scheduling_duration(1.0);
+        collector.record_scheduling_duration(5.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_database_operation() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording database operations
+        collector.record_database_operation("SELECT", 0.05);
+        collector.record_database_operation("INSERT", 0.1);
+        collector.record_database_operation("UPDATE", 0.2);
+        collector.record_database_operation("DELETE", 0.03);
+    }
+
+    #[tokio::test]
+    async fn test_record_message_queue_operation() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording message queue operations
+        collector.record_message_queue_operation("publish", 0.01);
+        collector.record_message_queue_operation("consume", 0.02);
+        collector.record_message_queue_operation("ack", 0.005);
+    }
+
+    #[tokio::test]
+    async fn test_record_task_queue_time() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording task queue time
+        collector.record_task_queue_time(0.5);
+        collector.record_task_queue_time(2.0);
+        collector.record_task_queue_time(10.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_worker_heartbeat() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording worker heartbeats
+        collector.record_worker_heartbeat("worker-1");
+        collector.record_worker_heartbeat("worker-2");
+        collector.record_worker_heartbeat("worker-3");
+    }
+
+    #[tokio::test]
+    async fn test_record_worker_failure() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording worker failures
+        collector.record_worker_failure("worker-1", "connection_lost");
+        collector.record_worker_failure("worker-2", "timeout");
+        collector.record_worker_failure("worker-3", "crash");
+    }
+
+    #[tokio::test]
+    async fn test_record_queue_processing_rate() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording queue processing rate
+        collector.record_queue_processing_rate(10.5);
+        collector.record_queue_processing_rate(25.0);
+        collector.record_queue_processing_rate(100.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_queue_latency() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording queue latency
+        collector.record_queue_latency(0.1);
+        collector.record_queue_latency(0.5);
+        collector.record_queue_latency(2.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_queue_backpressure() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording queue backpressure
+        collector.record_queue_backpressure();
+        collector.record_queue_backpressure();
+        collector.record_queue_backpressure();
+    }
+
+    #[tokio::test]
+    async fn test_record_task_scheduled() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording task scheduling
+        collector.record_task_scheduled();
+        collector.record_task_scheduled();
+        collector.record_task_scheduled();
+    }
+
+    #[tokio::test]
+    async fn test_record_dependency_resolution() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording dependency resolution
+        collector.record_dependency_resolution("success");
+        collector.record_dependency_resolution("failed");
+        collector.record_dependency_resolution("timeout");
+    }
+
+    #[tokio::test]
+    async fn test_update_database_connection_pool() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating database connection pool
+        collector.update_database_connection_pool(5.0);
+        collector.update_database_connection_pool(10.0);
+        collector.update_database_connection_pool(20.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_database_query() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording database queries
+        collector.record_database_query("SELECT", 0.05);
+        collector.record_database_query("INSERT", 0.1);
+        collector.record_database_query("UPDATE", 1.5); // Should trigger slow query warning
+        collector.record_database_query("DELETE", 0.02);
+    }
+
+    #[tokio::test]
+    async fn test_record_database_connection_failure() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording database connection failures
+        collector.record_database_connection_failure("connection_refused");
+        collector.record_database_connection_failure("timeout");
+        collector.record_database_connection_failure("authentication_error");
+    }
+
+    #[tokio::test]
+    async fn test_record_message_queue_throughput() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording message queue throughput
+        collector.record_message_queue_throughput(50.0);
+        collector.record_message_queue_throughput(100.0);
+        collector.record_message_queue_throughput(200.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_message_queue_error() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording message queue errors
+        collector.record_message_queue_error("connection_lost");
+        collector.record_message_queue_error("queue_full");
+        collector.record_message_queue_error("serialization_error");
+    }
+
+    #[tokio::test]
+    async fn test_update_consumer_lag() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating consumer lag
+        collector.update_consumer_lag(0.0);
+        collector.update_consumer_lag(5.0);
+        collector.update_consumer_lag(30.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_api_request() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording API requests
+        collector.record_api_request("/api/tasks", "GET", 200, 0.1);
+        collector.record_api_request("/api/workers", "POST", 201, 0.2);
+        collector.record_api_request("/api/health", "GET", 404, 0.05); // Should record as error
+        collector.record_api_request("/api/system", "GET", 500, 1.0); // Should record as error
+    }
+
+    #[tokio::test]
+    async fn test_update_cache_hit_rate() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating cache hit rate
+        collector.update_cache_hit_rate(95.5);
+        collector.update_cache_hit_rate(80.0);
+        collector.update_cache_hit_rate(50.0);
+    }
+
+    #[tokio::test]
+    async fn test_record_cache_operation() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording cache operations
+        collector.record_cache_operation("get", 0.001);
+        collector.record_cache_operation("set", 0.002);
+        collector.record_cache_operation("delete", 0.001);
+    }
+
+    #[tokio::test]
+    async fn test_update_cache_size() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test updating cache size
+        collector.update_cache_size(10.0);
+        collector.update_cache_size(100.0);
+        collector.update_cache_size(1000.0);
+    }
+
+    #[tokio::test]
+    async fn test_update_system_metrics() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        let timestamp = SystemTime::now();
+        let metrics = PerformanceMetrics {
+            cpu_usage_percent: 45.5,
+            memory_usage_mb: 2048.0,
+            disk_usage_mb: 4096.0,
+            network_io_mb: 150.0,
+            timestamp,
+        };
+
+        // Test updating system metrics
+        collector.update_system_metrics(metrics).await;
+    }
+
+    #[tokio::test]
+    async fn test_detect_performance_regressions() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test with insufficient data
+        let regressions = collector.detect_performance_regressions().await;
+        assert!(regressions.is_empty());
+
+        // Add some test data
+        let now = SystemTime::now();
+        for i in 0..150 {
+            let timestamp = now - std::time::Duration::from_secs(i);
+            let metrics = PerformanceMetrics {
+                cpu_usage_percent: 50.0 + (i as f64 * 0.1),
+                memory_usage_mb: 1000.0 + (i as f64 * 10.0),
+                disk_usage_mb: 2000.0 + (i as f64 * 5.0),
+                network_io_mb: 100.0 + (i as f64 * 2.0),
+                timestamp,
+            };
+            collector.update_system_metrics(metrics).await;
+        }
+
+        // Test regression detection
+        let regressions = collector.detect_performance_regressions().await;
+        // Should detect some regressions due to the increasing values
+        println!("Detected regressions: {:?}", regressions);
+    }
+
+    #[tokio::test]
+    async fn test_get_performance_summary() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test with no data
+        let summary = collector.get_performance_summary().await;
+        assert!(summary.is_ok());
+        assert!(summary.unwrap().contains("No performance data available"));
+
+        // Add some test data
+        let now = SystemTime::now();
+        for i in 0..10 {
+            let timestamp = now - std::time::Duration::from_secs(i);
+            let metrics = PerformanceMetrics {
+                cpu_usage_percent: 50.0 + (i as f64),
+                memory_usage_mb: 1000.0 + (i as f64 * 100.0),
+                disk_usage_mb: 2000.0 + (i as f64 * 50.0),
+                network_io_mb: 100.0 + (i as f64 * 10.0),
+                timestamp,
+            };
+            collector.update_system_metrics(metrics).await;
+        }
+
+        // Test performance summary
+        let summary = collector.get_performance_summary().await;
+        assert!(summary.is_ok());
+        let summary_text = summary.unwrap();
+        assert!(summary_text.contains("Performance Summary"));
+        assert!(summary_text.contains("data points"));
+        assert!(summary_text.contains("Current CPU"));
+        assert!(summary_text.contains("Current Memory"));
+    }
+
+    #[tokio::test]
+    async fn test_performance_history_limit() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Add more than 1000 entries to test the limit
+        let now = SystemTime::now();
+        for i in 0..1100 {
+            let timestamp = now - std::time::Duration::from_secs(i);
+            let metrics = PerformanceMetrics {
+                cpu_usage_percent: 50.0,
+                memory_usage_mb: 1000.0,
+                disk_usage_mb: 2000.0,
+                network_io_mb: 100.0,
+                timestamp,
+            };
+            collector.update_system_metrics(metrics).await;
+        }
+
+        // The history should be limited to 1000 entries
+        let summary = collector.get_performance_summary().await;
+        assert!(summary.is_ok());
+        let summary_text = summary.unwrap();
+        assert!(summary_text.contains("1000 data points"));
+    }
+
+    #[tokio::test]
+    async fn test_edge_cases_and_extreme_values() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test with extreme values
+        collector.record_task_execution("test", "completed", 0.0);
+        collector.record_task_execution("test", "completed", 999999.0);
+        collector.update_active_workers(-1.0);
+        collector.update_active_workers(999999.0);
+        collector.record_database_query("test", 0.0);
+        collector.record_database_query("test", 999999.0);
+        collector.record_api_request("/test", "GET", 999, 0.0);
+        collector.record_api_request("/test", "GET", 0, 999999.0);
+    }
+
+    #[tokio::test]
+    async fn test_concurrent_metric_updates() {
+        let collector = MetricsCollector::new().unwrap();
+        let collector = std::sync::Arc::new(collector);
+
+        // Test concurrent metric updates
+        let handles: Vec<_> = (0..10)
+            .map(|i| {
+                let collector = collector.clone();
+                tokio::spawn(async move {
+                    collector.record_task_execution(&format!("task_{}", i), "completed", 1.0);
+                    collector.update_active_workers(i as f64);
+                    collector.record_database_operation("SELECT", 0.1);
+                })
+            })
+            .collect();
+
+        // Wait for all tasks to complete
+        for handle in handles {
+            handle.await.unwrap();
+        }
+    }
+
+    #[tokio::test]
+    async fn test_metric_recording_with_various_data_types() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording with various string types and lengths
+        let long_task_type = "very-long-task-type-with-detailed-classification-and-category-1234567890";
+        let long_worker_id = "very-long-worker-id-with-many-characters-and-unique-identifier-1234567890";
+        let long_error_type = "very-long-error-type-with-detailed-description-of-what-went-wrong-1234567890";
+        
+        collector.record_task_execution(long_task_type, "completed", 1.0);
+        collector.record_task_failure("shell", long_error_type);
+        collector.update_worker_capacity(long_worker_id, 10.0);
+        collector.update_worker_load(long_worker_id, 5.0);
+        collector.record_worker_heartbeat(long_worker_id);
+        collector.record_worker_failure(long_worker_id, long_error_type);
+    }
+
+    #[tokio::test]
+    async fn test_metric_recording_with_special_characters() {
+        let collector = MetricsCollector::new().unwrap();
+        
+        // Test recording with special characters
+        let special_task_type = "task@#$%&*()";
+        let special_worker_id = "worker-123.456.789_Special@Chars";
+        let special_error_type = "error with \"special\" characters & symbols";
+        
+        collector.record_task_execution(special_task_type, "completed", 1.0);
+        collector.record_task_failure("shell", special_error_type);
+        collector.update_worker_capacity(special_worker_id, 10.0);
+        collector.update_worker_load(special_worker_id, 5.0);
     }
 }

@@ -5,6 +5,7 @@ use tracing::{debug, warn};
 
 use scheduler_foundation::{SchedulerError, SchedulerResult};
 
+#[derive(Debug)]
 pub struct CronScheduler {
     schedule: Schedule,
 }
