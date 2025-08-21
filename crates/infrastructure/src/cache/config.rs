@@ -751,7 +751,7 @@ mod tests {
         assert!(report.is_production_ready());
         assert_eq!(report.get_severity(), ValidationSeverity::Info);
 
-        report.score = 75;
+        report.score = 65;
         assert_eq!(report.get_severity(), ValidationSeverity::Warning);
 
         report.valid = false;

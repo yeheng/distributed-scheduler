@@ -517,7 +517,8 @@ mod tests {
     #[tokio::test]
     async fn test_integrated_cache_manager_creation() {
         let cache_config = CacheConfig {
-            enabled: false, // Disabled for testing
+            enabled: true, // Enabled for testing health check
+            redis_url: "redis://localhost:6379".to_string(),
             ..Default::default()
         };
 

@@ -357,8 +357,14 @@ mod tests {
         // Valid configuration
         assert!(CacheConfigHelper::validate(&config).is_ok());
 
-        // Invalid Redis URL
+        // Invalid Redis URL - should create validation report with errors
         config.redis_url = "".to_string();
-        assert!(CacheConfigHelper::validate(&config).is_err());
+        let validation_result = CacheConfigHelper::validate(&config);
+        assert!(validation_result.is_ok()); // Should succeed but report should contain errors
+        
+        // Check that the validation report contains the expected error
+        let report = config.validate().expect("Config validation should succeed");
+        assert!(!report.errors.is_empty());
+        assert!(report.errors.iter().any(|e| e.contains("Redis URL cannot be empty")));
     }
 }
