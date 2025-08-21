@@ -8,6 +8,7 @@ pub mod types;
 pub mod validation;
 
 use axum::Router;
+use scheduler_application::TaskControlService;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 
@@ -18,7 +19,6 @@ use routes::{create_routes, AppState};
 use scheduler_config::models::api_observability::ApiConfig;
 use scheduler_config::models::api_observability::AuthConfig;
 use scheduler_domain::repositories::*;
-use scheduler_application::ports::TaskControlService;
 
 pub fn create_app(
     task_repo: Arc<dyn TaskRepository>,
@@ -161,6 +161,7 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
+    use scheduler_application::TaskControlService;
     use scheduler_domain::*;
         use std::sync::Arc;
     use tower::ServiceExt;

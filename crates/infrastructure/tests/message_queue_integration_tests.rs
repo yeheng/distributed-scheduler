@@ -4,7 +4,7 @@ use anyhow::Result;
 use chrono::Utc;
 use scheduler_config::models::{MessageQueueConfig, MessageQueueType, RedisConfig};
 use scheduler_domain::entities::*;
-use scheduler_domain::traits::MessageQueue;
+use scheduler_domain::MessageQueue;
 use scheduler_infrastructure::MessageQueueFactory;
 use testcontainers::ImageExt;
 use testcontainers::{runners::AsyncRunner, ContainerAsync};

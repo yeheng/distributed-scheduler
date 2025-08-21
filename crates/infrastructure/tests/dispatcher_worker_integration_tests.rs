@@ -1,8 +1,8 @@
 use chrono::Utc;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
-use scheduler_domain::traits::MockMessageQueue;
-use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_testing_utils::MockMessageQueue;
+use scheduler_domain::MessageQueue;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };

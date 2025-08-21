@@ -2,7 +2,7 @@
 mod tests {
     use crate::executors::MockTaskExecutor;
     use crate::{HttpExecutor, ShellExecutor};
-    use scheduler_foundation::traits::TaskExecutor;
+    use scheduler_application::TaskExecutor;
 
     #[tokio::test]
     async fn test_shell_executor_cleanup() {

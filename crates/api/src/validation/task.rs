@@ -469,8 +469,11 @@ async fn check_circular_dependency(
 mod tests {
     use super::*;
     use crate::handlers::tasks::CreateTaskRequest;
-    use serde_json::json;
     use async_trait::async_trait;
+    use scheduler_application::TaskControlService;
+    use scheduler_domain::*;
+    use scheduler_errors::SchedulerResult;
+    use serde_json::json;
 
     #[test]
     fn test_validate_task_name_valid() {
@@ -757,9 +760,9 @@ mod tests {
 
     #[async_trait::async_trait]
     impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
-        async fn get_by_id(&self, id: i64) -> scheduler_foundation::SchedulerResult<Option<scheduler_domain::entities::Task>> {
+        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
             if id > 0 && id < 100 {
-                Ok(Some(scheduler_domain::entities::Task {
+                Ok(Some(Task {
                     id,
                     name: format!("task_{}", id),
                     task_type: "shell".to_string(),
@@ -767,7 +770,7 @@ mod tests {
                     parameters: json!({}),
                     timeout_seconds: 30,
                     max_retries: 3,
-                    status: scheduler_domain::entities::TaskStatus::Active,
+                    status: TaskStatus::Active,
                     dependencies: vec
 ![],
                     shard_config: None,
@@ -780,201 +783,201 @@ mod tests {
         }
 
         // Implement other required methods with minimal implementations
-        async fn create(&self, _task: &scheduler_domain::entities::Task) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::Task> {
+        async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
             unimplemented!()
         }
 
-        async fn get_by_name(&self, _name: &str) -> scheduler_foundation::SchedulerResult<Option<scheduler_domain::entities::Task>> {
+        async fn get_by_name(&self, _name: &str) -> SchedulerResult<Option<Task>> {
             unimplemented!()
         }
 
-        async fn update(&self, _task: &scheduler_domain::entities::Task) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update(&self, _task: &Task) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn delete(&self, _id: i64) -> scheduler_foundation::SchedulerResult<()> {
+        async fn delete(&self, _id: i64) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn list(&self, _filter: &scheduler_domain::entities::TaskFilter) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
+        async fn list(&self, _filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
             unimplemented!()
         }
 
-        async fn get_active_tasks(&self) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
+        async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
             unimplemented!()
         }
 
-        async fn get_schedulable_tasks(&self, _current_time: chrono::DateTime<chrono::Utc>) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
+        async fn get_schedulable_tasks(&self, _current_time: chrono::DateTime<chrono::Utc>) -> SchedulerResult<Vec<Task>> {
             unimplemented!()
         }
 
-        async fn check_dependencies(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<bool> {
+        async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
             unimplemented!()
         }
 
-        async fn get_dependencies(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::Task>> {
+        async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: scheduler_domain::entities::TaskStatus) -> scheduler_foundation::SchedulerResult<()> {
+        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
 
     #[async_trait::async_trait]
     impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository {
-        async fn create(&self, _task_run: &scheduler_domain::entities::TaskRun) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::TaskRun> {
+        async fn create(&self, _task_run: &TaskRun) -> SchedulerResult<TaskRun> {
             unimplemented!()
         }
 
-        async fn get_by_id(&self, _id: i64) -> scheduler_foundation::SchedulerResult<Option<scheduler_domain::entities::TaskRun>> {
+        async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<TaskRun>> {
             unimplemented!()
         }
 
-        async fn update(&self, _task_run: &scheduler_domain::entities::TaskRun) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update(&self, _task_run: &TaskRun) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn delete(&self, _id: i64) -> scheduler_foundation::SchedulerResult<()> {
+        async fn delete(&self, _id: i64) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_by_task_id(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_by_task_id(&self, _task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_by_worker_id(&self, _worker_id: &str) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_by_worker_id(&self, _worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_by_status(&self, _status: scheduler_domain::entities::TaskRunStatus) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_by_status(&self, _status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_pending_runs(&self, _limit: Option<i64>) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_running_runs(&self) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn update_status(&self, _id: i64, _status: scheduler_domain::entities::TaskRunStatus, _worker_id: Option<&str>) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update_status(&self, _id: i64, _status: TaskRunStatus, _worker_id: Option<&str>) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn update_result(&self, _id: i64, _result: Option<&str>, _error_message: Option<&str>) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update_result(&self, _id: i64, _result: Option<&str>, _error_message: Option<&str>) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_execution_stats(&self, _task_id: i64, _days: i32) -> scheduler_foundation::SchedulerResult<scheduler_domain::repositories::TaskExecutionStats> {
+        async fn get_execution_stats(&self, _task_id: i64, _days: i32) -> SchedulerResult<scheduler_domain::repositories::TaskExecutionStats> {
             unimplemented!()
         }
 
-        async fn cleanup_old_runs(&self, _days: i32) -> scheduler_foundation::SchedulerResult<u64> {
+        async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _run_ids: &[i64], _status: scheduler_domain::entities::TaskRunStatus) -> scheduler_foundation::SchedulerResult<()> {
+        async fn batch_update_status(&self, _run_ids: &[i64], _status: TaskRunStatus) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
 
     #[async_trait::async_trait]
     impl scheduler_domain::repositories::WorkerRepository for MockWorkerRepository {
-        async fn register(&self, _worker: &scheduler_domain::entities::WorkerInfo) -> scheduler_foundation::SchedulerResult<()> {
+        async fn register(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn unregister(&self, _worker_id: &str) -> scheduler_foundation::SchedulerResult<()> {
+        async fn unregister(&self, _worker_id: &str) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_by_id(&self, _worker_id: &str) -> scheduler_foundation::SchedulerResult<Option<scheduler_domain::entities::WorkerInfo>> {
+        async fn get_by_id(&self, _worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn update(&self, _worker: &scheduler_domain::entities::WorkerInfo) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn list(&self) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
+        async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn get_alive_workers(&self) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
+        async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn get_workers_by_task_type(&self, _task_type: &str) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
+        async fn get_workers_by_task_type(&self, _task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn update_heartbeat(&self, _worker_id: &str, _heartbeat_time: chrono::DateTime<chrono::Utc>, _current_task_count: i32) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update_heartbeat(&self, _worker_id: &str, _heartbeat_time: chrono::DateTime<chrono::Utc>, _current_task_count: i32) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn update_status(&self, _worker_id: &str, _status: scheduler_domain::entities::WorkerStatus) -> scheduler_foundation::SchedulerResult<()> {
+        async fn update_status(&self, _worker_id: &str, _status: WorkerStatus) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_timeout_workers(&self, _timeout_seconds: i64) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
+        async fn get_timeout_workers(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> scheduler_foundation::SchedulerResult<u64> {
+        async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> SchedulerResult<u64> {
             unimplemented!()
         }
 
-        async fn get_worker_load_stats(&self) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::repositories::WorkerLoadStats>> {
+        async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<scheduler_domain::repositories::WorkerLoadStats>> {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _worker_ids: &[String], _status: scheduler_domain::entities::WorkerStatus) -> scheduler_foundation::SchedulerResult<()> {
+        async fn batch_update_status(&self, _worker_ids: &[String], _status: WorkerStatus) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
 
     // Simple mock implementation for testing
-    #[async_trait::async_trait]
-    impl scheduler_foundation::traits::TaskControlService for MockTaskController {
-        async fn trigger_task(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::TaskRun> {
+    #[async_trait]
+    impl TaskControlService for MockTaskController {
+        async fn trigger_task(&self, _task_id: i64) -> SchedulerResult<TaskRun> {
             unimplemented!()
         }
 
-        async fn pause_task(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<()> {
+        async fn pause_task(&self, _task_id: i64) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn resume_task(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<()> {
+        async fn resume_task(&self, _task_id: i64) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn restart_task_run(&self, _task_run_id: i64) -> scheduler_foundation::SchedulerResult<scheduler_domain::entities::TaskRun> {
+        async fn restart_task_run(&self, _task_run_id: i64) -> SchedulerResult<TaskRun> {
             unimplemented!()
         }
 
-        async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_foundation::SchedulerResult<()> {
+        async fn abort_task_run(&self, _task_run_id: i64) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn cancel_all_task_runs(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<usize> {
+        async fn cancel_all_task_runs(&self, _task_id: i64) -> SchedulerResult<usize> {
             unimplemented!()
         }
 
-        async fn has_running_instances(&self, _task_id: i64) -> scheduler_foundation::SchedulerResult<bool> {
+        async fn has_running_instances(&self, _task_id: i64) -> SchedulerResult<bool> {
             Ok(false) // Return false for mock
         }
 
-        async fn get_recent_executions(&self, _task_id: i64, _limit: usize) -> scheduler_foundation::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+        async fn get_recent_executions(&self, _task_id: i64, _limit: usize) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
     }

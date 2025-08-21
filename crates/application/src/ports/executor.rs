@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use serde_json::Value;
 use std::{collections::HashMap, sync::Arc};
 
-use scheduler_domain::entities::{Task, TaskResult, TaskRun};
+use scheduler_domain::entities::{TaskResult, TaskRun};
 use scheduler_errors::SchedulerResult;
 
 /// Interface for task execution

@@ -1,6 +1,6 @@
 use anyhow::Result;
 use scheduler_domain::entities::*;
-use scheduler_domain::traits::MessageQueue;
+use scheduler_domain::MessageQueue;
 use scheduler_infrastructure::redis_stream::{RedisStreamConfig, RedisStreamMessageQueue};
 use serde_json::json;
 use std::time::Duration;

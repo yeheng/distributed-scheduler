@@ -10,6 +10,7 @@ pub use ports::*;
 mod tests {
     use chrono::Utc;
     use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+    use scheduler_errors::SchedulerError;
     use serde_json::json;
 
     #[test]
@@ -184,7 +185,6 @@ mod tests {
     #[test]
     fn test_cron_scheduler_invalid_expression() {
         use crate::services::cron_utils::CronScheduler;
-        use scheduler_foundation::SchedulerError;
         
         let result = CronScheduler::new("invalid cron expression");
         assert!(result.is_err());

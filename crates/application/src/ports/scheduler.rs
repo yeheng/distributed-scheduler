@@ -1,11 +1,10 @@
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
-use serde_json::Value;
-use std::{collections::HashMap, sync::Arc};
+use std::collections::HashMap;
 
 use scheduler_errors::SchedulerResult;
 use scheduler_domain::entities::{
-    Task, TaskResult, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
+    Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
 };
 use scheduler_domain::events::TaskStatusUpdate;
 

@@ -4,7 +4,7 @@ mod tests {
     use std::sync::Arc;
     use scheduler_config::models::{ExecutorConfig, ExecutorInstanceConfig, ExecutorFactoryConfig};
     use scheduler_worker::ExecutorFactory;
-    use scheduler_foundation::traits::ExecutorRegistry;
+    use scheduler_application::ExecutorRegistry;
 
     #[tokio::test]
     async fn test_executor_factory_creation() {
