@@ -4,11 +4,11 @@ use async_trait::async_trait;
 use chrono::Utc;
 use tracing::{debug, error, info, warn};
 
+use scheduler_application::ports::{MessageQueue, TaskControlService};
 use scheduler_domain::entities::{
     Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus,
 };
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-use scheduler_application::ports::{TaskControlService, MessageQueue};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Default, Clone)]

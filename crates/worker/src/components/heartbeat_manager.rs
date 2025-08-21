@@ -1,10 +1,10 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::{Message, StatusUpdateMessage, TaskResult, TaskRunStatus};
 use scheduler_domain::events::TaskStatusUpdate;
 use scheduler_errors::SchedulerResult;
-use scheduler_core::ServiceLocator;
 use tokio::sync::broadcast;
 use tokio::time::interval;
 use tracing::{error, info};
@@ -106,10 +106,7 @@ impl HeartbeatManager {
             timestamp: update.timestamp,
         };
 
-        let message = {
-            use scheduler_observability::MessageTracingExt;
-            Message::status_update(status_message).inject_current_trace_context()
-        };
+        let message = Message::status_update(status_message);
         message_queue
             .publish_message(&self.status_queue, &message)
             .await

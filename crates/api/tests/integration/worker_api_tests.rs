@@ -132,7 +132,10 @@ async fn test_get_task_execution_stats() {
 
     assert_eq!(create_response.status(), 201);
 
-    let create_body: Value = create_response.json().await.expect("Failed to parse response");
+    let create_body: Value = create_response
+        .json()
+        .await
+        .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
 
     // Get task execution stats
@@ -152,7 +155,7 @@ async fn test_get_task_execution_stats() {
     // Stats endpoint should work (200) or return not found (404) or server error (500) for non-existent data
     println!("Stats endpoint status: {}", response.status());
     assert!(response.status() == 200 || response.status() == 404 || response.status() == 500);
-    
+
     if response.status() == 200 {
         let response_body: Value = response.json().await.expect("Failed to parse response");
         assert!(response_body["success"].as_bool().unwrap());
@@ -204,7 +207,10 @@ async fn test_patch_task() {
 
     assert_eq!(create_response.status(), 201);
 
-    let create_body: Value = create_response.json().await.expect("Failed to parse response");
+    let create_body: Value = create_response
+        .json()
+        .await
+        .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
 
     // Patch the task (partial update)
@@ -224,7 +230,7 @@ async fn test_patch_task() {
 
     let response_body: Value = response.json().await.expect("Failed to parse response");
     let task = &response_body["data"];
-    
+
     // Check that only the patched fields were updated
     assert_eq!(task["timeout_seconds"], 600);
     assert_eq!(task["max_retries"], 5);
@@ -278,7 +284,10 @@ async fn test_patch_task_invalid_data() {
 
     assert_eq!(create_response.status(), 201);
 
-    let create_body: Value = create_response.json().await.expect("Failed to parse response");
+    let create_body: Value = create_response
+        .json()
+        .await
+        .expect("Failed to parse response");
     let task_id = create_body["data"]["id"].as_i64().unwrap();
 
     // Try to patch with invalid data

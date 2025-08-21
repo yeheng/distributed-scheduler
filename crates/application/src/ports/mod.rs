@@ -16,9 +16,9 @@
 //! - `executor.rs` - Task execution interfaces
 //! - `strategy.rs` - Task dispatch and scheduling strategy interfaces
 
-pub mod scheduler;
-pub mod messaging;
 pub mod executor;
+pub mod messaging;
+pub mod scheduler;
 pub mod strategy;
 
 // Re-export all ports for convenience

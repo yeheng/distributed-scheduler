@@ -5,9 +5,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use tracing::{debug, error, info, warn};
 
+use scheduler_application::ports::MessageQueue;
 use scheduler_domain::entities::{TaskRun, TaskRunStatus, WorkerStatus};
 use scheduler_domain::repositories::{TaskRunRepository, WorkerRepository};
-use scheduler_application::ports::MessageQueue;
 use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone)]

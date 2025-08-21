@@ -9,12 +9,12 @@ use chrono::{DateTime, Utc};
 use futures::stream::{self, StreamExt};
 use tracing::{debug, error, info, warn};
 
+use scheduler_application::interfaces::service_interfaces::SchedulerStats;
 use scheduler_application::interfaces::TaskSchedulerService;
 use scheduler_application::ports::MessageQueue;
 use scheduler_domain::entities::{Message, Task, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 use scheduler_errors::{SchedulerError, SchedulerResult};
-use scheduler_application::interfaces::service_interfaces::SchedulerStats;
 use scheduler_infrastructure::TimeoutUtils;
 use scheduler_observability::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;

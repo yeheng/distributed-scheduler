@@ -20,8 +20,9 @@ pub use dashboard::{
 pub use message_tracing::MessageTracingExt;
 pub use metrics_collector::{MetricsCollector, PerformanceMetrics};
 pub use performance_testing::{
-    BenchmarkResult, CriterionCondition, CriterionResult, PerformanceBenchmark, PerformanceCriterion,
-    PerformanceRegressionTester, PerformanceTrend, RegressionReport, RegressionSeverity, TrendDirection,
+    BenchmarkResult, CriterionCondition, CriterionResult, PerformanceBenchmark,
+    PerformanceCriterion, PerformanceRegressionTester, PerformanceTrend, RegressionReport,
+    RegressionSeverity, TrendDirection,
 };
 pub use structured_logger::{LoggingConfig, StructuredLogger};
 pub use task_tracer::TaskTracer;

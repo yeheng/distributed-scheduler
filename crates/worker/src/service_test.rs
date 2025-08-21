@@ -22,5 +22,4 @@ mod tests {
         assert_eq!(config.heartbeat_interval_seconds, 60);
         assert_eq!(config.poll_interval_ms, 500);
     }
-
 }

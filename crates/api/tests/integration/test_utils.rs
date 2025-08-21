@@ -109,10 +109,7 @@ struct MockTaskControlService;
 
 #[async_trait::async_trait]
 impl TaskControlService for MockTaskControlService {
-    async fn trigger_task(
-        &self,
-        task_id: i64,
-    ) -> SchedulerResult<TaskRun> {
+    async fn trigger_task(&self, task_id: i64) -> SchedulerResult<TaskRun> {
         use chrono::Utc;
 
         Ok(TaskRunBuilder::new()
@@ -129,10 +126,7 @@ impl TaskControlService for MockTaskControlService {
         Ok(())
     }
 
-    async fn restart_task_run(
-        &self,
-        task_run_id: i64,
-    ) -> SchedulerResult<TaskRun> {
+    async fn restart_task_run(&self, task_run_id: i64) -> SchedulerResult<TaskRun> {
         use chrono::Utc;
 
         Ok(TaskRunBuilder::new()
@@ -146,17 +140,11 @@ impl TaskControlService for MockTaskControlService {
         Ok(())
     }
 
-    async fn cancel_all_task_runs(
-        &self,
-        _task_id: i64,
-    ) -> SchedulerResult<usize> {
+    async fn cancel_all_task_runs(&self, _task_id: i64) -> SchedulerResult<usize> {
         Ok(0)
     }
 
-    async fn has_running_instances(
-        &self,
-        _task_id: i64,
-    ) -> SchedulerResult<bool> {
+    async fn has_running_instances(&self, _task_id: i64) -> SchedulerResult<bool> {
         Ok(false)
     }
 

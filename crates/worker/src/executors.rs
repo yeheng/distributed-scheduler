@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
-use scheduler_domain::entities::TaskResult;
 use scheduler_application::ports::{ExecutorStatus, TaskExecutionContext, TaskExecutor};
+use scheduler_domain::entities::TaskResult;
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use serde::{Deserialize, Serialize};
 use tokio::io::{AsyncBufReadExt, BufReader};
@@ -505,7 +505,7 @@ impl TaskExecutor for HttpExecutor {
         }
 
         // Track the running task
-        let task_run_id = context.task_run.id;
+        let _task_run_id = context.task_run.id;
 
         // Execute the request with timeout
         let response_result =

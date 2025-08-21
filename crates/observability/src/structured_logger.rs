@@ -321,7 +321,10 @@ mod tests {
         assert_eq!(cloned_config.output, config.output);
         assert_eq!(cloned_config.include_location, config.include_location);
         assert_eq!(cloned_config.include_thread_id, config.include_thread_id);
-        assert_eq!(cloned_config.include_thread_name, config.include_thread_name);
+        assert_eq!(
+            cloned_config.include_thread_name,
+            config.include_thread_name
+        );
     }
 
     #[test]
@@ -338,7 +341,7 @@ mod tests {
     fn test_log_output_file_path() {
         let file_path = "/var/log/scheduler.log".to_string();
         let output = LogOutput::File(file_path.clone());
-        
+
         match output {
             LogOutput::File(path) => assert_eq!(path, file_path),
             LogOutput::Stdout => panic!("Expected File output, got Stdout"),
@@ -350,37 +353,71 @@ mod tests {
     fn test_structured_logger_static_methods_exist() {
         // Test that all static methods exist and can be called (they just log)
         let timestamp = Utc::now();
-        
+
         // These methods should not panic when called
         StructuredLogger::log_task_scheduled(1, "test_task", "shell", timestamp);
         StructuredLogger::log_task_execution_start(1, 1, "test_task", "shell", "worker-1");
-        StructuredLogger::log_task_execution_complete(1, "test_task", "shell", "worker-1", true, 100, None);
+        StructuredLogger::log_task_execution_complete(
+            1,
+            "test_task",
+            "shell",
+            "worker-1",
+            true,
+            100,
+            None,
+        );
         StructuredLogger::log_task_retry(1, "test_task", 1, 3, "timeout");
         StructuredLogger::log_worker_registered("worker-1", "hostname", &["shell".to_string()], 5);
         StructuredLogger::log_worker_heartbeat("worker-1", 2, 5, Some(0.8));
         StructuredLogger::log_dependency_check(1, "test_task", true, Some("dependencies met"));
         StructuredLogger::log_database_operation("SELECT", "tasks", 50, Some(10));
         StructuredLogger::log_message_queue_operation("publish", "task_queue", Some(5), 10);
-        StructuredLogger::log_system_error("database", "query", &std::io::Error::new(std::io::ErrorKind::Other, "test error"));
+        StructuredLogger::log_system_error(
+            "database",
+            "query",
+            &std::io::Error::new(std::io::ErrorKind::Other, "test error"),
+        );
         StructuredLogger::log_config_change("logging", "level", "info", "debug");
-        StructuredLogger::log_performance_metrics("scheduler", "task_scheduling", 100, Some(10.5), Some(512));
+        StructuredLogger::log_performance_metrics(
+            "scheduler",
+            "task_scheduling",
+            100,
+            Some(10.5),
+            Some(512),
+        );
     }
 
     #[test]
     fn test_log_task_execution_with_error() {
         let timestamp = Utc::now();
         let error_message = Some("Task execution failed due to timeout");
-        
+
         // This should not panic and should handle the error message properly
-        StructuredLogger::log_task_execution_complete(1, "test_task", "shell", "worker-1", false, 200, error_message);
+        StructuredLogger::log_task_execution_complete(
+            1,
+            "test_task",
+            "shell",
+            "worker-1",
+            false,
+            200,
+            error_message,
+        );
     }
 
     #[test]
     fn test_log_with_empty_options() {
         let timestamp = Utc::now();
-        
+
         // Test with empty optional parameters
-        StructuredLogger::log_task_execution_complete(1, "test_task", "shell", "worker-1", true, 50, None);
+        StructuredLogger::log_task_execution_complete(
+            1,
+            "test_task",
+            "shell",
+            "worker-1",
+            true,
+            50,
+            None,
+        );
         StructuredLogger::log_worker_heartbeat("worker-1", 0, 5, None);
         StructuredLogger::log_dependency_check(1, "test_task", false, None);
         StructuredLogger::log_database_operation("INSERT", "tasks", 25, None);
@@ -392,12 +429,21 @@ mod tests {
     fn test_log_with_long_strings() {
         let timestamp = Utc::now();
         let long_worker_id = "very-long-worker-id-with-many-characters-1234567890";
-        let long_task_name = "very-long-task-name-with-many-characters-and-descriptive-text-1234567890";
+        let long_task_name =
+            "very-long-task-name-with-many-characters-and-descriptive-text-1234567890";
         let long_error_message = "very-long-error-message-with-detailed-description-of-what-went-wrong-and-why-it-failed-1234567890";
-        
+
         // Test that long strings are handled properly
         StructuredLogger::log_task_execution_start(1, 1, long_task_name, "shell", long_worker_id);
-        StructuredLogger::log_task_execution_complete(1, long_task_name, "shell", long_worker_id, false, 500, Some(long_error_message));
+        StructuredLogger::log_task_execution_complete(
+            1,
+            long_task_name,
+            "shell",
+            long_worker_id,
+            false,
+            500,
+            Some(long_error_message),
+        );
     }
 
     #[test]
@@ -405,19 +451,40 @@ mod tests {
         let timestamp = Utc::now();
         let special_task_name = "Task with \"special\" characters & symbols @#$%";
         let special_worker_id = "Worker-ID_123.456.789";
-        
+
         // Test that special characters are handled properly
         StructuredLogger::log_task_scheduled(1, special_task_name, "shell", timestamp);
-        StructuredLogger::log_worker_registered(special_worker_id, "hostname.local", &["shell".to_string()], 5);
+        StructuredLogger::log_worker_registered(
+            special_worker_id,
+            "hostname.local",
+            &["shell".to_string()],
+            5,
+        );
     }
 
     #[test]
     fn test_log_with_numeric_values() {
         let timestamp = Utc::now();
-        
+
         // Test with various numeric values including edge cases
-        StructuredLogger::log_task_execution_complete(1, "test_task", "shell", "worker-1", true, 0, None);
-        StructuredLogger::log_task_execution_complete(2, "test_task", "shell", "worker-1", false, 999999, Some("timeout"));
+        StructuredLogger::log_task_execution_complete(
+            1,
+            "test_task",
+            "shell",
+            "worker-1",
+            true,
+            0,
+            None,
+        );
+        StructuredLogger::log_task_execution_complete(
+            2,
+            "test_task",
+            "shell",
+            "worker-1",
+            false,
+            999999,
+            Some("timeout"),
+        );
         StructuredLogger::log_worker_heartbeat("worker-1", 0, 10, Some(0.0));
         StructuredLogger::log_worker_heartbeat("worker-1", 100, 100, Some(100.0));
         StructuredLogger::log_database_operation("SELECT", "tasks", 0, Some(0));
@@ -445,18 +512,29 @@ mod tests {
     #[test]
     fn test_log_system_error_scenarios() {
         // Test various system error scenarios
-        let io_error = std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "Connection refused");
+        let io_error =
+            std::io::Error::new(std::io::ErrorKind::ConnectionRefused, "Connection refused");
         let json_error = serde_json::from_str::<serde_json::Value>("invalid json").unwrap_err();
-        
+
         StructuredLogger::log_system_error("database", "connect", &io_error);
         StructuredLogger::log_system_error("message_queue", "parse", &json_error);
-        StructuredLogger::log_system_error("worker", "register", &std::io::Error::new(std::io::ErrorKind::Other, "Registration failed"));
+        StructuredLogger::log_system_error(
+            "worker",
+            "register",
+            &std::io::Error::new(std::io::ErrorKind::Other, "Registration failed"),
+        );
     }
 
     #[test]
     fn test_log_performance_metrics_scenarios() {
         // Test various performance metrics scenarios
-        StructuredLogger::log_performance_metrics("scheduler", "task_scheduling", 10, Some(100.5), Some(1024));
+        StructuredLogger::log_performance_metrics(
+            "scheduler",
+            "task_scheduling",
+            10,
+            Some(100.5),
+            Some(1024),
+        );
         StructuredLogger::log_performance_metrics("database", "query", 500, Some(0.1), None);
         StructuredLogger::log_performance_metrics("api", "request", 50, Some(50.0), Some(256));
         StructuredLogger::log_performance_metrics("worker", "heartbeat", 1, None, Some(128));

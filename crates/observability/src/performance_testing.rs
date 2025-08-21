@@ -1,10 +1,10 @@
+use crate::metrics_collector::{MetricsCollector, PerformanceMetrics};
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{Duration, Instant};
-use tracing::{info, error};
-use crate::metrics_collector::{MetricsCollector, PerformanceMetrics};
+use tracing::{error, info};
 
 #[derive(Debug, Clone)]
 pub struct PerformanceBenchmark {
@@ -249,10 +249,13 @@ impl PerformanceRegressionTester {
 
         // Calculate resource usage during benchmark
         let memory_usage_mb = end_metrics.memory_usage_mb - start_metrics.memory_usage_mb;
-        let cpu_usage_percent = (end_metrics.cpu_usage_percent + start_metrics.cpu_usage_percent) / 2.0;
+        let cpu_usage_percent =
+            (end_metrics.cpu_usage_percent + start_metrics.cpu_usage_percent) / 2.0;
 
         // Evaluate criteria
-        let criterion_results = self.evaluate_criteria(benchmark, &benchmark_metrics).await?;
+        let criterion_results = self
+            .evaluate_criteria(benchmark, &benchmark_metrics)
+            .await?;
 
         // Calculate overall score
         let overall_score = criterion_results
@@ -260,7 +263,8 @@ impl PerformanceRegressionTester {
             .map(|cr| cr.score * cr.weight)
             .sum::<f64>();
 
-        let passed = overall_score >= 0.7 && duration_ms <= benchmark.target_duration_ms
+        let passed = overall_score >= 0.7
+            && duration_ms <= benchmark.target_duration_ms
             && memory_usage_mb <= benchmark.max_memory_mb
             && cpu_usage_percent <= benchmark.max_cpu_percent;
 
@@ -323,7 +327,10 @@ impl PerformanceRegressionTester {
         })
     }
 
-    async fn execute_benchmark_logic(&self, benchmark: &PerformanceBenchmark) -> Result<HashMap<String, f64>> {
+    async fn execute_benchmark_logic(
+        &self,
+        benchmark: &PerformanceBenchmark,
+    ) -> Result<HashMap<String, f64>> {
         let mut metrics = HashMap::new();
 
         // Simulate benchmark execution based on benchmark type
@@ -332,27 +339,27 @@ impl PerformanceRegressionTester {
                 metrics.insert("tasks_per_second".to_string(), 150.0);
                 metrics.insert("avg_latency_ms".to_string(), 25.0);
                 metrics.insert("success_rate_percent".to_string(), 98.0);
-            },
+            }
             "Database Query Performance" => {
                 metrics.insert("avg_query_time_ms".to_string(), 45.0);
                 metrics.insert("connection_pool_usage_percent".to_string(), 65.0);
                 metrics.insert("query_error_rate_percent".to_string(), 0.1);
-            },
+            }
             "Message Queue Throughput" => {
                 metrics.insert("messages_per_second".to_string(), 750.0);
                 metrics.insert("consumer_lag_ms".to_string(), 50.0);
                 metrics.insert("max_queue_depth".to_string(), 500.0);
-            },
+            }
             "API Response Time" => {
                 metrics.insert("p50_response_time_ms".to_string(), 75.0);
                 metrics.insert("p95_response_time_ms".to_string(), 200.0);
                 metrics.insert("api_error_rate_percent".to_string(), 0.5);
-            },
+            }
             "Cache Performance" => {
                 metrics.insert("cache_hit_rate_percent".to_string(), 95.0);
                 metrics.insert("avg_cache_operation_time_ms".to_string(), 2.0);
                 metrics.insert("cache_memory_usage_mb".to_string(), 25.0);
-            },
+            }
             _ => {
                 return Err(anyhow::anyhow!("Unknown benchmark: {}", benchmark.name));
             }
@@ -372,37 +379,59 @@ impl PerformanceRegressionTester {
         let mut results = Vec::new();
 
         for criterion in &benchmark.success_criteria {
-            let actual_value = metrics.get(&criterion.metric_name)
-                .copied()
-                .unwrap_or(0.0);
+            let actual_value = metrics.get(&criterion.metric_name).copied().unwrap_or(0.0);
 
             let (passed, score, details) = match criterion.condition {
                 CriterionCondition::LessThan => {
                     let passed = actual_value < criterion.threshold;
-                    let score = if passed { 1.0 } else { criterion.threshold / actual_value };
-                    let details = format!("{} < {}: {}", criterion.metric_name, criterion.threshold, actual_value);
+                    let score = if passed {
+                        1.0
+                    } else {
+                        criterion.threshold / actual_value
+                    };
+                    let details = format!(
+                        "{} < {}: {}",
+                        criterion.metric_name, criterion.threshold, actual_value
+                    );
                     (passed, score.min(1.0), details)
-                },
+                }
                 CriterionCondition::GreaterThan => {
                     let passed = actual_value > criterion.threshold;
-                    let score = if passed { 1.0 } else { actual_value / criterion.threshold };
-                    let details = format!("{} > {}: {}", criterion.metric_name, criterion.threshold, actual_value);
+                    let score = if passed {
+                        1.0
+                    } else {
+                        actual_value / criterion.threshold
+                    };
+                    let details = format!(
+                        "{} > {}: {}",
+                        criterion.metric_name, criterion.threshold, actual_value
+                    );
                     (passed, score.min(1.0), details)
-                },
+                }
                 CriterionCondition::Equals => {
                     let passed = (actual_value - criterion.threshold).abs() < 0.001;
                     let score = if passed { 1.0 } else { 0.0 };
-                    let details = format!("{} ≈ {}: {}", criterion.metric_name, criterion.threshold, actual_value);
+                    let details = format!(
+                        "{} ≈ {}: {}",
+                        criterion.metric_name, criterion.threshold, actual_value
+                    );
                     (passed, score, details)
-                },
+                }
                 CriterionCondition::WithinPercent(percent) => {
                     let diff = (actual_value - criterion.threshold).abs();
                     let allowed_diff = criterion.threshold * percent / 100.0;
                     let passed = diff <= allowed_diff;
-                    let score = if passed { 1.0 } else { 1.0 - (diff - allowed_diff) / allowed_diff };
-                    let details = format!("{} within {}% of {}: {}", criterion.metric_name, percent, criterion.threshold, actual_value);
+                    let score = if passed {
+                        1.0
+                    } else {
+                        1.0 - (diff - allowed_diff) / allowed_diff
+                    };
+                    let details = format!(
+                        "{} within {}% of {}: {}",
+                        criterion.metric_name, percent, criterion.threshold, actual_value
+                    );
                     (passed, score.max(0.0).min(1.0), details)
-                },
+                }
             };
 
             results.push(CriterionResult {
@@ -471,7 +500,8 @@ impl PerformanceRegressionTester {
 
     fn is_regression(&self, current: &BenchmarkResult, previous: &BenchmarkResult) -> bool {
         // Check if score degraded beyond threshold
-        let score_degradation = (previous.overall_score - current.overall_score) / previous.overall_score;
+        let score_degradation =
+            (previous.overall_score - current.overall_score) / previous.overall_score;
         if score_degradation > self.regression_threshold {
             return true;
         }
@@ -482,11 +512,13 @@ impl PerformanceRegressionTester {
         }
 
         // Check if any critical criteria failed
-        let current_critical_failures = current.criterion_results
+        let current_critical_failures = current
+            .criterion_results
             .iter()
             .filter(|cr| cr.weight > 0.4 && !cr.passed)
             .count();
-        let previous_critical_failures = previous.criterion_results
+        let previous_critical_failures = previous
+            .criterion_results
             .iter()
             .filter(|cr| cr.weight > 0.4 && !cr.passed)
             .count();
@@ -494,9 +526,15 @@ impl PerformanceRegressionTester {
         current_critical_failures > previous_critical_failures
     }
 
-    fn calculate_regression_severity(&self, current: &BenchmarkResult, previous: &BenchmarkResult) -> RegressionSeverity {
-        let score_degradation = (previous.overall_score - current.overall_score) / previous.overall_score;
-        let duration_increase = (current.duration_ms as f64 - previous.duration_ms as f64) / previous.duration_ms as f64;
+    fn calculate_regression_severity(
+        &self,
+        current: &BenchmarkResult,
+        previous: &BenchmarkResult,
+    ) -> RegressionSeverity {
+        let score_degradation =
+            (previous.overall_score - current.overall_score) / previous.overall_score;
+        let duration_increase = (current.duration_ms as f64 - previous.duration_ms as f64)
+            / previous.duration_ms as f64;
 
         if score_degradation > 0.3 || duration_increase > 1.0 {
             RegressionSeverity::Critical
@@ -513,9 +551,12 @@ impl PerformanceRegressionTester {
         self.benchmarks.read().await.clone()
     }
 
-    pub async fn get_performance_trends(&self, benchmark_name: &str) -> Result<Option<PerformanceTrend>> {
+    pub async fn get_performance_trends(
+        &self,
+        benchmark_name: &str,
+    ) -> Result<Option<PerformanceTrend>> {
         let history = self.test_history.read().await;
-        
+
         let benchmark_results: Vec<_> = history
             .iter()
             .filter(|r| r.benchmark_name == benchmark_name)
@@ -535,13 +576,13 @@ impl PerformanceRegressionTester {
         // Calculate trend direction
         let recent_scores: Vec<f64> = scores.iter().rev().take(5).cloned().collect();
         let older_scores: Vec<f64> = scores.iter().rev().skip(5).take(5).cloned().collect();
-        
+
         let score_trend = if older_scores.is_empty() {
             TrendDirection::Stable
         } else {
             let recent_avg = recent_scores.iter().sum::<f64>() / recent_scores.len() as f64;
             let older_avg = older_scores.iter().sum::<f64>() / older_scores.len() as f64;
-            
+
             if (recent_avg - older_avg).abs() < 0.05 {
                 TrendDirection::Stable
             } else if recent_avg > older_avg {

@@ -319,8 +319,8 @@ fn check_sensitive_parameters(
 /// 检查SQL注入风险
 fn contains_sql_injection_risk(text: &str) -> bool {
     let sql_keywords = [
-        "SELECT ", "INSERT ", "UPDATE ", "DELETE ", "DROP ", "CREATE ", "ALTER ", "UNION ", "WHERE ", " OR ",
-        " AND ", "EXEC ", "EXECUTE ", "CAST ", "CONVERT ",
+        "SELECT ", "INSERT ", "UPDATE ", "DELETE ", "DROP ", "CREATE ", "ALTER ", "UNION ",
+        "WHERE ", " OR ", " AND ", "EXEC ", "EXECUTE ", "CAST ", "CONVERT ",
     ];
 
     let upper_text = text.to_uppercase();
@@ -586,12 +586,10 @@ mod tests {
 
     #[test]
     fn test_validate_dependencies_valid() {
-        let deps = Some(vec
-![1, 2, 3]);
+        let deps = Some(vec![1, 2, 3]);
         assert!(validate_dependencies(&deps).is_ok());
 
-        let empty_deps = Some(vec
-![]);
+        let empty_deps = Some(vec![]);
         assert!(validate_dependencies(&empty_deps).is_ok());
 
         let none_deps = None;
@@ -605,13 +603,11 @@ mod tests {
         assert!(validate_dependencies(&many_deps).is_err());
 
         // Duplicate dependencies
-        let duplicate_deps = Some(vec
-![1, 2, 2, 3]);
+        let duplicate_deps = Some(vec![1, 2, 2, 3]);
         assert!(validate_dependencies(&duplicate_deps).is_err());
 
         // Invalid dependency IDs
-        let invalid_deps = Some(vec
-![0, -1, 1]);
+        let invalid_deps = Some(vec![0, -1, 1]);
         assert!(validate_dependencies(&invalid_deps).is_err());
     }
 
@@ -621,7 +617,7 @@ mod tests {
         assert!(contains_sql_injection_risk("DROP TABLE tasks"));
         assert!(contains_sql_injection_risk("1; DELETE FROM tasks"));
         assert!(contains_sql_injection_risk("admin' OR '1'='1"));
-        
+
         assert!(!contains_sql_injection_risk("normal_task_name"));
         // Note: select and update are flagged as potential SQL injection
         // This is expected behavior for security reasons
@@ -648,7 +644,7 @@ mod tests {
         assert!(is_reserved_task_type("admin-job"));
         assert!(is_reserved_task_type("__internal__"));
         assert!(is_reserved_task_type("SystemScript"));
-        
+
         assert!(!is_reserved_task_type("normal_task"));
         assert!(!is_reserved_task_type("user_script"));
         assert!(!is_reserved_task_type("backup_job"));
@@ -656,15 +652,13 @@ mod tests {
 
     #[test]
     fn test_check_sensitive_parameters() {
-        let safe_params = serde_json::Map::from_iter(vec
-![
+        let safe_params = serde_json::Map::from_iter(vec![
             ("command".to_string(), json!("echo hello")),
             ("timeout".to_string(), json!(30)),
         ]);
         assert!(check_sensitive_parameters(&safe_params).is_ok());
 
-        let sensitive_params = serde_json::Map::from_iter(vec
-![
+        let sensitive_params = serde_json::Map::from_iter(vec![
             ("command".to_string(), json!("echo hello")),
             ("api_key".to_string(), json!("secret123")),
             ("user_password".to_string(), json!("pass123")),
@@ -701,7 +695,9 @@ mod tests {
             dependencies: None,
         };
 
-        assert!(validate_create_task_request(&request, &state).await.is_err());
+        assert!(validate_create_task_request(&request, &state)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
@@ -717,14 +713,15 @@ mod tests {
             dependencies: None,
         };
 
-        assert!(validate_create_task_request(&request, &state).await.is_err());
+        assert!(validate_create_task_request(&request, &state)
+            .await
+            .is_err());
     }
 
     #[tokio::test]
     async fn test_validate_task_dependencies_nonexistent() {
         let state = create_mock_app_state();
-        let deps = Some(vec
-![999, 1000]); // Non-existent task IDs
+        let deps = Some(vec![999, 1000]); // Non-existent task IDs
 
         let result = validate_task_dependencies(&deps, &state).await;
         assert!(result.is_err());
@@ -771,8 +768,7 @@ mod tests {
                     timeout_seconds: 30,
                     max_retries: 3,
                     status: TaskStatus::Active,
-                    dependencies: vec
-![],
+                    dependencies: vec![],
                     shard_config: None,
                     created_at: chrono::Utc::now(),
                     updated_at: chrono::Utc::now(),
@@ -807,7 +803,10 @@ mod tests {
             unimplemented!()
         }
 
-        async fn get_schedulable_tasks(&self, _current_time: chrono::DateTime<chrono::Utc>) -> SchedulerResult<Vec<Task>> {
+        async fn get_schedulable_tasks(
+            &self,
+            _current_time: chrono::DateTime<chrono::Utc>,
+        ) -> SchedulerResult<Vec<Task>> {
             unimplemented!()
         }
 
@@ -819,7 +818,11 @@ mod tests {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _task_ids: &[i64], _status: TaskStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _task_ids: &[i64],
+            _status: TaskStatus,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
@@ -866,19 +869,37 @@ mod tests {
             unimplemented!()
         }
 
-        async fn update_status(&self, _id: i64, _status: TaskRunStatus, _worker_id: Option<&str>) -> SchedulerResult<()> {
+        async fn update_status(
+            &self,
+            _id: i64,
+            _status: TaskRunStatus,
+            _worker_id: Option<&str>,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn update_result(&self, _id: i64, _result: Option<&str>, _error_message: Option<&str>) -> SchedulerResult<()> {
+        async fn update_result(
+            &self,
+            _id: i64,
+            _result: Option<&str>,
+            _error_message: Option<&str>,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> SchedulerResult<Vec<TaskRun>> {
+        async fn get_recent_runs(
+            &self,
+            _task_id: i64,
+            _limit: i64,
+        ) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
 
-        async fn get_execution_stats(&self, _task_id: i64, _days: i32) -> SchedulerResult<scheduler_domain::repositories::TaskExecutionStats> {
+        async fn get_execution_stats(
+            &self,
+            _task_id: i64,
+            _days: i32,
+        ) -> SchedulerResult<scheduler_domain::repositories::TaskExecutionStats> {
             unimplemented!()
         }
 
@@ -886,7 +907,11 @@ mod tests {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _run_ids: &[i64], _status: TaskRunStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _run_ids: &[i64],
+            _status: TaskRunStatus,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
@@ -917,19 +942,34 @@ mod tests {
             unimplemented!()
         }
 
-        async fn get_workers_by_task_type(&self, _task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
+        async fn get_workers_by_task_type(
+            &self,
+            _task_type: &str,
+        ) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
-        async fn update_heartbeat(&self, _worker_id: &str, _heartbeat_time: chrono::DateTime<chrono::Utc>, _current_task_count: i32) -> SchedulerResult<()> {
+        async fn update_heartbeat(
+            &self,
+            _worker_id: &str,
+            _heartbeat_time: chrono::DateTime<chrono::Utc>,
+            _current_task_count: i32,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn update_status(&self, _worker_id: &str, _status: WorkerStatus) -> SchedulerResult<()> {
+        async fn update_status(
+            &self,
+            _worker_id: &str,
+            _status: WorkerStatus,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
 
-        async fn get_timeout_workers(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
+        async fn get_timeout_workers(
+            &self,
+            _timeout_seconds: i64,
+        ) -> SchedulerResult<Vec<WorkerInfo>> {
             unimplemented!()
         }
 
@@ -937,11 +977,17 @@ mod tests {
             unimplemented!()
         }
 
-        async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<scheduler_domain::repositories::WorkerLoadStats>> {
+        async fn get_worker_load_stats(
+            &self,
+        ) -> SchedulerResult<Vec<scheduler_domain::repositories::WorkerLoadStats>> {
             unimplemented!()
         }
 
-        async fn batch_update_status(&self, _worker_ids: &[String], _status: WorkerStatus) -> SchedulerResult<()> {
+        async fn batch_update_status(
+            &self,
+            _worker_ids: &[String],
+            _status: WorkerStatus,
+        ) -> SchedulerResult<()> {
             unimplemented!()
         }
     }
@@ -977,7 +1023,11 @@ mod tests {
             Ok(false) // Return false for mock
         }
 
-        async fn get_recent_executions(&self, _task_id: i64, _limit: usize) -> SchedulerResult<Vec<TaskRun>> {
+        async fn get_recent_executions(
+            &self,
+            _task_id: i64,
+            _limit: usize,
+        ) -> SchedulerResult<Vec<TaskRun>> {
             unimplemented!()
         }
     }

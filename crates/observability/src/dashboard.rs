@@ -1,11 +1,11 @@
+use crate::alerting::AlertManager;
+use crate::metrics_collector::MetricsCollector;
+use crate::performance_testing::PerformanceRegressionTester;
 use anyhow::Result;
+use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
-use serde::{Deserialize, Serialize};
-use crate::metrics_collector::MetricsCollector;
-use crate::alerting::AlertManager;
-use crate::performance_testing::PerformanceRegressionTester;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct DashboardData {
@@ -111,9 +111,13 @@ impl PerformanceDashboard {
         // Check cache first
         let cache_key = "dashboard_data".to_string();
         let cache = self.cache.read().await;
-        
+
         if let Some(cached_data) = cache.get(&cache_key) {
-            let cache_age = cached_data.timestamp.elapsed().unwrap_or_default().as_secs();
+            let cache_age = cached_data
+                .timestamp
+                .elapsed()
+                .unwrap_or_default()
+                .as_secs();
             if cache_age < self.cache_ttl_seconds {
                 return Ok(cached_data.clone());
             }
@@ -135,7 +139,9 @@ impl PerformanceDashboard {
         let performance_metrics = self.collect_performance_metrics().await?;
         let alerts = self.collect_alert_data().await?;
         let benchmarks = self.collect_benchmark_data().await?;
-        let health_status = self.calculate_health_status(&system_metrics, &performance_metrics, &alerts).await?;
+        let health_status = self
+            .calculate_health_status(&system_metrics, &performance_metrics, &alerts)
+            .await?;
 
         Ok(DashboardData {
             system_metrics,
@@ -186,7 +192,7 @@ impl PerformanceDashboard {
 
     async fn collect_alert_data(&self) -> Result<Vec<AlertSummary>> {
         let alerts = self.alert_manager.get_active_alerts().await;
-        
+
         let mut alert_summaries = Vec::new();
         for alert in alerts {
             alert_summaries.push(AlertSummary {
@@ -205,12 +211,16 @@ impl PerformanceDashboard {
 
     async fn collect_benchmark_data(&self) -> Result<Vec<BenchmarkSummary>> {
         let mut benchmark_summaries = Vec::new();
-        
+
         // Get benchmark names
         let benchmarks = self.regression_tester.get_benchmarks().await;
-        
+
         for benchmark in benchmarks.iter() {
-            if let Ok(Some(trend)) = self.regression_tester.get_performance_trends(&benchmark.name).await {
+            if let Ok(Some(trend)) = self
+                .regression_tester
+                .get_performance_trends(&benchmark.name)
+                .await
+            {
                 benchmark_summaries.push(BenchmarkSummary {
                     name: benchmark.name.clone(),
                     latest_score: trend.latest_result.overall_score,
@@ -235,11 +245,15 @@ impl PerformanceDashboard {
         let mut issues = Vec::new();
 
         // System health
-        let system_health = if system_metrics.cpu_usage_percent > 90.0 || system_metrics.memory_usage_percent > 90.0 {
+        let _system_health = if system_metrics.cpu_usage_percent > 90.0
+            || system_metrics.memory_usage_percent > 90.0
+        {
             components.insert("system".to_string(), HealthLevel::Critical);
             issues.push("High system resource usage detected".to_string());
             HealthLevel::Critical
-        } else if system_metrics.cpu_usage_percent > 75.0 || system_metrics.memory_usage_percent > 75.0 {
+        } else if system_metrics.cpu_usage_percent > 75.0
+            || system_metrics.memory_usage_percent > 75.0
+        {
             components.insert("system".to_string(), HealthLevel::Warning);
             issues.push("Elevated system resource usage".to_string());
             HealthLevel::Warning
@@ -249,11 +263,15 @@ impl PerformanceDashboard {
         };
 
         // Performance health
-        let performance_health = if performance_metrics.task_failure_rate_percent > 10.0 || performance_metrics.api_error_rate_percent > 5.0 {
+        let _performance_health = if performance_metrics.task_failure_rate_percent > 10.0
+            || performance_metrics.api_error_rate_percent > 5.0
+        {
             components.insert("performance".to_string(), HealthLevel::Critical);
             issues.push("High error rates detected".to_string());
             HealthLevel::Critical
-        } else if performance_metrics.task_failure_rate_percent > 5.0 || performance_metrics.api_error_rate_percent > 2.0 {
+        } else if performance_metrics.task_failure_rate_percent > 5.0
+            || performance_metrics.api_error_rate_percent > 2.0
+        {
             components.insert("performance".to_string(), HealthLevel::Warning);
             issues.push("Elevated error rates".to_string());
             HealthLevel::Warning
@@ -263,7 +281,7 @@ impl PerformanceDashboard {
         };
 
         // Queue health
-        let queue_health = if performance_metrics.queue_depth > 1000 {
+        let _queue_health = if performance_metrics.queue_depth > 1000 {
             components.insert("queue".to_string(), HealthLevel::Critical);
             issues.push("High queue depth detected".to_string());
             HealthLevel::Critical
@@ -277,7 +295,7 @@ impl PerformanceDashboard {
         };
 
         // Database health
-        let database_health = if performance_metrics.database_operation_duration_avg_ms > 500.0 {
+        let _database_health = if performance_metrics.database_operation_duration_avg_ms > 500.0 {
             components.insert("database".to_string(), HealthLevel::Critical);
             issues.push("Slow database operations detected".to_string());
             HealthLevel::Critical
@@ -291,7 +309,7 @@ impl PerformanceDashboard {
         };
 
         // Cache health
-        let cache_health = if performance_metrics.cache_hit_rate_percent < 70.0 {
+        let _cache_health = if performance_metrics.cache_hit_rate_percent < 70.0 {
             components.insert("cache".to_string(), HealthLevel::Critical);
             issues.push("Low cache hit rate detected".to_string());
             HealthLevel::Critical
@@ -309,7 +327,9 @@ impl PerformanceDashboard {
         let warning_alerts = alerts.iter().filter(|a| a.severity == "Warning").count() as u32;
 
         // Calculate overall health
-        let overall = if critical_alerts > 0 || components.values().any(|h| *h == HealthLevel::Critical) {
+        let overall = if critical_alerts > 0
+            || components.values().any(|h| *h == HealthLevel::Critical)
+        {
             HealthLevel::Critical
         } else if warning_alerts > 2 || components.values().any(|h| *h == HealthLevel::Warning) {
             HealthLevel::Warning
@@ -331,7 +351,7 @@ impl PerformanceDashboard {
 
     pub async fn get_system_metrics_summary(&self) -> Result<String> {
         let dashboard_data = self.get_dashboard_data().await?;
-        
+
         Ok(format!(
             "System Metrics Summary:\n\
             - CPU Usage: {:.1}%\n\
@@ -355,7 +375,7 @@ impl PerformanceDashboard {
 
     pub async fn get_performance_summary(&self) -> Result<String> {
         let dashboard_data = self.get_dashboard_data().await?;
-        
+
         Ok(format!(
             "Performance Metrics Summary:\n\
             - Task Executions: {}\n\
@@ -371,9 +391,15 @@ impl PerformanceDashboard {
             dashboard_data.performance_metrics.task_failure_rate_percent,
             dashboard_data.performance_metrics.active_workers,
             dashboard_data.performance_metrics.queue_depth,
-            dashboard_data.performance_metrics.queue_processing_rate_per_second,
-            dashboard_data.performance_metrics.database_operation_duration_avg_ms,
-            dashboard_data.performance_metrics.api_response_duration_avg_ms,
+            dashboard_data
+                .performance_metrics
+                .queue_processing_rate_per_second,
+            dashboard_data
+                .performance_metrics
+                .database_operation_duration_avg_ms,
+            dashboard_data
+                .performance_metrics
+                .api_response_duration_avg_ms,
             dashboard_data.performance_metrics.api_error_rate_percent,
             dashboard_data.performance_metrics.cache_hit_rate_percent
         ))
@@ -381,10 +407,18 @@ impl PerformanceDashboard {
 
     pub async fn get_alert_summary(&self) -> Result<String> {
         let dashboard_data = self.get_dashboard_data().await?;
-        
-        let critical_count = dashboard_data.alerts.iter().filter(|a| a.severity == "Critical").count();
-        let warning_count = dashboard_data.alerts.iter().filter(|a| a.severity == "Warning").count();
-        
+
+        let critical_count = dashboard_data
+            .alerts
+            .iter()
+            .filter(|a| a.severity == "Critical")
+            .count();
+        let warning_count = dashboard_data
+            .alerts
+            .iter()
+            .filter(|a| a.severity == "Warning")
+            .count();
+
         if dashboard_data.alerts.is_empty() {
             return Ok("No active alerts".to_string());
         }
@@ -396,7 +430,11 @@ impl PerformanceDashboard {
         for alert in &dashboard_data.alerts {
             summary.push_str(&format!(
                 "- {}: {} ({}) - Current: {}, Threshold: {}\n",
-                alert.rule_name, alert.message, alert.severity, alert.current_value, alert.threshold
+                alert.rule_name,
+                alert.message,
+                alert.severity,
+                alert.current_value,
+                alert.threshold
             ));
         }
 
@@ -405,18 +443,25 @@ impl PerformanceDashboard {
 
     pub async fn get_benchmark_summary(&self) -> Result<String> {
         let dashboard_data = self.get_dashboard_data().await?;
-        
+
         if dashboard_data.benchmarks.is_empty() {
             return Ok("No benchmark data available".to_string());
         }
 
-        let mut summary = format!("Benchmark Summary ({} benchmarks):\n", dashboard_data.benchmarks.len());
-        
+        let mut summary = format!(
+            "Benchmark Summary ({} benchmarks):\n",
+            dashboard_data.benchmarks.len()
+        );
+
         for benchmark in &dashboard_data.benchmarks {
             let status = if benchmark.passed { "✓" } else { "✗" };
             summary.push_str(&format!(
                 "- {} {} (Score: {:.1}, Avg: {:.1}, Trend: {})\n",
-                status, benchmark.name, benchmark.latest_score, benchmark.average_score, benchmark.trend_direction
+                status,
+                benchmark.name,
+                benchmark.latest_score,
+                benchmark.average_score,
+                benchmark.trend_direction
             ));
         }
 

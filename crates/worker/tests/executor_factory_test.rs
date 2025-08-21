@@ -1,10 +1,10 @@
 #[cfg(test)]
 mod tests {
+    use scheduler_application::ExecutorRegistry;
+    use scheduler_config::models::{ExecutorConfig, ExecutorFactoryConfig, ExecutorInstanceConfig};
+    use scheduler_worker::ExecutorFactory;
     use std::collections::HashMap;
     use std::sync::Arc;
-    use scheduler_config::models::{ExecutorConfig, ExecutorInstanceConfig, ExecutorFactoryConfig};
-    use scheduler_worker::ExecutorFactory;
-    use scheduler_application::ExecutorRegistry;
 
     #[tokio::test]
     async fn test_executor_factory_creation() {
@@ -22,7 +22,7 @@ mod tests {
 
         let factory = ExecutorFactory::new(config);
         let result = factory.initialize().await;
-        
+
         // Should return Ok when disabled
         assert!(result.is_ok());
     }
@@ -52,7 +52,7 @@ mod tests {
 
         let factory = ExecutorFactory::new(config);
         let result = factory.initialize().await;
-        
+
         // Should initialize successfully
         assert!(result.is_ok());
     }
@@ -62,7 +62,7 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = Arc::new(ExecutorFactory::new(config));
         factory.initialize().await.unwrap();
-        
+
         let executor_list = factory.list_executors().await;
         assert!(!executor_list.is_empty());
         assert!(executor_list.contains(&"shell".to_string()));
@@ -73,7 +73,7 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = Arc::new(ExecutorFactory::new(config));
         factory.initialize().await.unwrap();
-        
+
         assert!(factory.contains("shell").await);
         assert!(factory.contains("http").await);
         assert!(!factory.contains("nonexistent").await);
@@ -84,10 +84,10 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = Arc::new(ExecutorFactory::new(config));
         factory.initialize().await.unwrap();
-        
+
         let executor = factory.get_executor("shell").await;
         assert!(executor.is_some());
-        
+
         let non_existent = factory.get_executor("nonexistent").await;
         assert!(non_existent.is_none());
     }
@@ -96,7 +96,7 @@ mod tests {
     async fn test_executor_factory_default_config() {
         let config = ExecutorConfig::default();
         let _factory = ExecutorFactory::new(config);
-        
+
         // Test that the factory was created successfully
         assert!(true);
     }
@@ -106,7 +106,7 @@ mod tests {
         let config = ExecutorConfig::default();
         let factory = Arc::new(ExecutorFactory::new(config));
         factory.initialize().await.unwrap();
-        
+
         let executor_list = factory.list_executors().await;
         assert!(executor_list.len() >= 2);
         assert!(executor_list.contains(&"shell".to_string()));

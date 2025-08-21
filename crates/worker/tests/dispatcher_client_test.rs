@@ -56,7 +56,7 @@ mod tests {
         // Should attempt to make HTTP request when URL is configured
         // This will likely fail due to no server running, but we can test the interface
         let _result = client.register(vec!["shell".to_string()]).await;
-        
+
         // We don't care about the result, just that it doesn't panic
         // The result will likely be an error since no server is running
         assert!(true);
@@ -87,7 +87,7 @@ mod tests {
 
         // Should attempt to make HTTP request when URL is configured
         let _result = client.send_heartbeat(5).await;
-        
+
         // We don't care about the result, just that it doesn't panic
         assert!(true);
     }

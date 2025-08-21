@@ -17,7 +17,9 @@ mod error_tests {
         assert_eq!(task_run_error.to_string(), "任务运行实例未找到: 456");
 
         // Test WorkerNotFound error
-        let worker_error = SchedulerError::WorkerNotFound { id: "worker-1".to_string() };
+        let worker_error = SchedulerError::WorkerNotFound {
+            id: "worker-1".to_string(),
+        };
         assert_eq!(worker_error.to_string(), "Worker未找到: worker-1");
 
         // Test ExecutionTimeout error
@@ -58,7 +60,10 @@ mod error_tests {
 
         // Test InvalidTaskParams error
         let params_error = SchedulerError::InvalidTaskParams("Invalid parameter".to_string());
-        assert_eq!(params_error.to_string(), "无效的任务参数: Invalid parameter");
+        assert_eq!(
+            params_error.to_string(),
+            "无效的任务参数: Invalid parameter"
+        );
 
         // Test ValidationError error
         let validation_error = SchedulerError::ValidationError("Invalid input".to_string());
@@ -158,7 +163,10 @@ mod error_tests {
             "请求的任务不存在"
         );
         assert_eq!(
-            SchedulerError::WorkerNotFound { id: "worker-1".to_string() }.user_message(),
+            SchedulerError::WorkerNotFound {
+                id: "worker-1".to_string()
+            }
+            .user_message(),
             "请求的Worker节点不存在"
         );
         assert_eq!(
@@ -206,7 +214,10 @@ mod error_tests {
         // Test SchedulerResult with Err value
         let result: SchedulerResult<i32> = Err(SchedulerError::TaskNotFound { id: 123 });
         assert!(result.is_err());
-        assert!(matches!(result.expect_err("Should be Err"), SchedulerError::TaskNotFound { .. }));
+        assert!(matches!(
+            result.expect_err("Should be Err"),
+            SchedulerError::TaskNotFound { .. }
+        ));
     }
 
     #[test]
@@ -220,7 +231,10 @@ mod error_tests {
     #[test]
     fn test_error_from_serde_json() {
         // Test conversion from serde_json::Error
-        let json_error = serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, "JSON parse error"));
+        let json_error = serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "JSON parse error",
+        ));
         let scheduler_error: SchedulerError = json_error.into();
         assert!(matches!(scheduler_error, SchedulerError::Serialization(_)));
     }
@@ -298,7 +312,10 @@ mod error_tests {
         let result: Result<(), SchedulerError> = Err(SchedulerError::TaskNotFound { id: 123 });
         let anyhow_result: Result<(), anyhow::Error> = result.map_err(|e| e.into());
         assert!(anyhow_result.is_err());
-        assert!(anyhow_result.expect_err("Should be Err").to_string().contains("任务未找到"));
+        assert!(anyhow_result
+            .expect_err("Should be Err")
+            .to_string()
+            .contains("任务未找到"));
     }
 
     #[test]

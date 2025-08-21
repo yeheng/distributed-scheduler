@@ -1,8 +1,8 @@
 use async_trait::async_trait;
 
 use scheduler_domain::entities::{Task, TaskRun, WorkerInfo};
-use scheduler_errors::SchedulerResult;
 use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_errors::SchedulerResult;
 
 #[async_trait]
 pub trait TaskSchedulerService: Send + Sync {

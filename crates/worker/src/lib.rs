@@ -13,4 +13,4 @@ mod executors_test;
 pub use components::*;
 pub use executor_factory::ExecutorFactory;
 pub use executors::{HttpExecutor, HttpTaskParams, ShellExecutor, ShellTaskParams};
-pub use service::{WorkerConfig, WorkerServiceImpl, WorkerServiceBuilder};
+pub use service::{WorkerConfig, WorkerServiceBuilder, WorkerServiceImpl};

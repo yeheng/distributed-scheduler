@@ -18,8 +18,8 @@ async fn test_login_with_valid_credentials() {
         as std::sync::Arc<dyn scheduler_domain::repositories::TaskRunRepository>;
     let worker_repo = std::sync::Arc::new(MockWorkerRepository)
         as std::sync::Arc<dyn scheduler_domain::repositories::WorkerRepository>;
-    let task_controller = std::sync::Arc::new(MockTaskController)
-        as std::sync::Arc<dyn TaskControlService>;
+    let task_controller =
+        std::sync::Arc::new(MockTaskController) as std::sync::Arc<dyn TaskControlService>;
 
     let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
 
@@ -60,8 +60,8 @@ async fn test_login_with_invalid_credentials() {
         as std::sync::Arc<dyn scheduler_domain::repositories::TaskRunRepository>;
     let worker_repo = std::sync::Arc::new(MockWorkerRepository)
         as std::sync::Arc<dyn scheduler_domain::repositories::WorkerRepository>;
-    let task_controller = std::sync::Arc::new(MockTaskController)
-        as std::sync::Arc<dyn TaskControlService>;
+    let task_controller =
+        std::sync::Arc::new(MockTaskController) as std::sync::Arc<dyn TaskControlService>;
 
     let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
 
@@ -93,8 +93,8 @@ async fn test_protected_endpoint_without_auth() {
         as std::sync::Arc<dyn scheduler_domain::repositories::TaskRunRepository>;
     let worker_repo = std::sync::Arc::new(MockWorkerRepository)
         as std::sync::Arc<dyn scheduler_domain::repositories::WorkerRepository>;
-    let task_controller = std::sync::Arc::new(MockTaskController)
-        as std::sync::Arc<dyn TaskControlService>;
+    let task_controller =
+        std::sync::Arc::new(MockTaskController) as std::sync::Arc<dyn TaskControlService>;
 
     // Create app with authentication enabled
     let auth_config = AuthConfig {
@@ -253,10 +253,7 @@ impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
         unimplemented!()
     }
 
-    async fn update(
-        &self,
-        _task: &scheduler_domain::entities::Task,
-    ) -> SchedulerResult<()> {
+    async fn update(&self, _task: &scheduler_domain::entities::Task) -> SchedulerResult<()> {
         unimplemented!()
     }
 
@@ -271,9 +268,7 @@ impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
         Ok(vec![])
     }
 
-    async fn get_active_tasks(
-        &self,
-    ) -> SchedulerResult<Vec<scheduler_domain::entities::Task>> {
+    async fn get_active_tasks(&self) -> SchedulerResult<Vec<scheduler_domain::entities::Task>> {
         unimplemented!()
     }
 
@@ -284,10 +279,7 @@ impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
         unimplemented!()
     }
 
-    async fn check_dependencies(
-        &self,
-        _task_id: i64,
-    ) -> SchedulerResult<bool> {
+    async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
         unimplemented!()
     }
 
@@ -323,10 +315,7 @@ impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository
         unimplemented!()
     }
 
-    async fn update(
-        &self,
-        _task_run: &scheduler_domain::entities::TaskRun,
-    ) -> SchedulerResult<()> {
+    async fn update(&self, _task_run: &scheduler_domain::entities::TaskRun) -> SchedulerResult<()> {
         unimplemented!()
     }
 
@@ -362,9 +351,7 @@ impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository
         unimplemented!()
     }
 
-    async fn get_running_runs(
-        &self,
-    ) -> SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
+    async fn get_running_runs(&self) -> SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
         unimplemented!()
     }
 
@@ -449,9 +436,7 @@ impl scheduler_domain::repositories::WorkerRepository for MockWorkerRepository {
         unimplemented!()
     }
 
-    async fn list(
-        &self,
-    ) -> SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
+    async fn list(&self) -> SchedulerResult<Vec<scheduler_domain::entities::WorkerInfo>> {
         Ok(vec![])
     }
 
@@ -492,16 +477,11 @@ impl scheduler_domain::repositories::WorkerRepository for MockWorkerRepository {
         unimplemented!()
     }
 
-    async fn cleanup_offline_workers(
-        &self,
-        _timeout_seconds: i64,
-    ) -> SchedulerResult<u64> {
+    async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> SchedulerResult<u64> {
         unimplemented!()
     }
 
-    async fn get_worker_load_stats(
-        &self,
-    ) -> SchedulerResult<Vec<WorkerLoadStats>> {
+    async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
         unimplemented!()
     }
 
@@ -542,17 +522,11 @@ impl TaskControlService for MockTaskController {
         unimplemented!()
     }
 
-    async fn cancel_all_task_runs(
-        &self,
-        _task_id: i64,
-    ) -> SchedulerResult<usize> {
+    async fn cancel_all_task_runs(&self, _task_id: i64) -> SchedulerResult<usize> {
         unimplemented!()
     }
 
-    async fn has_running_instances(
-        &self,
-        _task_id: i64,
-    ) -> SchedulerResult<bool> {
+    async fn has_running_instances(&self, _task_id: i64) -> SchedulerResult<bool> {
         unimplemented!()
     }
 

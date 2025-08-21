@@ -1,10 +1,10 @@
+use crate::metrics_collector::MetricsCollector;
 use anyhow::Result;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::RwLock;
 use tokio::time::{interval, Duration};
-use tracing::{info, warn, error};
-use crate::metrics_collector::MetricsCollector;
+use tracing::{error, info, warn};
 
 #[derive(Debug, Clone)]
 pub struct AlertRule {
@@ -193,12 +193,12 @@ impl AlertManager {
         let _rules = self.rules.clone();
         let _active_alerts = self.active_alerts.clone();
         let _notification_channels = self.notification_channels.clone();
-        
+
         let mut interval = interval(Duration::from_secs(30)); // Check every 30 seconds
 
         loop {
             interval.tick().await;
-            
+
             if let Err(e) = self.check_and_update_alerts().await {
                 error!("Error checking alerts: {}", e);
             }
@@ -216,7 +216,8 @@ impl AlertManager {
             }
 
             if let Some(current_value) = self.get_metric_value(&rule.metric_name).await {
-                let condition_met = self.check_condition(&rule.condition, current_value, rule.threshold);
+                let condition_met =
+                    self.check_condition(&rule.condition, current_value, rule.threshold);
                 let alert_key = format!("{}:{}", rule.name, rule.metric_name);
 
                 if condition_met {
@@ -258,12 +259,12 @@ impl AlertManager {
         match metric_name {
             "scheduler_system_cpu_usage_percent" => Some(50.0), // Placeholder
             "scheduler_system_memory_usage_mb" => Some(2000.0), // Placeholder
-            "scheduler_queue_depth" => Some(100.0), // Placeholder
+            "scheduler_queue_depth" => Some(100.0),             // Placeholder
             "scheduler_database_connection_failures_total" => Some(0.0), // Placeholder
-            "scheduler_task_failures_total" => Some(5.0), // Placeholder
-            "scheduler_worker_failures_total" => Some(0.0), // Placeholder
-            "scheduler_api_error_rate_total" => Some(2.0), // Placeholder
-            "scheduler_cache_hit_rate_percent" => Some(95.0), // Placeholder
+            "scheduler_task_failures_total" => Some(5.0),       // Placeholder
+            "scheduler_worker_failures_total" => Some(0.0),     // Placeholder
+            "scheduler_api_error_rate_total" => Some(2.0),      // Placeholder
+            "scheduler_cache_hit_rate_percent" => Some(95.0),   // Placeholder
             "scheduler_message_queue_consumer_lag_seconds" => Some(5.0), // Placeholder
             _ => None,
         }
@@ -401,7 +402,10 @@ pub struct WebhookNotificationChannel {
 
 impl WebhookNotificationChannel {
     pub fn new(webhook_url: String, headers: HashMap<String, String>) -> Self {
-        Self { webhook_url, headers }
+        Self {
+            webhook_url,
+            headers,
+        }
     }
 }
 

@@ -1,4 +1,4 @@
-use crate::auth::{AuthType, AuthenticatedUser, Claims, Permission};
+use crate::auth::{AuthType, AuthenticatedUser, Permission};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use uuid::Uuid;
@@ -217,7 +217,7 @@ mod tests {
     fn test_user_role_admin_permissions() {
         let role = UserRole::Admin;
         let permissions = role.permissions();
-        
+
         assert!(permissions.contains(&Permission::Admin));
         assert!(permissions.contains(&Permission::TaskRead));
         assert!(permissions.contains(&Permission::TaskWrite));
@@ -232,13 +232,13 @@ mod tests {
     fn test_user_role_operator_permissions() {
         let role = UserRole::Operator;
         let permissions = role.permissions();
-        
+
         assert!(permissions.contains(&Permission::TaskRead));
         assert!(permissions.contains(&Permission::TaskWrite));
         assert!(permissions.contains(&Permission::WorkerRead));
         assert!(permissions.contains(&Permission::WorkerWrite));
         assert!(permissions.contains(&Permission::SystemRead));
-        
+
         // Should not have admin permissions
         assert!(!permissions.contains(&Permission::Admin));
         assert!(!permissions.contains(&Permission::TaskDelete));
@@ -249,11 +249,11 @@ mod tests {
     fn test_user_role_viewer_permissions() {
         let role = UserRole::Viewer;
         let permissions = role.permissions();
-        
+
         assert!(permissions.contains(&Permission::TaskRead));
         assert!(permissions.contains(&Permission::WorkerRead));
         assert!(permissions.contains(&Permission::SystemRead));
-        
+
         // Should only have read permissions
         assert!(!permissions.contains(&Permission::TaskWrite));
         assert!(!permissions.contains(&Permission::TaskDelete));
@@ -271,8 +271,7 @@ mod tests {
                 sub: "admin_user".to_string(),
                 exp: 0,
                 iat: 0,
-                permissions: vec
-!["Admin".to_string()],
+                permissions: vec!["Admin".to_string()],
                 user_id: "admin_user".to_string(),
             }),
         };
@@ -290,8 +289,7 @@ mod tests {
                 sub: "operator_user".to_string(),
                 exp: 0,
                 iat: 0,
-                permissions: vec
-!["TaskWrite".to_string()],
+                permissions: vec!["TaskWrite".to_string()],
                 user_id: "operator_user".to_string(),
             }),
         };
@@ -309,8 +307,7 @@ mod tests {
                 sub: "viewer_user".to_string(),
                 exp: 0,
                 iat: 0,
-                permissions: vec
-!["TaskRead".to_string()],
+                permissions: vec!["TaskRead".to_string()],
                 user_id: "viewer_user".to_string(),
             }),
         };
@@ -421,7 +418,9 @@ mod tests {
         let service = UserService::new();
 
         // Authentication with non-existent user should fail
-        let result = service.authenticate_user("nonexistent", "password123").await;
+        let result = service
+            .authenticate_user("nonexistent", "password123")
+            .await;
         assert!(result.is_err());
     }
 
@@ -487,7 +486,7 @@ mod tests {
         assert_eq!(user_response.username, "testuser");
         assert_eq!(user_response.email, "test@example.com");
         assert_eq!(user_response.role, UserRole::Operator);
-        
+
         // Should contain operator permissions
         assert!(user_response.permissions.contains(&Permission::TaskRead));
         assert!(user_response.permissions.contains(&Permission::TaskWrite));

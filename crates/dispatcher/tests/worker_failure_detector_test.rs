@@ -19,7 +19,7 @@ mod tests {
             auto_cleanup_offline_workers: false,
             offline_cleanup_threshold_seconds: 600,
         };
-        
+
         assert_eq!(config.heartbeat_timeout_seconds, 60);
         assert_eq!(config.detection_interval_seconds, 15);
         assert!(!config.auto_cleanup_offline_workers);
@@ -30,11 +30,23 @@ mod tests {
     fn test_config_clone() {
         let config = WorkerFailureDetectorConfig::default();
         let cloned = config.clone();
-        
-        assert_eq!(cloned.heartbeat_timeout_seconds, config.heartbeat_timeout_seconds);
-        assert_eq!(cloned.detection_interval_seconds, config.detection_interval_seconds);
-        assert_eq!(cloned.auto_cleanup_offline_workers, config.auto_cleanup_offline_workers);
-        assert_eq!(cloned.offline_cleanup_threshold_seconds, config.offline_cleanup_threshold_seconds);
+
+        assert_eq!(
+            cloned.heartbeat_timeout_seconds,
+            config.heartbeat_timeout_seconds
+        );
+        assert_eq!(
+            cloned.detection_interval_seconds,
+            config.detection_interval_seconds
+        );
+        assert_eq!(
+            cloned.auto_cleanup_offline_workers,
+            config.auto_cleanup_offline_workers
+        );
+        assert_eq!(
+            cloned.offline_cleanup_threshold_seconds,
+            config.offline_cleanup_threshold_seconds
+        );
     }
 
     #[test]
@@ -48,10 +60,10 @@ mod tests {
     fn test_worker_failure_detector_service_trait_exists() {
         // This test just ensures the trait is accessible
         use scheduler_dispatcher::worker_failure_detector::WorkerFailureDetectorService;
-        
+
         // Test compiles if trait is accessible
         fn _uses_trait<T: WorkerFailureDetectorService>() {}
-        
+
         // If this compiles, the trait exists and is accessible
         assert!(true);
     }

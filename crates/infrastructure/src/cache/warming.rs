@@ -948,7 +948,10 @@ mod tests {
                 Ok(Vec::new())
             }
 
-            async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
+            async fn get_timeout_runs(
+                &self,
+                _timeout_seconds: i64,
+            ) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
 
@@ -970,7 +973,11 @@ mod tests {
                 Ok(())
             }
 
-            async fn get_recent_runs(&self, _task_id: i64, _limit: i64) -> SchedulerResult<Vec<TaskRun>> {
+            async fn get_recent_runs(
+                &self,
+                _task_id: i64,
+                _limit: i64,
+            ) -> SchedulerResult<Vec<TaskRun>> {
                 Ok(Vec::new())
             }
 

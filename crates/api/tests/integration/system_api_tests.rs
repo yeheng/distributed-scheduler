@@ -64,7 +64,10 @@ async fn test_system_endpoints_with_auth() {
 
     assert_eq!(login_response.status(), 200);
 
-    let login_body: Value = login_response.json().await.expect("Failed to parse response");
+    let login_body: Value = login_response
+        .json()
+        .await
+        .expect("Failed to parse response");
     let access_token = login_body["data"]["access_token"].as_str().unwrap();
 
     // Test system stats with authentication
@@ -114,10 +117,17 @@ async fn test_task_execution_stats_with_data() {
 
     // Task creation should work (201) or fail with validation (422/400)
     println!("Task creation status: {}", create_response.status());
-    assert!(create_response.status() == 201 || create_response.status() == 422 || create_response.status() == 400);
-    
+    assert!(
+        create_response.status() == 201
+            || create_response.status() == 422
+            || create_response.status() == 400
+    );
+
     if create_response.status() == 201 {
-        let create_body: Value = create_response.json().await.expect("Failed to parse response");
+        let create_body: Value = create_response
+            .json()
+            .await
+            .expect("Failed to parse response");
         let task_id = create_body["data"]["id"].as_i64().unwrap();
 
         // Trigger the task to create a run
@@ -138,9 +148,12 @@ async fn test_task_execution_stats_with_data() {
 
         assert_eq!(stats_response.status(), 200);
 
-        let stats_body: Value = stats_response.json().await.expect("Failed to parse response");
+        let stats_body: Value = stats_response
+            .json()
+            .await
+            .expect("Failed to parse response");
         let data = &stats_body["data"];
-        
+
         // The stats endpoint works, actual fields depend on implementation
         assert!(data.is_object());
     }
@@ -162,7 +175,10 @@ async fn test_worker_registration_and_retrieval() {
 
     assert_eq!(list_response.status(), 200);
 
-    let list_body: Value = list_response.json().await.expect("Failed to parse response");
+    let list_body: Value = list_response
+        .json()
+        .await
+        .expect("Failed to parse response");
     assert_eq!(list_body["data"]["total"], 0);
 
     // Try to get a non-existent worker
@@ -201,9 +217,12 @@ async fn test_task_lifecycle_with_all_operations() {
 
     // Task creation should succeed (201) or fail with validation (422)
     assert!(create_response.status() == 201 || create_response.status() == 422);
-    
+
     if create_response.status() == 201 {
-        let create_body: Value = create_response.json().await.expect("Failed to parse response");
+        let create_body: Value = create_response
+            .json()
+            .await
+            .expect("Failed to parse response");
         let task_id = create_body["data"]["id"].as_i64().unwrap();
 
         // Get the task
@@ -229,8 +248,7 @@ async fn test_task_lifecycle_with_all_operations() {
 
         // Patch should succeed (200) or fail with validation (422)
         assert!(patch_response.status() == 200 || patch_response.status() == 422);
-
-        }
+    }
 
     app.cleanup().await;
 }

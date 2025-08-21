@@ -163,7 +163,7 @@ mod tests {
     };
     use scheduler_application::TaskControlService;
     use scheduler_domain::*;
-        use std::sync::Arc;
+    use std::sync::Arc;
     use tower::ServiceExt;
     struct MockTaskRepository;
     struct MockTaskRunRepository;
@@ -182,16 +182,14 @@ mod tests {
         async fn get_by_id(
             &self,
             _id: i64,
-        ) -> scheduler_errors::SchedulerResult<Option<scheduler_domain::entities::Task>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Option<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
         async fn get_by_name(
             &self,
             _name: &str,
-        ) -> scheduler_errors::SchedulerResult<Option<scheduler_domain::entities::Task>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Option<scheduler_domain::entities::Task>> {
             unimplemented!()
         }
 
@@ -280,47 +278,41 @@ mod tests {
         async fn get_by_task_id(
             &self,
             _task_id: i64,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_by_worker_id(
             &self,
             _worker_id: &str,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_by_status(
             &self,
             _status: scheduler_domain::entities::TaskRunStatus,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             Ok(vec![])
         }
 
         async fn get_pending_runs(
             &self,
             _limit: Option<i64>,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_running_runs(
             &self,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
         async fn get_timeout_runs(
             &self,
             _timeout_seconds: i64,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
@@ -346,8 +338,7 @@ mod tests {
             &self,
             _task_id: i64,
             _limit: i64,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
 
@@ -493,10 +484,7 @@ mod tests {
             unimplemented!()
         }
 
-        async fn abort_task_run(
-            &self,
-            _task_run_id: i64,
-        ) -> scheduler_errors::SchedulerResult<()> {
+        async fn abort_task_run(&self, _task_run_id: i64) -> scheduler_errors::SchedulerResult<()> {
             unimplemented!()
         }
 
@@ -518,8 +506,7 @@ mod tests {
             &self,
             _task_id: i64,
             _limit: usize,
-        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>>
-        {
+        ) -> scheduler_errors::SchedulerResult<Vec<scheduler_domain::entities::TaskRun>> {
             unimplemented!()
         }
     }

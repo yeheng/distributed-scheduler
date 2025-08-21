@@ -1,11 +1,11 @@
 use chrono::Utc;
 use scheduler_domain::entities::*;
 use scheduler_domain::repositories::*;
-use scheduler_testing_utils::MockMessageQueue;
 use scheduler_domain::MessageQueue;
 use scheduler_infrastructure::database::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
 };
+use scheduler_testing_utils::MockMessageQueue;
 use sqlx::PgPool;
 use testcontainers::{runners::AsyncRunner, ContainerAsync, ImageExt};
 use testcontainers_modules::postgres::Postgres;

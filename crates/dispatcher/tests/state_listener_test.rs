@@ -7,7 +7,7 @@ mod tests {
         let task_run_repo = scheduler_testing_utils::mocks::MockTaskRunRepository::new();
         let worker_repo = scheduler_testing_utils::mocks::MockWorkerRepository::new();
         let message_queue = scheduler_testing_utils::mocks::MockMessageQueue::new();
-        
+
         let _listener = StateListener::new(
             std::sync::Arc::new(task_run_repo),
             std::sync::Arc::new(worker_repo),
@@ -15,17 +15,16 @@ mod tests {
             "status_queue".to_string(),
             "heartbeat_queue".to_string(),
         );
-        
+
         // Test passes if we can create without panicking
     }
 
-    
     #[tokio::test]
     async fn test_state_listener_start_stop() {
         let task_run_repo = scheduler_testing_utils::mocks::MockTaskRunRepository::new();
         let worker_repo = scheduler_testing_utils::mocks::MockWorkerRepository::new();
         let message_queue = scheduler_testing_utils::mocks::MockMessageQueue::new();
-        
+
         let listener = StateListener::new(
             std::sync::Arc::new(task_run_repo),
             std::sync::Arc::new(worker_repo),
@@ -45,7 +44,7 @@ mod tests {
         let task_run_repo = scheduler_testing_utils::mocks::MockTaskRunRepository::new();
         let worker_repo = scheduler_testing_utils::mocks::MockWorkerRepository::new();
         let message_queue = scheduler_testing_utils::mocks::MockMessageQueue::new();
-        
+
         let listener = StateListener::new(
             std::sync::Arc::new(task_run_repo),
             std::sync::Arc::new(worker_repo),
@@ -56,7 +55,7 @@ mod tests {
 
         // Test initial state
         assert!(!listener.is_running().await);
-        
+
         // Test that stop works even when not running
         let _result = listener.stop().await;
         assert!(!listener.is_running().await);

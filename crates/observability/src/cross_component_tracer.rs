@@ -138,7 +138,7 @@ mod tests {
         headers.insert("tracestate".to_string(), "vendor1=value1".to_string());
 
         let context = CrossComponentTracer::extract_trace_context_from_headers(&headers);
-        
+
         // Context should be extracted (we can't inspect the internal structure easily)
         // but we can verify it doesn't panic and returns Some
         assert!(context.is_some());
@@ -148,7 +148,7 @@ mod tests {
     fn test_extract_trace_context_from_empty_headers() {
         let headers = std::collections::HashMap::new();
         let context = CrossComponentTracer::extract_trace_context_from_headers(&headers);
-        
+
         // OpenTelemetry may return a default context even for empty headers
         // The important thing is that it doesn't panic
         let _context = context;
@@ -158,7 +158,7 @@ mod tests {
     fn test_inject_trace_context_into_headers() {
         let mut headers = std::collections::HashMap::new();
         CrossComponentTracer::inject_trace_context_into_headers(&mut headers);
-        
+
         // Headers should be modified (we can't easily verify the exact content
         // but we can verify it doesn't panic)
         let _headers = headers;
@@ -171,15 +171,19 @@ mod tests {
             "traceparent".to_string(),
             "00-12345678901234567890123456789012-1234567890123456-01".to_string(),
         );
-        
+
         if let Some(context) = CrossComponentTracer::extract_trace_context_from_headers(&headers) {
             let attributes = vec![
                 ("key1".to_string(), "value1".to_string()),
                 ("key2".to_string(), "value2".to_string()),
             ];
-            
-            let span = CrossComponentTracer::create_child_span_from_context(context, "test_span", attributes);
-            
+
+            let span = CrossComponentTracer::create_child_span_from_context(
+                context,
+                "test_span",
+                attributes,
+            );
+
             // Span should be created without panic
             let _span = span;
         }
@@ -201,7 +205,7 @@ mod tests {
 
         let message = Message::task_execution(task_execution);
         let span = CrossComponentTracer::create_span_from_message(&message, "test_operation");
-        
+
         // Span should be created without panic
         let _span = span;
     }
@@ -228,7 +232,7 @@ mod tests {
 
         let message = Message::task_execution(task_execution).with_trace_headers(headers);
         let span = CrossComponentTracer::create_span_from_message(&message, "test_operation");
-        
+
         // Span should be created without panic
         let _span = span;
     }
@@ -249,7 +253,7 @@ mod tests {
 
         let message = Message::task_execution(task_execution);
         let message_with_trace = CrossComponentTracer::inject_trace_context_into_message(message);
-        
+
         // Message should be modified with trace headers
         let _message = message_with_trace;
     }
@@ -260,9 +264,13 @@ mod tests {
             ("service".to_string(), "test_service".to_string()),
             ("operation".to_string(), "test_operation".to_string()),
         ];
-        
-        let span = CrossComponentTracer::instrument_service_call("test_service", "test_operation", attributes);
-        
+
+        let span = CrossComponentTracer::instrument_service_call(
+            "test_service",
+            "test_operation",
+            attributes,
+        );
+
         // Span should be created without panic
         let _span = span;
     }
@@ -271,9 +279,9 @@ mod tests {
     fn test_header_extraction_with_invalid_traceparent() {
         let mut headers = std::collections::HashMap::new();
         headers.insert("traceparent".to_string(), "invalid-traceparent".to_string());
-        
+
         let context = CrossComponentTracer::extract_trace_context_from_headers(&headers);
-        
+
         // Should still return Some (OpenTelemetry is lenient)
         assert!(context.is_some());
     }
@@ -281,11 +289,14 @@ mod tests {
     #[test]
     fn test_header_extraction_with_partial_headers() {
         let mut headers = std::collections::HashMap::new();
-        headers.insert("traceparent".to_string(), "00-12345678901234567890123456789012-1234567890123456-01".to_string());
+        headers.insert(
+            "traceparent".to_string(),
+            "00-12345678901234567890123456789012-1234567890123456-01".to_string(),
+        );
         // Missing tracestate
-        
+
         let context = CrossComponentTracer::extract_trace_context_from_headers(&headers);
-        
+
         // Should work with just traceparent
         assert!(context.is_some());
     }
@@ -306,15 +317,17 @@ mod tests {
 
         let message = Message::task_execution(task_execution);
         let span = CrossComponentTracer::create_span_from_message(&message, "");
-        
+
         // Should handle edge cases without panic
         let _span = span;
     }
 
     #[test]
     fn test_span_creation_with_long_strings() {
-        let long_task_name = "very-long-task-name-with-many-characters-and-descriptive-text-1234567890";
-        let long_task_type = "very-long-task-type-with-detailed-classification-and-category-1234567890";
+        let long_task_name =
+            "very-long-task-name-with-many-characters-and-descriptive-text-1234567890";
+        let long_task_type =
+            "very-long-task-type-with-detailed-classification-and-category-1234567890";
         let long_operation = "very-long-operation-name-with-detailed-description-1234567890";
 
         let task_execution = TaskExecutionMessage {
@@ -331,7 +344,7 @@ mod tests {
 
         let message = Message::task_execution(task_execution);
         let span = CrossComponentTracer::create_span_from_message(&message, long_operation);
-        
+
         // Should handle long strings without panic
         let _span = span;
     }
@@ -355,7 +368,7 @@ mod tests {
 
         let message = Message::task_execution(task_execution);
         let span = CrossComponentTracer::create_span_from_message(&message, special_operation);
-        
+
         // Should handle special characters without panic
         let _span = span;
     }
@@ -377,7 +390,7 @@ mod tests {
         let message = Message::task_execution(task_execution)
             .with_correlation_id("test-correlation-id".to_string());
         let span = CrossComponentTracer::create_span_from_message(&message, "test_operation");
-        
+
         // Should handle correlation ID without panic
         let _span = span;
     }
@@ -397,10 +410,13 @@ mod tests {
         };
 
         let message = Message::task_execution(task_execution);
-        
+
         // Create multiple spans
         for i in 0..10 {
-            let span = CrossComponentTracer::create_span_from_message(&message, &format!("operation_{}", i));
+            let span = CrossComponentTracer::create_span_from_message(
+                &message,
+                &format!("operation_{}", i),
+            );
             let _span = span;
         }
     }
@@ -420,13 +436,16 @@ mod tests {
         };
 
         let message = Message::task_execution(task_execution);
-        
+
         // Create spans from multiple threads
         let handles: Vec<_> = (0..10)
             .map(|i| {
                 let message = message.clone();
                 std::thread::spawn(move || {
-                    CrossComponentTracer::create_span_from_message(&message, &format!("concurrent_operation_{}", i));
+                    CrossComponentTracer::create_span_from_message(
+                        &message,
+                        &format!("concurrent_operation_{}", i),
+                    );
                 })
             })
             .collect();
@@ -440,14 +459,27 @@ mod tests {
     #[test]
     fn test_service_call_span_with_various_attributes() {
         let test_cases = vec![
-            vec![("service".to_string(), "database".to_string()), ("operation".to_string(), "query".to_string())],
-            vec![("service".to_string(), "api".to_string()), ("operation".to_string(), "request".to_string())],
-            vec![("service".to_string(), "cache".to_string()), ("operation".to_string(), "get".to_string())],
+            vec![
+                ("service".to_string(), "database".to_string()),
+                ("operation".to_string(), "query".to_string()),
+            ],
+            vec![
+                ("service".to_string(), "api".to_string()),
+                ("operation".to_string(), "request".to_string()),
+            ],
+            vec![
+                ("service".to_string(), "cache".to_string()),
+                ("operation".to_string(), "get".to_string()),
+            ],
             vec![],
         ];
 
         for attributes in test_cases {
-            let span = CrossComponentTracer::instrument_service_call("test_service", "test_operation", attributes.clone());
+            let span = CrossComponentTracer::instrument_service_call(
+                "test_service",
+                "test_operation",
+                attributes.clone(),
+            );
             let _span = span;
         }
     }
@@ -456,14 +488,14 @@ mod tests {
     fn test_trace_context_round_trip() {
         // Test that trace context can be extracted and injected back
         let original_headers = std::collections::HashMap::new();
-        
+
         // Inject trace context
         let mut headers = original_headers.clone();
         CrossComponentTracer::inject_trace_context_into_headers(&mut headers);
-        
+
         // Extract it back
         let context = CrossComponentTracer::extract_trace_context_from_headers(&headers);
-        
+
         // Verify round-trip works (context should be present if tracing is active)
         let _context = context;
     }
@@ -491,7 +523,11 @@ mod tests {
     #[test]
     fn test_empty_attribute_list() {
         let attributes = vec![];
-        let span = CrossComponentTracer::instrument_service_call("test_service", "test_operation", attributes);
+        let span = CrossComponentTracer::instrument_service_call(
+            "test_service",
+            "test_operation",
+            attributes,
+        );
         let _span = span;
     }
 
@@ -500,8 +536,12 @@ mod tests {
         let attributes: Vec<_> = (0..100)
             .map(|i| (format!("key_{}", i), format!("value_{}", i)))
             .collect();
-        
-        let span = CrossComponentTracer::instrument_service_call("test_service", "test_operation", attributes);
+
+        let span = CrossComponentTracer::instrument_service_call(
+            "test_service",
+            "test_operation",
+            attributes,
+        );
         let _span = span;
     }
 }

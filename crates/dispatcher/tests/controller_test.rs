@@ -16,7 +16,7 @@ mod tests {
         summary.running = 3;
         summary.completed = 10;
         summary.failed = 2;
-        
+
         assert_eq!(summary.total(), 20);
         assert_eq!(summary.active(), 8); // pending + running
         assert_eq!(summary.finished(), 12); // completed + failed + cancelled (0)
@@ -28,7 +28,7 @@ mod tests {
         summary.pending = 1;
         summary.running = 2;
         summary.completed = 3;
-        
+
         let cloned = summary.clone();
         assert_eq!(cloned.pending, 1);
         assert_eq!(cloned.running, 2);
@@ -49,14 +49,14 @@ mod tests {
         let task_repo = scheduler_testing_utils::mocks::MockTaskRepository::new();
         let task_run_repo = scheduler_testing_utils::mocks::MockTaskRunRepository::new();
         let message_queue = scheduler_testing_utils::mocks::MockMessageQueue::new();
-        
+
         let _controller = TaskController::new(
             std::sync::Arc::new(task_repo),
             std::sync::Arc::new(task_run_repo),
             std::sync::Arc::new(message_queue),
             "test_control_queue".to_string(),
         );
-        
+
         // If we get here without panicking, the test passes
     }
 }

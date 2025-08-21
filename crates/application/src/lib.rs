@@ -1,10 +1,10 @@
 pub mod interfaces;
-pub mod services;
 pub mod ports;
+pub mod services;
 
 // Re-export services and ports, but not interfaces to avoid duplicates
-pub use services::*;
 pub use ports::*;
+pub use services::*;
 
 #[cfg(test)]
 mod tests {
@@ -115,7 +115,7 @@ mod tests {
     #[test]
     fn test_task_run_status_updates() {
         let mut task_run = TaskRun::new(1, Utc::now());
-        
+
         // Test status update to Running
         task_run.update_status(TaskRunStatus::Running);
         assert_eq!(task_run.status, TaskRunStatus::Running);
@@ -165,10 +165,10 @@ mod tests {
 
         let mut worker = WorkerInfo::new(registration);
         worker.current_task_count = 2;
-        
+
         assert_eq!(worker.load_percentage(), 40.0);
         assert!(worker.can_accept_task("test_type"));
-        
+
         worker.current_task_count = 5;
         assert_eq!(worker.load_percentage(), 100.0);
         assert!(!worker.can_accept_task("test_type"));
@@ -177,18 +177,21 @@ mod tests {
     #[test]
     fn test_cron_scheduler_creation() {
         use crate::services::cron_utils::CronScheduler;
-        
+
         let scheduler = CronScheduler::new("0 0 * * * *").unwrap();
-        assert_eq!(scheduler.get_schedule_description(), "Cron schedule: 0 0 * * * *");
+        assert_eq!(
+            scheduler.get_schedule_description(),
+            "Cron schedule: 0 0 * * * *"
+        );
     }
 
     #[test]
     fn test_cron_scheduler_invalid_expression() {
         use crate::services::cron_utils::CronScheduler;
-        
+
         let result = CronScheduler::new("invalid cron expression");
         assert!(result.is_err());
-        
+
         match result.unwrap_err() {
             SchedulerError::InvalidCron { expr, .. } => {
                 assert_eq!(expr, "invalid cron expression");
@@ -200,13 +203,13 @@ mod tests {
     #[test]
     fn test_dependency_check_result_creation() {
         use crate::services::dependency_checker::DependencyCheckResult;
-        
+
         let result = DependencyCheckResult {
             can_execute: true,
             blocking_dependencies: vec![1, 2],
             reason: Some("Waiting for dependencies".to_string()),
         };
-        
+
         assert!(result.can_execute);
         assert_eq!(result.blocking_dependencies, vec![1, 2]);
         assert_eq!(result.reason, Some("Waiting for dependencies".to_string()));
@@ -215,7 +218,7 @@ mod tests {
     #[test]
     fn test_scheduler_stats_creation() {
         use crate::interfaces::service_interfaces::SchedulerStats;
-        
+
         let stats = SchedulerStats {
             total_tasks: 100,
             active_tasks: 50,
@@ -236,7 +239,7 @@ mod tests {
     #[test]
     fn test_worker_load_stats_creation() {
         use crate::interfaces::service_interfaces::WorkerLoadStats;
-        
+
         let stats = WorkerLoadStats {
             worker_id: "worker-1".to_string(),
             current_task_count: 3,
@@ -256,7 +259,7 @@ mod tests {
     #[test]
     fn test_worker_heartbeat_creation() {
         use crate::interfaces::service_interfaces::WorkerHeartbeat;
-        
+
         let heartbeat = WorkerHeartbeat {
             current_task_count: 2,
             system_load: Some(1.5),
@@ -272,9 +275,9 @@ mod tests {
     #[test]
     fn test_data_structures_are_send_sync() {
         use crate::interfaces::service_interfaces::*;
-        
+
         fn assert_send_sync<T: Send + Sync>() {}
-        
+
         // Test that data structures are Send and Sync
         assert_send_sync::<SchedulerStats>();
         assert_send_sync::<WorkerLoadStats>();
@@ -284,7 +287,7 @@ mod tests {
     #[test]
     fn test_data_structures_are_clone() {
         use crate::interfaces::service_interfaces::*;
-        
+
         let stats = SchedulerStats {
             total_tasks: 100,
             active_tasks: 50,
@@ -302,7 +305,7 @@ mod tests {
     #[test]
     fn test_data_structures_debug() {
         use crate::interfaces::service_interfaces::*;
-        
+
         let stats = SchedulerStats {
             total_tasks: 1,
             active_tasks: 1,

@@ -1,10 +1,10 @@
 use std::sync::Arc;
 
+use scheduler_application::{ExecutorRegistry, WorkerService};
+use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::TaskRun;
 use scheduler_domain::events::TaskStatusUpdate;
-use scheduler_application::{ExecutorRegistry, WorkerService};
 use scheduler_errors::SchedulerResult;
-use scheduler_core::ServiceLocator;
 
 use crate::components::{
     DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
@@ -273,9 +273,7 @@ impl WorkerServiceBuilder {
 
     pub async fn build(self) -> SchedulerResult<WorkerServiceImpl> {
         let executor_registry = self.executor_registry.ok_or_else(|| {
-            scheduler_errors::SchedulerError::Internal(
-                "Executor registry is required".to_string(),
-            )
+            scheduler_errors::SchedulerError::Internal("Executor registry is required".to_string())
         })?;
 
         Ok(WorkerServiceImpl::new(

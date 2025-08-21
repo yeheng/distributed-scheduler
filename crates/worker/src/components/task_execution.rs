@@ -2,8 +2,8 @@ use std::collections::HashMap;
 use std::sync::Arc;
 
 use chrono::Utc;
-use scheduler_domain::entities::{TaskExecutionMessage, TaskRun, TaskRunStatus};
 use scheduler_application::ports::{ExecutorRegistry, ResourceLimits, TaskExecutionContext};
+use scheduler_domain::entities::{TaskExecutionMessage, TaskRun, TaskRunStatus};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};

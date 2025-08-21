@@ -12,7 +12,7 @@ use crate::{
 pub struct ConfigValidator {
     security: ConfigSecurity,
     environment: Environment,
-    security_policy: SecurityPolicy,
+    _security_policy: SecurityPolicy,
 }
 
 /// Validation result with detailed information
@@ -124,7 +124,7 @@ impl ConfigValidator {
         Self {
             security,
             environment,
-            security_policy,
+            _security_policy: security_policy,
         }
     }
 
@@ -540,12 +540,11 @@ impl ConfigValidator {
         warnings: &mut Vec<ValidationWarning>,
     ) {
         use once_cell::sync::Lazy;
-        
+
         static FALLBACK_REGEX: Lazy<Regex> = Lazy::new(|| Regex::new(r".*").unwrap());
-        static EMAIL_REGEX: Lazy<Regex> = Lazy::new(|| {
-            Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap()
-        });
-        
+        static EMAIL_REGEX: Lazy<Regex> =
+            Lazy::new(|| Regex::new(r"^[a-zA-Z0-9._%+-]+@[a-zA-Z0-9.-]+\.[a-zA-Z]{2,}$").unwrap());
+
         let rules = self.get_validation_rules();
 
         for rule in rules {
@@ -560,8 +559,8 @@ impl ConfigValidator {
                         let is_valid = match &rule.validation_type {
                             ValidationType::Required => !value_str.is_empty(),
                             ValidationType::Regex(pattern) => {
-                                let re = Regex::new(pattern)
-                                    .unwrap_or_else(|_| FALLBACK_REGEX.clone());
+                                let re =
+                                    Regex::new(pattern).unwrap_or_else(|_| FALLBACK_REGEX.clone());
                                 re.is_match(value_str)
                             }
                             ValidationType::MinLength(min) => value_str.len() >= *min as usize,
@@ -580,9 +579,7 @@ impl ConfigValidator {
                                 options.contains(&value_str.to_string())
                             }
                             ValidationType::Url => Url::parse(value_str).is_ok(),
-                            ValidationType::Email => {
-                                EMAIL_REGEX.is_match(value_str)
-                            }
+                            ValidationType::Email => EMAIL_REGEX.is_match(value_str),
                             ValidationType::PasswordStrength => {
                                 // Check for password strength
                                 value_str.len() >= 8

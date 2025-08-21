@@ -379,7 +379,10 @@ mod tests {
         assert_eq!(cloned_config.output, config.output);
         assert_eq!(cloned_config.include_location, config.include_location);
         assert_eq!(cloned_config.include_thread_id, config.include_thread_id);
-        assert_eq!(cloned_config.include_thread_name, config.include_thread_name);
+        assert_eq!(
+            cloned_config.include_thread_name,
+            config.include_thread_name
+        );
     }
 
     #[test]
@@ -409,7 +412,7 @@ mod tests {
         // Test that initialization handles errors gracefully
         // We can't easily simulate errors in the initialization process
         // but we can test that the functions return Result types appropriately
-        
+
         let config = LoggingConfig::default();
         let result = init_structured_logging(config);
         assert!(result.is_ok());

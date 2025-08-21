@@ -714,57 +714,59 @@ mod tests {
         // DEBUG: 验证假设1 - 检查是否使用了正确的CacheService实现
         // 这里使用MockCacheService而不是空的Mutex，因为Mutex<()>不实现CacheService trait
         debug!("Creating CacheInvalidationManager for test_event_matching");
-        
+
         // 创建一个合适的mock服务而不是空的Mutex
         use tokio::sync::Notify;
-        
+
         struct MockCacheService {
             notify: Arc<Notify>,
         }
-        
+
         #[async_trait]
         impl CacheService for MockCacheService {
             async fn get(&self, _key: &str) -> SchedulerResult<Option<Vec<u8>>> {
                 debug!("MockCacheService::get called");
                 Ok(None)
             }
-            
+
             async fn set(&self, _key: &str, _value: &[u8], _ttl: Duration) -> SchedulerResult<()> {
                 debug!("MockCacheService::set called");
                 Ok(())
             }
-            
+
             async fn delete(&self, _key: &str) -> SchedulerResult<bool> {
                 debug!("MockCacheService::delete called");
                 Ok(false)
             }
-            
+
             async fn exists(&self, _key: &str) -> SchedulerResult<bool> {
                 debug!("MockCacheService::exists called");
                 Ok(false)
             }
-            
+
             async fn get_stats(&self) -> CacheStats {
                 debug!("MockCacheService::get_stats called");
                 CacheStats::default()
             }
-            
+
             async fn clear_prefix(&self, _prefix: &str) -> SchedulerResult<usize> {
                 debug!("MockCacheService::clear_prefix called");
                 Ok(0)
             }
-            
+
             async fn health_check(&self) -> SchedulerResult<bool> {
                 debug!("MockCacheService::health_check called");
                 Ok(true)
             }
         }
-        
+
         let cache_service = Arc::new(MockCacheService {
             notify: Arc::new(Notify::new()),
         });
-        
-        debug!("Successfully created CacheInvalidationManager with proper CacheService implementation");
+
+        debug!(
+            "Successfully created CacheInvalidationManager with proper CacheService implementation"
+        );
         let manager = CacheInvalidationManager::new(cache_service);
 
         let event1 = InvalidationEvent::TaskChanged {
@@ -784,57 +786,59 @@ mod tests {
     fn test_target_resolution() {
         // DEBUG: 验证假设1 - 检查是否使用了正确的CacheService实现
         debug!("Creating CacheInvalidationManager for test_target_resolution");
-        
+
         // 使用与test_event_matching相同的MockCacheService实现
         use tokio::sync::Notify;
-        
+
         struct MockCacheService {
             notify: Arc<Notify>,
         }
-        
+
         #[async_trait]
         impl CacheService for MockCacheService {
             async fn get(&self, _key: &str) -> SchedulerResult<Option<Vec<u8>>> {
                 debug!("MockCacheService::get called");
                 Ok(None)
             }
-            
+
             async fn set(&self, _key: &str, _value: &[u8], _ttl: Duration) -> SchedulerResult<()> {
                 debug!("MockCacheService::set called");
                 Ok(())
             }
-            
+
             async fn delete(&self, _key: &str) -> SchedulerResult<bool> {
                 debug!("MockCacheService::delete called");
                 Ok(false)
             }
-            
+
             async fn exists(&self, _key: &str) -> SchedulerResult<bool> {
                 debug!("MockCacheService::exists called");
                 Ok(false)
             }
-            
+
             async fn get_stats(&self) -> CacheStats {
                 debug!("MockCacheService::get_stats called");
                 CacheStats::default()
             }
-            
+
             async fn clear_prefix(&self, _prefix: &str) -> SchedulerResult<usize> {
                 debug!("MockCacheService::clear_prefix called");
                 Ok(0)
             }
-            
+
             async fn health_check(&self) -> SchedulerResult<bool> {
                 debug!("MockCacheService::health_check called");
                 Ok(true)
             }
         }
-        
+
         let cache_service = Arc::new(MockCacheService {
             notify: Arc::new(Notify::new()),
         });
-        
-        debug!("Successfully created CacheInvalidationManager with proper CacheService implementation");
+
+        debug!(
+            "Successfully created CacheInvalidationManager with proper CacheService implementation"
+        );
         let manager = CacheInvalidationManager::new(cache_service);
 
         let event = InvalidationEvent::TaskChanged {

@@ -3,7 +3,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_application::ports::{TaskControlService, ExecutorRegistry, StateListenerService, WorkerService};
+use scheduler_application::ports::{
+    ExecutorRegistry, StateListenerService, TaskControlService, WorkerService,
+};
 use scheduler_config::AppConfig;
 use scheduler_core::ServiceLocator;
 use scheduler_dispatcher::{
@@ -65,9 +67,7 @@ impl Application {
             .await?;
 
         // 创建服务定位器
-        let service_locator = Arc::new(scheduler_core::ServiceLocator::new(
-            Arc::new(app_context),
-        ));
+        let service_locator = Arc::new(scheduler_core::ServiceLocator::new(Arc::new(app_context)));
 
         // 创建指标收集器
         let metrics = Arc::new(MetricsCollector::new().context("创建指标收集器失败")?);

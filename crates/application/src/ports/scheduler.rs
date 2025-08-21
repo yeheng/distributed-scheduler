@@ -2,11 +2,9 @@ use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
-use scheduler_errors::SchedulerResult;
-use scheduler_domain::entities::{
-    Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus,
-};
+use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
 use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_errors::SchedulerResult;
 
 /// Service interface for task control operations
 #[async_trait]
@@ -84,10 +82,7 @@ pub trait WorkerService: Send + Sync {
     async fn start(&self) -> SchedulerResult<()>;
     async fn stop(&self) -> SchedulerResult<()>;
     async fn poll_and_execute_tasks(&self) -> SchedulerResult<()>;
-    async fn send_status_update(
-        &self,
-        update: TaskStatusUpdate,
-    ) -> SchedulerResult<()>;
+    async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()>;
     async fn get_current_task_count(&self) -> i32;
     async fn can_accept_task(&self, task_type: &str) -> bool;
     async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()>;

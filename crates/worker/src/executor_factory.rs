@@ -3,8 +3,8 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use async_trait::async_trait;
+use scheduler_application::ports::{ExecutorRegistry, ExecutorStatus, TaskExecutor};
 use scheduler_config::models::ExecutorConfig;
-use scheduler_application::ports::{ExecutorRegistry, TaskExecutor, ExecutorStatus};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use tokio::sync::RwLock;
 use tracing::{error, info, warn};
@@ -302,9 +302,7 @@ impl ExecutorRegistry for ExecutorFactory {
         registry.len()
     }
 
-    async fn get_all_status(
-        &self,
-    ) -> SchedulerResult<HashMap<String, ExecutorStatus>> {
+    async fn get_all_status(&self) -> SchedulerResult<HashMap<String, ExecutorStatus>> {
         self.get_all_executor_status().await
     }
 

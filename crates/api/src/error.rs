@@ -100,11 +100,11 @@ mod tests {
     fn test_api_error_scheduler_error_conversion() {
         let scheduler_error = SchedulerError::TaskNotFound { id: 123 };
         let api_error: ApiError = scheduler_error.into();
-        
+
         match api_error {
             ApiError::Scheduler(SchedulerError::TaskNotFound { id }) => {
                 assert_eq!(id, 123);
-            },
+            }
             _ => panic!("Expected SchedulerError::TaskNotFound"),
         }
     }
@@ -113,7 +113,7 @@ mod tests {
     fn test_api_error_into_response_not_found() {
         let error = ApiError::Scheduler(SchedulerError::TaskNotFound { id: 123 });
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
@@ -121,7 +121,7 @@ mod tests {
     fn test_api_error_into_response_bad_request() {
         let error = ApiError::BadRequest("Invalid parameter".to_string());
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::BAD_REQUEST);
     }
 
@@ -129,7 +129,7 @@ mod tests {
     fn test_api_error_into_response_unauthorized() {
         let error = ApiError::Authentication(crate::auth::AuthError::MissingToken);
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::UNAUTHORIZED);
     }
 
@@ -137,7 +137,7 @@ mod tests {
     fn test_api_error_into_response_forbidden() {
         let error = ApiError::Forbidden;
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::FORBIDDEN);
     }
 
@@ -145,7 +145,7 @@ mod tests {
     fn test_api_error_into_response_internal() {
         let error = ApiError::Internal("Internal error".to_string());
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::INTERNAL_SERVER_ERROR);
     }
 
@@ -159,26 +159,29 @@ mod tests {
     #[test]
     fn test_api_error_from_validation_errors() {
         use validator::ValidationErrors;
-        
+
         // This is a simplified test since creating actual ValidationErrors is complex
         let validation_error = validator::ValidationError::new("test field");
         let mut errors = ValidationErrors::new();
         errors.add("test_field", validation_error);
-        
+
         let api_error: ApiError = errors.into();
         match api_error {
-            ApiError::Validation(_) => {},
+            ApiError::Validation(_) => {}
             _ => panic!("Expected Validation error"),
         }
     }
 
     #[test]
     fn test_api_error_from_json_error() {
-        let json_error = serde_json::Error::io(std::io::Error::new(std::io::ErrorKind::InvalidData, "JSON error"));
+        let json_error = serde_json::Error::io(std::io::Error::new(
+            std::io::ErrorKind::InvalidData,
+            "JSON error",
+        ));
         let api_error: ApiError = json_error.into();
-        
+
         match api_error {
-            ApiError::Serialization(_) => {},
+            ApiError::Serialization(_) => {}
             _ => panic!("Expected Serialization error"),
         }
     }
@@ -187,9 +190,9 @@ mod tests {
     fn test_api_error_from_auth_error() {
         let auth_error = crate::auth::AuthError::MissingToken;
         let api_error: ApiError = auth_error.into();
-        
+
         match api_error {
-            ApiError::Authentication(crate::auth::AuthError::MissingToken) => {},
+            ApiError::Authentication(crate::auth::AuthError::MissingToken) => {}
             _ => panic!("Expected Authentication error"),
         }
     }
@@ -198,19 +201,19 @@ mod tests {
     fn test_api_error_conflict() {
         let error = ApiError::Conflict("Resource conflict".to_string());
         let response = error.into_response();
-        
+
         assert_eq!(response.status(), StatusCode::CONFLICT);
     }
 
     #[test]
     fn test_api_error_validation_error() {
         use validator::ValidationError;
-        
+
         let validation_error = ValidationError::new("field");
         let api_error: ApiError = validation_error.into();
-        
+
         match api_error {
-            ApiError::ValidationError(_) => {},
+            ApiError::ValidationError(_) => {}
             _ => panic!("Expected ValidationError"),
         }
     }
@@ -220,22 +223,27 @@ mod tests {
         // Test various scheduler error types
         let test_cases = vec![
             SchedulerError::TaskNotFound { id: 1 },
-            SchedulerError::WorkerNotFound { id: "test".to_string() },
+            SchedulerError::WorkerNotFound {
+                id: "test".to_string(),
+            },
             SchedulerError::TaskRunNotFound { id: 1 },
             SchedulerError::InvalidTaskParams("Invalid params".to_string()),
-            SchedulerError::InvalidCron { expr: "invalid".to_string(), message: "Invalid cron expression".to_string() },
+            SchedulerError::InvalidCron {
+                expr: "invalid".to_string(),
+                message: "Invalid cron expression".to_string(),
+            },
             SchedulerError::CircularDependency,
         ];
 
         for scheduler_error in test_cases {
             let api_error: ApiError = scheduler_error.into();
             let response = api_error.into_response();
-            
+
             // All scheduler errors should result in appropriate status codes
-            assert!(matches!(response.status(), 
-                StatusCode::NOT_FOUND | 
-                StatusCode::BAD_REQUEST | 
-                StatusCode::INTERNAL_SERVER_ERROR));
+            assert!(matches!(
+                response.status(),
+                StatusCode::NOT_FOUND | StatusCode::BAD_REQUEST | StatusCode::INTERNAL_SERVER_ERROR
+            ));
         }
     }
 

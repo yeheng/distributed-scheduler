@@ -5,9 +5,9 @@ use chrono::Utc;
 use scheduler_domain::entities::{
     TaskRun, TaskRunStatus, WorkerHeartbeat, WorkerInfo, WorkerStatus,
 };
+use scheduler_domain::events::TaskStatusUpdate;
 use scheduler_domain::repositories::TaskRunRepository;
 use scheduler_domain::repositories::WorkerRepository;
-use scheduler_domain::events::TaskStatusUpdate;
 use scheduler_errors::SchedulerResult;
 use std::collections::HashMap;
 use std::env::VarError;
@@ -392,9 +392,7 @@ fn get_hostname() -> SchedulerResult<String> {
     std::env::var("HOSTNAME")
         .or_else(|_| std::env::var("COMPUTERNAME").or_else(|_| Ok("unknown".to_string())))
         .map_err(|e: VarError| {
-            scheduler_errors::SchedulerError::Configuration(format!(
-                "Failed to get hostname: {e}"
-            ))
+            scheduler_errors::SchedulerError::Configuration(format!("Failed to get hostname: {e}"))
         })
 }
 
@@ -405,9 +403,7 @@ fn get_local_ip() -> SchedulerResult<String> {
             Ok(get_local_ip_address().unwrap_or_else(|_| "127.0.0.1".to_string()))
         })
         .map_err(|e: VarError| {
-            scheduler_errors::SchedulerError::Configuration(format!(
-                "Failed to get local IP: {e}"
-            ))
+            scheduler_errors::SchedulerError::Configuration(format!("Failed to get local IP: {e}"))
         })
 }
 
@@ -459,4 +455,3 @@ fn get_memory_usage() -> SchedulerResult<u64> {
     // Fallback value
     Ok(0)
 }
-
