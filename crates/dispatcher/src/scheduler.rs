@@ -3,6 +3,7 @@ use std::sync::{
     Arc,
 };
 use std::time::Instant;
+use tokio::sync::Mutex;
 
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
@@ -30,8 +31,8 @@ pub struct TaskScheduler {
     pub dependency_checker: DependencyChecker,
     pub metrics: Arc<MetricsCollector>,
     pub is_running: AtomicBool,
-    pub start_time: Arc<std::sync::Mutex<Option<Instant>>>,
-    pub last_schedule_time: Arc<std::sync::Mutex<Option<DateTime<Utc>>>>,
+    pub start_time: Arc<Mutex<Option<Instant>>>,
+    pub last_schedule_time: Arc<Mutex<Option<DateTime<Utc>>>>,
 }
 
 impl TaskScheduler {
@@ -52,8 +53,8 @@ impl TaskScheduler {
             dependency_checker,
             metrics,
             is_running: AtomicBool::new(false),
-            start_time: Arc::new(std::sync::Mutex::new(None)),
-            last_schedule_time: Arc::new(std::sync::Mutex::new(None)),
+            start_time: Arc::new(Mutex::new(None)),
+            last_schedule_time: Arc::new(Mutex::new(None)),
         }
     }
     pub async fn should_schedule_task(&self, task: &Task) -> SchedulerResult<bool> {
@@ -171,9 +172,8 @@ impl TaskSchedulerService for TaskScheduler {
         let success_count = scheduled_runs.len();
 
         // 更新最后调度时间
-        if let Ok(mut last_schedule_time) = self.last_schedule_time.lock() {
-            *last_schedule_time = Some(Utc::now());
-        }
+        let mut last_schedule_time = self.last_schedule_time.lock().await;
+        *last_schedule_time = Some(Utc::now());
 
         info!(
             "本次调度完成，共调度了 {}/{} 个任务，耗时 {:.3} 秒",
@@ -395,9 +395,8 @@ impl TaskScheduler {
     async fn start(&self) -> SchedulerResult<()> {
         info!("启动任务调度器");
         self.is_running.store(true, Ordering::SeqCst);
-        if let Ok(mut start_time) = self.start_time.lock() {
-            *start_time = Some(Instant::now());
-        }
+        let mut start_time = self.start_time.lock().await;
+        *start_time = Some(Instant::now());
         Ok(())
     }
 
@@ -470,7 +469,7 @@ impl TaskScheduler {
             .len() as i64;
 
         // 计算运行时间
-        let uptime_seconds = if let Ok(start_time_guard) = self.start_time.lock() {
+        let uptime_seconds = if let Ok(start_time_guard) = self.start_time.try_lock() {
             if let Some(start_time) = *start_time_guard {
                 start_time.elapsed().as_secs()
             } else {
@@ -481,7 +480,7 @@ impl TaskScheduler {
         };
 
         // 获取最后调度时间
-        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.lock() {
+        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.try_lock() {
             *last_schedule_guard
         } else {
             None

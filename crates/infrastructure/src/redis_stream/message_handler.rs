@@ -1,6 +1,7 @@
 use std::collections::HashMap;
-use std::sync::{Arc, Mutex};
+use std::sync::Arc;
 use std::time::Instant;
+use tokio::sync::RwLock;
 
 use tracing::{debug, warn};
 
@@ -16,7 +17,7 @@ pub struct RedisMessageHandler {
     connection_manager: Arc<RedisConnectionManager>,
     config: RedisStreamConfig,
     metrics: Arc<RedisStreamMetrics>,
-    message_id_mapping: Arc<Mutex<HashMap<String, (String, String)>>>,
+    message_id_mapping: Arc<RwLock<HashMap<String, (String, String)>>>,
 }
 
 impl RedisMessageHandler {
@@ -29,7 +30,7 @@ impl RedisMessageHandler {
             connection_manager,
             config,
             metrics,
-            message_id_mapping: Arc::new(Mutex::new(HashMap::new())),
+            message_id_mapping: Arc::new(RwLock::new(HashMap::new())),
         }
     }
     pub async fn publish_message(&self, queue: &str, message: &Message) -> SchedulerResult<()> {
@@ -74,7 +75,7 @@ impl RedisMessageHandler {
         let start = Instant::now();
         debug!("Acknowledging message: {}", message_id);
 
-        let (stream_message_id, queue_name) = self.get_message_mapping(message_id)?;
+        let (stream_message_id, queue_name) = self.get_message_mapping(message_id).await?;
         let group_name = self.get_consumer_group_name(&queue_name);
 
         let mut cmd = redis::cmd("XACK");
@@ -94,7 +95,7 @@ impl RedisMessageHandler {
                 "Successfully acknowledged message {} in {:?}",
                 message_id, duration
             );
-            self.remove_message_mapping(message_id);
+            self.remove_message_mapping(message_id).await;
         } else {
             warn!(
                 "Message {} was not acknowledged (possibly already processed)",
@@ -108,7 +109,7 @@ impl RedisMessageHandler {
         let start = Instant::now();
         debug!("Nacking message: {}, requeue: {}", message_id, requeue);
 
-        let (stream_message_id, queue_name) = self.get_message_mapping(message_id)?;
+        let (stream_message_id, queue_name) = self.get_message_mapping(message_id).await?;
 
         if requeue {
             self.requeue_message(&queue_name, &stream_message_id)
@@ -131,7 +132,7 @@ impl RedisMessageHandler {
             "Successfully nacked message {} in {:?}",
             message_id, duration
         );
-        self.remove_message_mapping(message_id);
+        self.remove_message_mapping(message_id).await;
 
         Ok(())
     }
@@ -182,20 +183,17 @@ impl RedisMessageHandler {
         format!("{}_{}", self.config.consumer_group_prefix, queue)
     }
 
-    fn get_message_mapping(&self, message_id: &str) -> SchedulerResult<(String, String)> {
-        let mapping = self.message_id_mapping.lock().map_err(|e| {
-            SchedulerError::MessageQueue(format!("Failed to lock message mapping: {e}"))
-        })?;
+    async fn get_message_mapping(&self, message_id: &str) -> SchedulerResult<(String, String)> {
+        let mapping = self.message_id_mapping.read().await;
 
         mapping.get(message_id).cloned().ok_or_else(|| {
             SchedulerError::MessageQueue(format!("Message ID {message_id} not found in mapping"))
         })
     }
 
-    fn remove_message_mapping(&self, message_id: &str) {
-        if let Ok(mut mapping) = self.message_id_mapping.lock() {
-            mapping.remove(message_id);
-        }
+    async fn remove_message_mapping(&self, message_id: &str) {
+        let mut mapping = self.message_id_mapping.write().await;
+        mapping.remove(message_id);
     }
     async fn publish_message_with_retry(
         &self,
