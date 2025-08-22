@@ -329,34 +329,38 @@ impl StateListenerService for StateListener {
             let mut running = self.running.write().await;
             *running = true;
         }
-        let status_queue_name_clone = self.status_queue_name.clone();
-        let heartbeat_queue_name_clone = self.heartbeat_queue_name.clone();
-        let task_run_repo = self.task_run_repo.clone();
-        let worker_repo = self.worker_repo.clone();
-        let message_queue = self.message_queue.clone();
-        let running = self.running.clone();
+        let status_queue_name = &self.status_queue_name;
+        let heartbeat_queue_name = &self.heartbeat_queue_name;
+        
+        // Clone Arc's once for all uses
+        let task_run_repo = Arc::clone(&self.task_run_repo);
+        let worker_repo = Arc::clone(&self.worker_repo);
+        let message_queue = Arc::clone(&self.message_queue);
+        let running = Arc::clone(&self.running);
+        let retry_service = self.retry_service.as_ref().map(Arc::clone);
+        
         let status_state_listener = StateListener {
-            task_run_repo: task_run_repo.clone(),
-            worker_repo: worker_repo.clone(),
-            message_queue: message_queue.clone(),
-            status_queue_name: status_queue_name_clone.clone(),
-            heartbeat_queue_name: heartbeat_queue_name_clone.clone(),
-            running: running.clone(),
-            retry_service: self.retry_service.clone(),
+            task_run_repo: Arc::clone(&task_run_repo),
+            worker_repo: Arc::clone(&worker_repo),
+            message_queue: Arc::clone(&message_queue),
+            status_queue_name: status_queue_name.clone(),
+            heartbeat_queue_name: heartbeat_queue_name.clone(),
+            running: Arc::clone(&running),
+            retry_service: retry_service.as_ref().map(Arc::clone),
         };
 
         let heartbeat_state_listener = StateListener {
             task_run_repo,
             worker_repo,
             message_queue,
-            status_queue_name: status_queue_name_clone.clone(),
-            heartbeat_queue_name: heartbeat_queue_name_clone.clone(),
+            status_queue_name: status_queue_name.clone(),
+            heartbeat_queue_name: heartbeat_queue_name.clone(),
             running,
-            retry_service: self.retry_service.clone(),
+            retry_service,
         };
 
         let status_listener = {
-            let queue_name = status_queue_name_clone.clone();
+            let queue_name = status_queue_name.clone();
             tokio::spawn(async move {
                 if let Err(e) = status_state_listener.listen_queue(&queue_name).await {
                     error!("状态更新队列监听出错: {}", e);
@@ -365,7 +369,7 @@ impl StateListenerService for StateListener {
         };
 
         let heartbeat_listener = {
-            let queue_name = heartbeat_queue_name_clone.clone();
+            let queue_name = heartbeat_queue_name.clone();
             tokio::spawn(async move {
                 if let Err(e) = heartbeat_state_listener.listen_queue(&queue_name).await {
                     error!("心跳队列监听出错: {}", e);

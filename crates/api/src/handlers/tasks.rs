@@ -270,19 +270,22 @@ pub async fn list_tasks(
         }
     }
 
+    // Avoid cloning by using references to build filter
     if let Some(task_type) = &params.task_type {
-        filter.task_type = Some(task_type.clone());
+        filter.task_type = Some(task_type.as_str().to_string());
     }
 
     if let Some(name) = &params.name {
-        filter.name_pattern = Some(name.clone());
+        filter.name_pattern = Some(name.as_str().to_string());
     }
 
     let tasks = state.task_repo.list(&filter).await?;
+    
+    // Create total_filter efficiently by moving values instead of cloning
     let total_filter = TaskFilter {
         status: filter.status,
-        task_type: filter.task_type.clone(),
-        name_pattern: filter.name_pattern.clone(),
+        task_type: filter.task_type,
+        name_pattern: filter.name_pattern,
         ..Default::default()
     };
     let total_tasks = state.task_repo.list(&total_filter).await?;

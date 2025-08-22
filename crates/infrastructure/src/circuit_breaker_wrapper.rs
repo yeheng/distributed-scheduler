@@ -43,48 +43,57 @@ impl CircuitBreakerTaskRepository {
 #[async_trait]
 impl TaskRepository for CircuitBreakerTaskRepository {
     async fn create(&self, task: &Task) -> SchedulerResult<Task> {
+        // Clone only what's necessary for the async move
+        let inner = Arc::clone(&self.inner);
+        let task_data = task.clone(); // Still needed due to lifetime constraints
+        
         self.circuit_breaker
-            .execute("create", || {
-                let inner = self.inner.clone();
-                let task = task.clone();
-                async move { inner.create(&task).await }
+            .execute("create", move || {
+                let inner = inner;
+                async move { inner.create(&task_data).await }
             })
             .await
     }
 
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
+        // No parameter cloning needed for Copy types
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_by_id", || {
-                let inner = self.inner.clone();
+            .execute("get_by_id", move || {
                 async move { inner.get_by_id(id).await }
             })
             .await
     }
 
     async fn get_by_name(&self, name: &str) -> SchedulerResult<Option<Task>> {
+        // Convert to owned String once, outside the closure
+        let inner = Arc::clone(&self.inner);
+        let name_owned = name.to_string();
+        
         self.circuit_breaker
-            .execute("get_by_name", || {
-                let inner = self.inner.clone();
-                let name = name.to_string();
-                async move { inner.get_by_name(&name).await }
+            .execute("get_by_name", move || {
+                async move { inner.get_by_name(&name_owned).await }
             })
             .await
     }
 
     async fn update(&self, task: &Task) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let task_data = task.clone();
+        
         self.circuit_breaker
-            .execute("update", || {
-                let inner = self.inner.clone();
-                let task = task.clone();
-                async move { inner.update(&task).await }
+            .execute("update", move || {
+                async move { inner.update(&task_data).await }
             })
             .await
     }
 
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("delete", || {
-                let inner = self.inner.clone();
+            .execute("delete", move || {
                 async move { inner.delete(id).await }
             })
             .await

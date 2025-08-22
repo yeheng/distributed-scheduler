@@ -1013,7 +1013,7 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
         }
     }
     tokio::time::sleep(Duration::from_millis(200)).await;
-    let consumed_counts = Arc::new(std::sync::Mutex::new(vec![0u32; NUM_CONSUMERS]));
+    let consumed_counts = Arc::new(tokio::sync::Mutex::new(vec![0u32; NUM_CONSUMERS]));
     let mut consumer_handles = Vec::new();
 
     for consumer_id in 0..NUM_CONSUMERS {
@@ -1067,7 +1067,8 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
 
                 tokio::time::sleep(Duration::from_millis(50)).await;
             }
-            if let Ok(mut counts) = consumed_counts_clone.lock() {
+            {
+                let mut counts = consumed_counts_clone.lock().await;
                 counts[consumer_id] = local_count;
             }
 
@@ -1084,7 +1085,7 @@ async fn test_redis_stream_multiple_consumers() -> Result<()> {
             eprintln!("Consumer task failed or timed out: {:?}", e);
         }
     }
-    let counts = consumed_counts.lock().unwrap();
+    let counts = consumed_counts.lock().await;
     let total_consumed: u32 = counts.iter().sum();
 
     println!("Consumer results: {:?}", *counts);
