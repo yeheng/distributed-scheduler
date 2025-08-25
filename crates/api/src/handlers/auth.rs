@@ -4,7 +4,7 @@ use tracing::info;
 
 use crate::{
     auth::models::{LoginRequest, LoginResponse},
-    auth::{JwtService, Permission},
+    auth::{JwtService, Permission, RefreshTokenService},
     error::{ApiError, ApiResult},
     response::ApiResponse,
 };
@@ -52,13 +52,19 @@ pub async fn login(
         state.auth_config.jwt_expiration_hours,
     );
 
+    let refresh_service = RefreshTokenService::new(&state.auth_config.jwt_secret);
+
     let access_token = jwt_service
         .generate_token(&user_id, &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
 
+    let refresh_token = refresh_service
+        .generate_refresh_token(&user_id, &permissions)
+        .map_err(|e| ApiError::Internal(format!("Failed to generate refresh token: {e}")))?;
+
     let response = LoginResponse {
         access_token,
-        refresh_token: "dummy_refresh_token".to_string(), // TODO: Implement proper refresh tokens
+        refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600,
         user: crate::auth::models::UserResponse {
@@ -92,31 +98,42 @@ pub async fn refresh_token(
         state.auth_config.jwt_expiration_hours,
     );
 
-    // Validate the refresh token (simplified for now)
-    let claims = jwt_service
-        .validate_token(&request.refresh_token)
+    let refresh_service = RefreshTokenService::new(&state.auth_config.jwt_secret);
+
+    // Validate the refresh token using the proper service
+    let refresh_data = refresh_service
+        .validate_refresh_token(&request.refresh_token)
         .map_err(|_| ApiError::Authentication(crate::auth::AuthError::InvalidToken))?;
 
-    // Generate new access token
-    let permissions: Vec<Permission> = claims
+    // Parse permissions from the refresh token
+    let permissions: Vec<Permission> = refresh_data
         .permissions
         .iter()
         .filter_map(|p| crate::auth::parse_permission(p))
         .collect();
 
+    // Generate new access token
     let access_token = jwt_service
-        .generate_token(&claims.user_id, &permissions)
+        .generate_token(&refresh_data.user_id, &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
+
+    // Generate new refresh token
+    let new_refresh_token = refresh_service
+        .generate_refresh_token(&refresh_data.user_id, &permissions)
+        .map_err(|e| ApiError::Internal(format!("Failed to generate refresh token: {e}")))?;
+
+    // Revoke the old refresh token
+    let _ = refresh_service.revoke_refresh_token(&request.refresh_token);
 
     let response = LoginResponse {
         access_token,
-        refresh_token: request.refresh_token,
+        refresh_token: new_refresh_token,
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600,
         user: crate::auth::models::UserResponse {
             id: uuid::Uuid::new_v4(),
-            username: claims.user_id.clone(),
-            email: format!("{}@example.com", claims.user_id),
+            username: refresh_data.user_id.clone(),
+            email: format!("{}@example.com", refresh_data.user_id),
             role: if permissions.contains(&Permission::Admin) {
                 crate::auth::models::UserRole::Admin
             } else if permissions.contains(&Permission::TaskWrite) {

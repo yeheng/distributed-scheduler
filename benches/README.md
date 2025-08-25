@@ -31,6 +31,7 @@ The benchmarks are designed to validate the performance improvements from implem
 ### Quick Start
 
 Run all benchmarks:
+
 ```bash
 cargo bench
 ```
@@ -64,6 +65,7 @@ The included `run_benchmarks.sh` script provides a comprehensive benchmark execu
 ```
 
 This script will:
+
 - Run all benchmark sets
 - Generate summary reports
 - Create performance comparison analysis
@@ -72,6 +74,7 @@ This script will:
 ## Benchmark Results
 
 Results are generated in the `target/criterion/` directory with:
+
 - Detailed HTML reports with charts and statistics
 - Raw performance data
 - Comparison reports between runs
@@ -79,17 +82,20 @@ Results are generated in the `target/criterion/` directory with:
 ## Key Metrics Measured
 
 ### Performance Metrics
+
 - **Throughput**: Tasks processed per second
 - **Latency**: Time to process individual tasks
 - **Scalability**: Performance with increasing task counts
 - **Concurrency Efficiency**: Optimal concurrency limits
 
 ### Resource Metrics
+
 - **Memory Usage**: Memory consumption with different task set sizes
 - **CPU Utilization**: Processor usage during parallel processing
 - **Resource Efficiency**: Overall resource utilization
 
 ### Reliability Metrics
+
 - **Error Handling**: Performance impact of error scenarios
 - **Resilience**: System stability under various failure conditions
 - **Consistency**: Result consistency across multiple runs
@@ -106,6 +112,7 @@ Based on the parallelized implementation, expect:
 ## Benchmark Configuration
 
 ### Default Settings
+
 - **Concurrency Limit**: 10 (configurable per benchmark)
 - **Task Counts**: 10, 50, 100, 500, 1000, 5000, 10000
 - **Test Duration**: Varies by benchmark type

@@ -100,19 +100,21 @@ impl TaskRepository for CircuitBreakerTaskRepository {
     }
 
     async fn list(&self, filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
+        let inner = Arc::clone(&self.inner);
+        let filter = filter.clone();
+        
         self.circuit_breaker
-            .execute("list", || {
-                let inner = self.inner.clone();
-                let filter = filter.clone();
+            .execute("list", move || {
                 async move { inner.list(&filter).await }
             })
             .await
     }
 
     async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_active_tasks", || {
-                let inner = self.inner.clone();
+            .execute("get_active_tasks", move || {
                 async move { inner.get_active_tasks().await }
             })
             .await
@@ -122,27 +124,30 @@ impl TaskRepository for CircuitBreakerTaskRepository {
         &self,
         current_time: DateTime<Utc>,
     ) -> SchedulerResult<Vec<Task>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_schedulable_tasks", || {
-                let inner = self.inner.clone();
+            .execute("get_schedulable_tasks", move || {
                 async move { inner.get_schedulable_tasks(current_time).await }
             })
             .await
     }
 
     async fn check_dependencies(&self, task_id: i64) -> SchedulerResult<bool> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("check_dependencies", || {
-                let inner = self.inner.clone();
+            .execute("check_dependencies", move || {
                 async move { inner.check_dependencies(task_id).await }
             })
             .await
     }
 
     async fn get_dependencies(&self, task_id: i64) -> SchedulerResult<Vec<Task>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_dependencies", || {
-                let inner = self.inner.clone();
+            .execute("get_dependencies", move || {
                 async move { inner.get_dependencies(task_id).await }
             })
             .await
@@ -189,93 +194,103 @@ impl CircuitBreakerTaskRunRepository {
 #[async_trait]
 impl TaskRunRepository for CircuitBreakerTaskRunRepository {
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
+        let inner = Arc::clone(&self.inner);
+        let task_run = task_run.clone();
+        
         self.circuit_breaker
-            .execute("create", || {
-                let inner = self.inner.clone();
-                let task_run = task_run.clone();
+            .execute("create", move || {
                 async move { inner.create(&task_run).await }
             })
             .await
     }
 
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_by_id", || {
-                let inner = self.inner.clone();
+            .execute("get_by_id", move || {
                 async move { inner.get_by_id(id).await }
             })
             .await
     }
 
     async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let task_run = task_run.clone();
+        
         self.circuit_breaker
-            .execute("update", || {
-                let inner = self.inner.clone();
-                let task_run = task_run.clone();
+            .execute("update", move || {
                 async move { inner.update(&task_run).await }
             })
             .await
     }
 
     async fn delete(&self, id: i64) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("delete", || {
-                let inner = self.inner.clone();
+            .execute("delete", move || {
                 async move { inner.delete(id).await }
             })
             .await
     }
 
     async fn get_by_task_id(&self, task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_by_task_id", || {
-                let inner = self.inner.clone();
+            .execute("get_by_task_id", move || {
                 async move { inner.get_by_task_id(task_id).await }
             })
             .await
     }
 
     async fn get_by_worker_id(&self, worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.to_string();
+        
         self.circuit_breaker
-            .execute("get_by_worker_id", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.to_string();
+            .execute("get_by_worker_id", move || {
                 async move { inner.get_by_worker_id(&worker_id).await }
             })
             .await
     }
 
     async fn get_by_status(&self, status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_by_status", || {
-                let inner = self.inner.clone();
+            .execute("get_by_status", move || {
                 async move { inner.get_by_status(status).await }
             })
             .await
     }
 
     async fn get_pending_runs(&self, limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_pending_runs", || {
-                let inner = self.inner.clone();
+            .execute("get_pending_runs", move || {
                 async move { inner.get_pending_runs(limit).await }
             })
             .await
     }
 
     async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_running_runs", || {
-                let inner = self.inner.clone();
+            .execute("get_running_runs", move || {
                 async move { inner.get_running_runs().await }
             })
             .await
     }
 
     async fn get_timeout_runs(&self, timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_timeout_runs", || {
-                let inner = self.inner.clone();
+            .execute("get_timeout_runs", move || {
                 async move { inner.get_timeout_runs(timeout_seconds).await }
             })
             .await
@@ -287,10 +302,11 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
         status: TaskRunStatus,
         worker_id: Option<&str>,
     ) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.map(|s| s.to_string());
+        
         self.circuit_breaker
-            .execute("update_status", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.map(|s| s.to_string());
+            .execute("update_status", move || {
                 async move { inner.update_status(id, status, worker_id.as_deref()).await }
             })
             .await
@@ -302,11 +318,12 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
         result: Option<&str>,
         error_message: Option<&str>,
     ) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let result = result.map(|s| s.to_string());
+        let error_message = error_message.map(|s| s.to_string());
+        
         self.circuit_breaker
-            .execute("update_result", || {
-                let inner = self.inner.clone();
-                let result = result.map(|s| s.to_string());
-                let error_message = error_message.map(|s| s.to_string());
+            .execute("update_result", move || {
                 async move {
                     inner
                         .update_result(id, result.as_deref(), error_message.as_deref())
@@ -317,9 +334,10 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
     }
 
     async fn get_recent_runs(&self, task_id: i64, limit: i64) -> SchedulerResult<Vec<TaskRun>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_recent_runs", || {
-                let inner = self.inner.clone();
+            .execute("get_recent_runs", move || {
                 async move { inner.get_recent_runs(task_id, limit).await }
             })
             .await
@@ -330,18 +348,20 @@ impl TaskRunRepository for CircuitBreakerTaskRunRepository {
         task_id: i64,
         days: i32,
     ) -> SchedulerResult<TaskExecutionStats> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_execution_stats", || {
-                let inner = self.inner.clone();
+            .execute("get_execution_stats", move || {
                 async move { inner.get_execution_stats(task_id, days).await }
             })
             .await
     }
 
     async fn cleanup_old_runs(&self, days: i32) -> SchedulerResult<u64> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("cleanup_old_runs", || {
-                let inner = self.inner.clone();
+            .execute("cleanup_old_runs", move || {
                 async move { inner.cleanup_old_runs(days).await }
             })
             .await
@@ -388,68 +408,75 @@ impl CircuitBreakerWorkerRepository {
 #[async_trait]
 impl WorkerRepository for CircuitBreakerWorkerRepository {
     async fn register(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker = worker.clone();
+        
         self.circuit_breaker
-            .execute("register", || {
-                let inner = self.inner.clone();
-                let worker = worker.clone();
+            .execute("register", move || {
                 async move { inner.register(&worker).await }
             })
             .await
     }
 
     async fn unregister(&self, worker_id: &str) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.to_string();
+        
         self.circuit_breaker
-            .execute("unregister", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.to_string();
+            .execute("unregister", move || {
                 async move { inner.unregister(&worker_id).await }
             })
             .await
     }
 
     async fn get_by_id(&self, worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.to_string();
+        
         self.circuit_breaker
-            .execute("get_by_id", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.to_string();
+            .execute("get_by_id", move || {
                 async move { inner.get_by_id(&worker_id).await }
             })
             .await
     }
 
     async fn update(&self, worker: &WorkerInfo) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker = worker.clone();
+        
         self.circuit_breaker
-            .execute("update", || {
-                let inner = self.inner.clone();
-                let worker = worker.clone();
+            .execute("update", move || {
                 async move { inner.update(&worker).await }
             })
             .await
     }
 
     async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("list", || {
-                let inner = self.inner.clone();
+            .execute("list", move || {
                 async move { inner.list().await }
             })
             .await
     }
 
     async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_alive_workers", || {
-                let inner = self.inner.clone();
+            .execute("get_alive_workers", move || {
                 async move { inner.get_alive_workers().await }
             })
             .await
     }
 
     async fn get_workers_by_task_type(&self, task_type: &str) -> SchedulerResult<Vec<WorkerInfo>> {
+        let inner = Arc::clone(&self.inner);
+        let task_type = task_type.to_string();
+        
         self.circuit_breaker
-            .execute("get_workers_by_task_type", || {
-                let inner = self.inner.clone();
-                let task_type = task_type.to_string();
+            .execute("get_workers_by_task_type", move || {
                 async move { inner.get_workers_by_task_type(&task_type).await }
             })
             .await
@@ -461,10 +488,11 @@ impl WorkerRepository for CircuitBreakerWorkerRepository {
         heartbeat_time: DateTime<Utc>,
         current_task_count: i32,
     ) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.to_string();
+        
         self.circuit_breaker
-            .execute("update_heartbeat", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.to_string();
+            .execute("update_heartbeat", move || {
                 async move {
                     inner
                         .update_heartbeat(&worker_id, heartbeat_time, current_task_count)
@@ -475,37 +503,41 @@ impl WorkerRepository for CircuitBreakerWorkerRepository {
     }
 
     async fn update_status(&self, worker_id: &str, status: WorkerStatus) -> SchedulerResult<()> {
+        let inner = Arc::clone(&self.inner);
+        let worker_id = worker_id.to_string();
+        
         self.circuit_breaker
-            .execute("update_status", || {
-                let inner = self.inner.clone();
-                let worker_id = worker_id.to_string();
+            .execute("update_status", move || {
                 async move { inner.update_status(&worker_id, status).await }
             })
             .await
     }
 
     async fn get_timeout_workers(&self, timeout_seconds: i64) -> SchedulerResult<Vec<WorkerInfo>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_timeout_workers", || {
-                let inner = self.inner.clone();
+            .execute("get_timeout_workers", move || {
                 async move { inner.get_timeout_workers(timeout_seconds).await }
             })
             .await
     }
 
     async fn cleanup_offline_workers(&self, timeout_seconds: i64) -> SchedulerResult<u64> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("cleanup_offline_workers", || {
-                let inner = self.inner.clone();
+            .execute("cleanup_offline_workers", move || {
                 async move { inner.cleanup_offline_workers(timeout_seconds).await }
             })
             .await
     }
 
     async fn get_worker_load_stats(&self) -> SchedulerResult<Vec<WorkerLoadStats>> {
+        let inner = Arc::clone(&self.inner);
+        
         self.circuit_breaker
-            .execute("get_worker_load_stats", || {
-                let inner = self.inner.clone();
+            .execute("get_worker_load_stats", move || {
                 async move { inner.get_worker_load_stats().await }
             })
             .await

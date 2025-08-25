@@ -5,6 +5,7 @@ This document describes the comprehensive JWT authentication and role-based auth
 ## Overview
 
 The authentication system provides:
+
 - JWT token-based authentication
 - Role-based access control (RBAC)
 - API key authentication
@@ -82,6 +83,7 @@ Content-Type: application/json
 ```
 
 **Response:**
+
 ```json
 {
   "data": {
@@ -210,23 +212,27 @@ pub async fn operator_endpoint(
 ## Security Features
 
 ### Password Security
+
 - bcrypt password hashing with configurable cost
 - Secure password comparison
 - No plaintext password storage
 
 ### Token Security
+
 - JWT tokens with HS256 algorithm
 - Configurable expiration times
 - Refresh token rotation
 - Secure key management
 
 ### Request Security
+
 - CORS configuration
 - Request size limits
 - Timeout controls
 - Input validation
 
 ### API Security
+
 - API key hashing with SHA256
 - Permission-based access control
 - Rate limiting ready
@@ -261,6 +267,7 @@ The system provides clear error responses:
 ```
 
 Common error codes:
+
 - `UNAUTHORIZED` - Missing or invalid authentication
 - `FORBIDDEN` - Insufficient permissions
 - `BAD_REQUEST` - Invalid request format
@@ -269,6 +276,7 @@ Common error codes:
 ## Migration Guide
 
 ### From API Key Only
+
 1. Update dependencies in `Cargo.toml`
 2. Add new authentication modules
 3. Update route handlers
@@ -276,6 +284,7 @@ Common error codes:
 5. Update configuration
 
 ### From Basic Auth
+
 1. Replace basic auth with JWT
 2. Add permission system
 3. Update middleware

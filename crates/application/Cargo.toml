@@ -6,6 +6,7 @@ edition = "2021"
 [dependencies]
 # Core dependencies
 scheduler-domain = { path = "../domain" }
+scheduler-config = { path = "../config" }
 
 # Async runtime
 tokio = { workspace = true, features = ["full"] }
@@ -32,11 +33,11 @@ uuid = { workspace = true, features = ["v4", "serde"] }
 parking_lot = { workspace = true }
 
 # Cron scheduling
-cron = "0.12"
+cron = "0.15"
 
 # Additional dependencies
 scheduler-infrastructure = { path = "../infrastructure" }
-tracing-opentelemetry = "0.28"
+tracing-opentelemetry = "0.31"
 
 [dev-dependencies]
 tokio-test = "0.4.4"

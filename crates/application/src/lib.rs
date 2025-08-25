@@ -1,10 +1,14 @@
 pub mod interfaces;
 pub mod ports;
 pub mod services;
+pub mod object_pool;
+pub mod config_cache;
 
 // Re-export services and ports, but not interfaces to avoid duplicates
 pub use ports::*;
 pub use services::*;
+pub use object_pool::*;
+pub use config_cache::*;
 
 #[cfg(test)]
 mod tests {

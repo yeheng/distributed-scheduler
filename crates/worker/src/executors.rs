@@ -69,7 +69,7 @@ impl TaskExecutor for ShellExecutor {
             .or_else(|| context.working_directory.clone());
         let mut env_vars = shell_params.env_vars.unwrap_or_default();
         for (key, value) in &context.environment {
-            env_vars.insert(key.clone(), value.clone());
+            env_vars.insert(key.to_string(), value.to_string());
         }
 
         info!(
@@ -810,7 +810,7 @@ impl TaskExecutor for MockTaskExecutor {
     }
 
     fn supported_task_types(&self) -> Vec<String> {
-        vec![self.name.clone()]
+        vec![self.name.to_string()]
     }
 
     async fn cancel(&self, _task_run_id: i64) -> SchedulerResult<()> {

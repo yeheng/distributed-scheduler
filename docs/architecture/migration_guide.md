@@ -12,6 +12,7 @@
 ### 1.1 迁移背景
 
 Foundation crate 在原架构中承担了过多职责，导致：
+
 - 循环依赖问题
 - 模块职责不清
 - 测试困难
@@ -38,6 +39,7 @@ Foundation crate 在原架构中承担了过多职责，导致：
 ### 2.1 架构对比
 
 #### 迁移前架构
+
 ```
 foundation (循环依赖中心)
 ├── 依赖注入容器
@@ -53,6 +55,7 @@ foundation (循环依赖中心)
 ```
 
 #### 迁移后架构
+
 ```
 清洁架构分层:
 Layer 4: api, dispatcher, worker (应用层)
@@ -92,6 +95,7 @@ mkdir -p crates/core/src
 ```
 
 **Cargo.toml 配置**:
+
 ```toml
 [package]
 name = "scheduler-core"
@@ -182,12 +186,14 @@ pub trait TaskExecutor: Send + Sync {
 #### 步骤 5: 批量更新导入语句
 
 **识别需要更新的文件**:
+
 ```bash
 # 查找所有使用 foundation 的文件
 grep -r "scheduler_foundation" crates/ --include="*.rs"
 ```
 
 **更新规则**:
+
 ```rust
 // 旧的导入
 use scheduler_foundation::{SchedulerResult, SchedulerError};
@@ -203,6 +209,7 @@ use scheduler_domain::ports::messaging::MessageQueue;
 #### 步骤 6: 具体文件更新示例
 
 **application/src/services/scheduler_service.rs**:
+
 ```rust
 // 更新前
 use scheduler_foundation::ports::MessageQueue;
@@ -212,6 +219,7 @@ use scheduler_domain::ports::messaging::MessageQueue;
 ```
 
 **infrastructure/src/messaging/rabbitmq.rs**:
+
 ```rust
 // 更新前
 use scheduler_foundation::ports::MessageQueue;
@@ -225,6 +233,7 @@ use scheduler_domain::ports::messaging::MessageQueue;
 #### 步骤 7: 移除 Foundation 依赖
 
 **更新 Cargo.toml**:
+
 ```toml
 # 从 workspace 中移除 foundation
 [workspace]
@@ -280,11 +289,13 @@ python scripts/dependency_analysis.py
 ### 4.1 DI 容器迁移
 
 #### 迁移挑战
+
 - **生命周期管理**: 确保服务实例正确管理
 - **线程安全**: 保持 `Arc<dyn Trait>` 模式
 - **错误处理**: 统一错误类型使用
 
 #### 解决方案
+
 ```rust
 // 新的 DI 容器设计
 pub struct ServiceContainer {
@@ -315,6 +326,7 @@ impl ServiceContainer {
 ### 4.2 接口重新定位
 
 #### 领域层端口 (Domain Ports)
+
 ```rust
 // domain/src/ports/messaging.rs
 // 定义抽象的消息队列接口
@@ -325,6 +337,7 @@ pub trait MessageQueue: Send + Sync {
 ```
 
 #### 应用层接口 (Application Interfaces)
+
 ```rust
 // application/src/interfaces/task_executor.rs
 // 定义应用层特定的执行器接口
@@ -335,6 +348,7 @@ pub trait TaskExecutor: Send + Sync {
 ```
 
 #### 基础设施实现 (Infrastructure Adapters)
+
 ```rust
 // infrastructure/src/messaging/rabbitmq.rs
 // 实现具体的消息队列适配器
@@ -349,17 +363,20 @@ impl MessageQueue for RabbitMQMessageQueue {
 ### 4.3 循环依赖解决
 
 #### 问题分析
+
 ```
 原循环依赖链:
 foundation → infrastructure → application → foundation
 ```
 
 #### 解决策略
+
 1. **接口上提**: 将抽象接口移至更高层 (domain)
 2. **实现下沉**: 具体实现保留在 infrastructure
 3. **依赖倒置**: application 依赖抽象而非具体实现
 
 #### 验证结果
+
 ```bash
 # 依赖分析结果
 ✅ 循环依赖数量: 0
@@ -374,6 +391,7 @@ foundation → infrastructure → application → foundation
 ### 5.1 单元测试迁移
 
 #### DI 容器测试
+
 ```rust
 // core/src/di.rs
 #[cfg(test)]
@@ -395,6 +413,7 @@ mod tests {
 ```
 
 #### 接口测试
+
 ```rust
 // application/src/interfaces/task_executor.rs  
 #[cfg(test)]
@@ -416,6 +435,7 @@ mod tests {
 ### 5.2 集成测试更新
 
 #### 服务集成测试
+
 ```rust
 // tests/integration_tests.rs
 use scheduler_core::di::ServiceContainer;
@@ -437,6 +457,7 @@ async fn test_task_lifecycle_integration() {
 ### 5.3 Mock 对象更新
 
 #### 新的 Mock 结构
+
 ```rust
 // testing-utils/src/mocks/mod.rs
 pub mod task_repository;
@@ -455,16 +476,19 @@ use scheduler_application::interfaces::task_executor::TaskExecutor;
 ### 6.1 编译性能
 
 #### 迁移前
+
 - **编译时间**: ~45 秒 (增量编译 ~12 秒)
 - **依赖图复杂度**: 高 (循环依赖)
 - **并行编译效率**: 低
 
 #### 迁移后
+
 - **编译时间**: ~35 秒 (增量编译 ~8 秒)
 - **依赖图复杂度**: 低 (单向依赖)
 - **并行编译效率**: 高
 
 #### 改进效果
+
 ```
 编译时间减少: 22%
 增量编译时间减少: 33%
@@ -474,6 +498,7 @@ use scheduler_application::interfaces::task_executor::TaskExecutor;
 ### 6.2 运行时性能
 
 #### DI 容器性能
+
 ```rust
 // 性能测试结果
 Service Lookup: ~2ns (无显著变化)
@@ -482,6 +507,7 @@ Memory Overhead: 减少 ~8KB (移除冗余依赖)
 ```
 
 #### 内存使用
+
 - **模块隔离**: 更好的内存局部性
 - **依赖简化**: 减少不必要的对象引用
 - **缓存友好**: 更清晰的访问模式
@@ -493,6 +519,7 @@ Memory Overhead: 减少 ~8KB (移除冗余依赖)
 ### 7.1 回滚触发条件
 
 如果出现以下情况，考虑回滚：
+
 - 关键功能测试失败
 - 性能显著下降 (>20%)
 - 生产环境稳定性问题
@@ -500,6 +527,7 @@ Memory Overhead: 减少 ~8KB (移除冗余依赖)
 ### 7.2 回滚步骤
 
 #### 步骤 1: 恢复 Foundation Crate
+
 ```bash
 # 从备份恢复 foundation crate
 git checkout backup-foundation-crate -- crates/foundation/
@@ -509,6 +537,7 @@ git checkout HEAD~1 -- Cargo.toml
 ```
 
 #### 步骤 2: 恢复依赖关系
+
 ```bash
 # 批量恢复导入语句
 find crates/ -name "*.rs" -exec sed -i.bak 's/scheduler_core::/scheduler_foundation::/g' {} \;
@@ -516,6 +545,7 @@ find crates/ -name "*.rs" -exec sed -i.bak 's/scheduler_domain::ports::/schedule
 ```
 
 #### 步骤 3: 验证回滚
+
 ```bash
 cargo clean
 cargo test
@@ -537,6 +567,7 @@ cargo test
 ### 8.1 迁移最佳实践
 
 #### 1. 渐进式迁移
+
 ```
 ✅ 分阶段执行，每阶段独立验证
 ✅ 保持功能完整性，避免破坏性变更
@@ -544,6 +575,7 @@ cargo test
 ```
 
 #### 2. 依赖管理
+
 ```
 ✅ 先理清依赖关系再开始迁移
 ✅ 使用工具自动化检测循环依赖
@@ -551,6 +583,7 @@ cargo test
 ```
 
 #### 3. 质量保证
+
 ```
 ✅ 每步都进行编译验证
 ✅ 保持测试覆盖率不下降
@@ -560,12 +593,14 @@ cargo test
 ### 8.2 经验教训
 
 #### 成功因素
+
 1. **详细的前期分析**: 充分理解现有架构问题
 2. **自动化工具支持**: 依赖分析和验证脚本
 3. **增量验证**: 每个步骤都验证正确性
 4. **完整的文档**: 记录每个决策和变更
 
 #### 避免的陷阱
+
 1. **大爆炸式重构**: 避免一次性改动过多
 2. **忽略测试**: 确保测试始终可运行
 3. **缺乏备份**: 重要变更前创建备份点
@@ -574,6 +609,7 @@ cargo test
 ### 8.3 架构设计原则
 
 #### 清洁架构实践
+
 ```
 Layer 4 (应用层): 具体的应用实现
 Layer 3 (服务层): 业务逻辑和基础设施
@@ -583,6 +619,7 @@ Layer 0 (基础层): 基础类型和错误定义
 ```
 
 #### 依赖倒置原则
+
 ```
 高层模块不应该依赖低层模块，两者都应该依赖于抽象
 抽象不应该依赖于细节，细节应该依赖于抽象
@@ -639,18 +676,21 @@ Layer 0 (基础层): 基础类型和错误定义
 ### 10.1 迁移成果
 
 **架构改进**:
+
 - ✅ 实现了零循环依赖的清洁架构
 - ✅ 明确了各模块的职责边界
 - ✅ 建立了清晰的依赖流向
 - ✅ 提高了代码的可测试性和可维护性
 
 **质量提升**:
+
 - ✅ 编译时间减少 22%
 - ✅ 增量编译时间减少 33%
 - ✅ 测试覆盖率保持在 80% 以上
 - ✅ 代码质量检查 100% 通过
 
 **工具建设**:
+
 - ✅ 建立了自动化的架构合规性检查
 - ✅ 集成了 CI/CD 质量门禁
 - ✅ 提供了完整的迁移文档和指南
@@ -658,16 +698,19 @@ Layer 0 (基础层): 基础类型和错误定义
 ### 10.2 未来改进方向
 
 **短期目标 (1-3个月)**:
+
 1. 继续优化 DI 容器性能
 2. 完善自动化测试覆盖
 3. 增强监控和观测能力
 
 **中期目标 (3-6个月)**:
+
 1. 实现更细粒度的模块化
 2. 引入更多设计模式最佳实践
 3. 建立更完善的开发工具链
 
 **长期愿景 (6-12个月)**:
+
 1. 向微服务架构演进
 2. 引入事件驱动架构
 3. 实现云原生部署能力

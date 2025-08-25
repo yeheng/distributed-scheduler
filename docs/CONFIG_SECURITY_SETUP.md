@@ -160,6 +160,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 ## Security Policies
 
 ### Development Environment
+
 - Authentication disabled
 - CORS allowed for localhost
 - Debug logging enabled
@@ -167,6 +168,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - No secret rotation
 
 ### Testing Environment
+
 - Authentication enabled
 - CORS restricted to test domains
 - Info logging enabled
@@ -174,6 +176,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Weekly secret rotation
 
 ### Staging Environment
+
 - Authentication required
 - CORS restricted to staging domains
 - Warn logging enabled
@@ -181,6 +184,7 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
 - Bi-weekly secret rotation
 
 ### Production Environment
+
 - Authentication required
 - CORS disabled
 - Warn logging enabled
@@ -257,12 +261,14 @@ The validator checks for:
 ### Example Migration
 
 **Before:**
+
 ```toml
 [database]
 url = "postgresql://user:password123@localhost/db"
 ```
 
 **After:**
+
 ```toml
 [database]
 url = "postgresql://scheduler:${DB_PASSWORD}@localhost/db?sslmode=require"
@@ -306,21 +312,25 @@ url = "postgresql://scheduler:${DB_PASSWORD}@localhost/db?sslmode=require"
 ### Common Issues
 
 **Secret Manager Not Initializing**
+
 - Check SECRET_MANAGER_KEY environment variable
 - Verify key is 32 bytes base64 encoded
 - Ensure proper file permissions
 
 **Configuration Validation Failing**
+
 - Review error messages for specific issues
 - Check environment-specific requirements
 - Verify all required fields are present
 
 **JWT Token Validation Failing**
+
 - Check JWT secret is properly stored
 - Verify token format and expiration
 - Ensure secret rotation is working
 
 **Encryption/Decryption Failing**
+
 - Verify CONFIG_ENCRYPTION_KEY is set
 - Check key format and length
 - Ensure proper file permissions
@@ -339,6 +349,7 @@ This will provide detailed logging of the configuration security systems.
 ## Support
 
 For issues or questions:
+
 1. Check the troubleshooting section
 2. Review validation error messages
 3. Consult the security policy documentation

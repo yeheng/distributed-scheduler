@@ -103,6 +103,7 @@ pub trait MessageQueue { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-errors, scheduler-domain
 - 作为基础设施层，为上层服务提供抽象接口
 - 被 application、infrastructure、api、dispatcher、worker 模块依赖
@@ -118,6 +119,7 @@ pub type SchedulerResult<T> = Result<T, SchedulerError>;
 ```
 
 **依赖关系**:
+
 - 无外部依赖，最底层crate
 - 被其他所有模块依赖
 
@@ -144,6 +146,7 @@ pub struct TaskQueryBuilder { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-errors
 - 被 foundation 重导出，供其他模块使用
 
@@ -165,6 +168,7 @@ pub struct CircuitBreakerConfig { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-errors
 - 被 foundation、infrastructure 等模块依赖
 
@@ -188,6 +192,7 @@ pub struct TelemetrySetup { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-domain
 - 提供跨组件的监控和追踪能力
 
@@ -208,6 +213,7 @@ pub struct SchedulerServiceImpl { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-domain, scheduler-errors
 - 被 api、dispatcher、worker 模块依赖
 
@@ -235,6 +241,7 @@ pub struct TimeoutHandler { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-domain, scheduler-config
 - 实现 foundation 中定义的抽象接口
 - 可能依赖外部库（PostgreSQL、Redis、RabbitMQ等）
@@ -259,6 +266,7 @@ pub fn cors_layer() -> Layer { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-application, scheduler-domain, scheduler-infrastructure
 - 作为系统的对外接口
 
@@ -288,6 +296,7 @@ pub struct RetryService { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-application, scheduler-domain, scheduler-infrastructure
 - 核心业务逻辑实现
 
@@ -315,6 +324,7 @@ pub struct HeartbeatManager { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-foundation, scheduler-application, scheduler-domain, scheduler-infrastructure
 - 实现具体的任务执行逻辑
 
@@ -339,6 +349,7 @@ pub struct TestContainers { /* ... */ }
 ```
 
 **依赖关系**:
+
 - 依赖: scheduler-domain, scheduler-errors
 - 被所有测试模块依赖
 
@@ -502,6 +513,7 @@ Task (1) ←→ (N) Dependency (任务依赖)
 ### 数据库表结构
 
 #### tasks 表
+
 ```sql
 CREATE TABLE tasks (
     id BIGSERIAL PRIMARY KEY,
@@ -527,6 +539,7 @@ CREATE TABLE tasks (
 ```
 
 #### task_runs 表
+
 ```sql
 CREATE TABLE task_runs (
     id BIGSERIAL PRIMARY KEY,
@@ -544,6 +557,7 @@ CREATE TABLE task_runs (
 ```
 
 #### workers 表
+
 ```sql
 CREATE TABLE workers (
     id VARCHAR(255) PRIMARY KEY,
@@ -1059,11 +1073,13 @@ pub struct TestDataFactory {
 本次架构文档更新反映了系统从原始设计到当前企业级分布式任务调度系统的完整演进：
 
 #### 1. **Crate架构重构**
+
 - 从7个模块扩展到11个专门化crate
 - 清洁架构和DDD原则的严格实现
 - 明确的依赖层次和职责划分
 
 #### 2. **新增核心特性**
+
 - ✅ **认证授权系统**: JWT + API密钥 + 基于角色的权限控制
 - ✅ **分布式追踪**: 跨组件上下文传播和OpenTelemetry集成
 - ✅ **多层缓存**: Redis分布式缓存和指标监控
@@ -1072,12 +1088,14 @@ pub struct TestDataFactory {
 - ✅ **资源管理**: 任务执行器的完善生命周期管理
 
 #### 3. **性能优化实现**
+
 - ✅ **并行处理**: 任务扫描和调度的并发优化
 - ✅ **查询优化**: 消除N+1模式，批量查询实现
 - ✅ **超时控制**: 全面的异步操作超时保护
 - ✅ **连接池优化**: 数据库和消息队列连接管理
 
 #### 4. **可观测性增强**
+
 - ✅ **结构化日志**: 统一的日志格式和上下文
 - ✅ **分布式追踪**: 请求全链路跟踪
 - ✅ **指标监控**: 业务、系统、应用多维度监控

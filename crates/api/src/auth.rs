@@ -15,7 +15,9 @@ use jsonwebtoken::{decode, encode, Algorithm, DecodingKey, EncodingKey, Header, 
 use serde::{Deserialize, Serialize};
 use sha2::{Digest, Sha256};
 use std::collections::HashMap;
+use std::sync::{Arc, RwLock};
 use tracing::{error, warn};
+use uuid::Uuid;
 
 pub const API_KEY_HEADER: &str = "X-API-Key";
 pub const BEARER_PREFIX: &str = "Bearer ";
@@ -45,6 +47,15 @@ pub enum Permission {
     SystemRead,
     SystemWrite,
     Admin,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct RefreshTokenData {
+    pub token_id: String,
+    pub user_id: String,
+    pub permissions: Vec<String>,
+    pub exp: i64,
+    pub issued_at: i64,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -174,6 +185,85 @@ impl JwtService {
         let validation = Validation::new(Algorithm::HS256);
         let token_data = decode::<Claims>(token, &self.decoding_key, &validation)?;
         Ok(token_data.claims)
+    }
+}
+
+pub struct RefreshTokenService {
+    encoding_key: EncodingKey,
+    decoding_key: DecodingKey,
+    tokens: Arc<RwLock<HashMap<String, RefreshTokenData>>>,
+}
+
+impl RefreshTokenService {
+    pub fn new(secret: &str) -> Self {
+        Self {
+            encoding_key: EncodingKey::from_secret(secret.as_ref()),
+            decoding_key: DecodingKey::from_secret(secret.as_ref()),
+            tokens: Arc::new(RwLock::new(HashMap::new())),
+        }
+    }
+
+    pub fn generate_refresh_token(
+        &self,
+        user_id: &str,
+        permissions: &[Permission],
+    ) -> Result<String, jsonwebtoken::errors::Error> {
+        let now = Utc::now();
+        let exp = now + Duration::days(7); // Refresh tokens expire in 7 days
+        let token_id = Uuid::new_v4().to_string();
+
+        let refresh_data = RefreshTokenData {
+            token_id: token_id.clone(),
+            user_id: user_id.to_string(),
+            permissions: permissions.iter().map(|p| format!("{p:?}")).collect(),
+            exp: exp.timestamp(),
+            issued_at: now.timestamp(),
+        };
+
+        // Store the refresh token data
+        if let Ok(mut tokens) = self.tokens.write() {
+            tokens.insert(token_id.clone(), refresh_data.clone());
+        }
+
+        // Generate JWT for the refresh token
+        encode(&Header::default(), &refresh_data, &self.encoding_key)
+    }
+
+    pub fn validate_refresh_token(&self, token: &str) -> Result<RefreshTokenData, AuthError> {
+        let validation = Validation::new(Algorithm::HS256);
+        let token_data = decode::<RefreshTokenData>(token, &self.decoding_key, &validation)
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        // Check if token exists in our store and is not expired
+        if let Ok(tokens) = self.tokens.read() {
+            if let Some(stored_data) = tokens.get(&token_data.claims.token_id) {
+                let now = Utc::now().timestamp();
+                if stored_data.exp > now {
+                    return Ok(token_data.claims);
+                }
+            }
+        }
+
+        Err(AuthError::InvalidToken)
+    }
+
+    pub fn revoke_refresh_token(&self, token: &str) -> Result<(), AuthError> {
+        let validation = Validation::new(Algorithm::HS256);
+        let token_data = decode::<RefreshTokenData>(token, &self.decoding_key, &validation)
+            .map_err(|_| AuthError::InvalidToken)?;
+
+        if let Ok(mut tokens) = self.tokens.write() {
+            tokens.remove(&token_data.claims.token_id);
+        }
+
+        Ok(())
+    }
+
+    pub fn cleanup_expired_tokens(&self) {
+        if let Ok(mut tokens) = self.tokens.write() {
+            let now = Utc::now().timestamp();
+            tokens.retain(|_, data| data.exp > now);
+        }
     }
 }
 

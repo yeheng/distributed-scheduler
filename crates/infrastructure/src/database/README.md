@@ -80,6 +80,7 @@ let app = ApplicationService::new("sqlite::memory:", 1).await?;
 ### Database Manager (`DatabaseManager`)
 
 Central coordinator that:
+
 - Detects database type from URL
 - Manages connection pools
 - Provides repository factories
@@ -88,6 +89,7 @@ Central coordinator that:
 ### Database Pool (`DatabasePool`)
 
 Enum-based pool wrapper that:
+
 - Abstracts over PostgreSQL and SQLite pools
 - Provides unified interface for connection management
 - Handles database-specific optimizations
@@ -95,6 +97,7 @@ Enum-based pool wrapper that:
 ### Repository Pattern
 
 Each repository (Task, TaskRun, Worker) has:
+
 - A trait interface defining operations
 - PostgreSQL implementation
 - SQLite implementation
@@ -103,27 +106,32 @@ Each repository (Task, TaskRun, Worker) has:
 ## SOLID Principles Implementation
 
 ### Single Responsibility Principle (SRP)
+
 - `DatabaseManager`: Manages database connections and repository creation
 - `DatabasePool`: Handles connection pooling
 - `DatabaseType`: URL detection and type representation
 - Each repository: Handles one entity type's data operations
 
 ### Open/Closed Principle (OCP)
+
 - Extensible for new database types (MySQL, etc.) without modifying existing code
 - New repositories can be added without changing the manager
 - Database-specific optimizations can be added per implementation
 
 ### Liskov Substitution Principle (LSP)
+
 - PostgreSQL and SQLite repositories are completely interchangeable
 - Same interface, same behavior contracts
 - Application code doesn't need to know which database is being used
 
 ### Interface Segregation Principle (ISP)
+
 - Clean, focused repository traits
 - Database manager provides only needed methods
 - No forced dependencies on unused functionality
 
 ### Dependency Inversion Principle (DIP)
+
 - Application depends on repository traits, not concrete implementations
 - Database manager returns trait objects
 - Easy to mock for testing
@@ -146,11 +154,13 @@ cargo test database --package scheduler-infrastructure
 ## Database Support
 
 ### PostgreSQL
+
 - Connection string: `postgres://` or `postgresql://`
 - Full feature support
 - Production-ready with connection pooling
 
 ### SQLite
+
 - File database: `sqlite:path/to/database.db`
 - In-memory: `sqlite::memory:`
 - Perfect for development and testing
@@ -159,6 +169,7 @@ cargo test database --package scheduler-infrastructure
 ## Migration from Old Code
 
 Old code:
+
 ```rust
 // Tightly coupled to PostgreSQL
 let pool = PgPool::connect(&config.database_url).await?;
@@ -166,6 +177,7 @@ let task_repo = PostgresTaskRepository::new(pool.clone());
 ```
 
 New code:
+
 ```rust
 // Database-agnostic
 let db_manager = DatabaseManager::new(&config.database_url, config.max_connections).await?;

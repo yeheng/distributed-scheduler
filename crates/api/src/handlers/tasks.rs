@@ -207,10 +207,10 @@ pub async fn create_task(
     }
 
     let mut task = Task::new(
-        request.name.clone(),
-        request.task_type.clone(),
-        request.schedule.clone(),
-        request.parameters.clone(),
+        request.name,
+        request.task_type,
+        request.schedule,
+        request.parameters,
     );
 
     if let Some(timeout) = request.timeout_seconds {
@@ -471,7 +471,7 @@ pub async fn patch_task(
         crate::validation::task::validate_task_parameters(parameters)?;
     }
     if let Some(Some(deps)) = request.dependencies.as_option() {
-        crate::validation::task::validate_dependencies(&Some(deps.clone()))?;
+        crate::validation::task::validate_dependencies(&Some(deps.to_vec()))?;
     }
 
     // Business logic validation
@@ -532,7 +532,7 @@ async fn apply_patch_updates(
 
     // Update dependencies if provided
     if let Some(Some(deps)) = request.dependencies.as_option() {
-        task.dependencies = deps.clone();
+        task.dependencies = deps.to_vec();
     }
 
     // Update status if provided

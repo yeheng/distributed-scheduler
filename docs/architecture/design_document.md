@@ -162,17 +162,20 @@ graph TD
 **职责**: 定义核心业务概念和规则
 
 **包含内容**:
+
 - 实体 (Entities): `Task`, `TaskRun`, `Worker`, `Message`
 - 值对象 (Value Objects): `TaskStatus`, `WorkerStatus`, `TaskResult`
 - 领域服务接口 (Ports): `MessageQueue`, `TaskRepository`
 - 领域事件 (Events): 任务状态变更事件
 
 **关键特性**:
+
 - 无外部依赖（除 errors）
 - 定义业务规则
 - 提供抽象接口
 
 **示例代码**:
+
 ```rust
 // 实体定义
 pub struct Task {
@@ -198,16 +201,19 @@ pub trait TaskRepository: Send + Sync {
 **职责**: 依赖注入容器和服务定位
 
 **包含内容**:
+
 - `ServiceContainer`: DI 容器
 - `ApplicationContext`: 应用上下文
 - `ServiceLocator`: 服务定位器
 
 **关键特性**:
+
 - 生命周期管理
 - 依赖解析
 - 服务注册
 
 **示例代码**:
+
 ```rust
 pub struct ServiceContainer {
     task_repository: Option<Arc<dyn TaskRepository>>,
@@ -231,11 +237,13 @@ impl ServiceContainer {
 **职责**: 业务逻辑实现和用例编排
 
 **包含内容**:
+
 - 应用服务: `TaskSchedulerService`, `WorkerManagementService`
 - 端口定义: `TaskExecutor`, `ExecutorRegistry`
 - 业务用例: 任务调度、依赖检查、Cron 解析
 
 **关键特性**:
+
 - 实现业务用例
 - 协调领域对象
 - 处理事务边界
@@ -245,12 +253,14 @@ impl ServiceContainer {
 **职责**: 技术实现和外部系统集成
 
 **包含内容**:
+
 - 数据库适配器: PostgreSQL 实现
 - 消息队列适配器: RabbitMQ, Redis Stream
 - 缓存实现: Redis 缓存
 - 外部 API 客户端
 
 **关键特性**:
+
 - 实现端口接口
 - 处理技术细节
 - 与外部系统交互
@@ -260,12 +270,14 @@ impl ServiceContainer {
 **职责**: 监控、日志、指标和追踪
 
 **包含内容**:
+
 - 指标收集器
 - 分布式追踪
 - 告警管理
 - 性能监控
 
 **关键特性**:
+
 - 系统健康监控
 - 性能指标收集
 - 问题诊断支持
@@ -273,16 +285,19 @@ impl ServiceContainer {
 ### 3.6 应用层模块
 
 #### API (Web接口)
+
 - RESTful API 实现
 - 身份认证和授权
 - 请求验证和响应格式化
 
 #### Dispatcher (任务调度器)
+
 - Cron 调度逻辑
 - 任务依赖管理
 - 负载均衡
 
 #### Worker (任务执行器)
+
 - 任务执行引擎
 - 资源管理
 - 结果报告
@@ -296,12 +311,14 @@ impl ServiceContainer {
 **背景**: 原 Foundation crate 承载过多职责，导致循环依赖和架构混乱。
 
 **解决方案**:
+
 1. **服务接口重新定位**: 移至 `application/ports`
 2. **DI 容器独立**: 创建 `scheduler-core` crate
 3. **领域事件归位**: 移至 `domain/events`
 4. **依赖关系清理**: 消除所有循环依赖
 
 **收益**:
+
 - 消除循环依赖
 - 明确模块职责
 - 提高代码质量
@@ -310,11 +327,13 @@ impl ServiceContainer {
 ### 4.2 端口适配器模式 (Ports & Adapters)
 
 **实现方式**:
+
 - `domain/ports`: 定义抽象接口
 - `infrastructure`: 提供具体实现
 - `application`: 使用抽象接口
 
 **优势**:
+
 - 技术栈无关性
 - 易于单元测试
 - 支持多种实现
@@ -322,6 +341,7 @@ impl ServiceContainer {
 ### 4.3 依赖注入设计
 
 **容器架构**:
+
 ```
 ServiceContainer
 ├── TaskRepository
@@ -331,16 +351,19 @@ ServiceContainer
 ```
 
 **生命周期管理**:
+
 - 单例模式: 数据库连接、消息队列
 - 瞬时模式: 业务服务、用例处理器
 
 ### 4.4 消息队列抽象
 
 **支持的实现**:
+
 - RabbitMQ: 可靠性优先
 - Redis Streams: 性能优先
 
 **接口设计**:
+
 ```rust
 #[async_trait]
 pub trait MessageQueue: Send + Sync {
@@ -419,6 +442,7 @@ pub trait MessageQueue: Send + Sync {
 ### 6.2 容器化部署
 
 **Docker 服务**:
+
 - `scheduler-api`: Web API 服务
 - `scheduler-dispatcher`: 调度服务  
 - `scheduler-worker`: 工作节点
@@ -429,6 +453,7 @@ pub trait MessageQueue: Send + Sync {
 - `grafana`: 监控面板
 
 **Docker Compose 配置**:
+
 ```yaml
 services:
   api:
@@ -461,11 +486,13 @@ services:
 ### 7.1 身份认证
 
 **认证方式**:
+
 - JWT Token 认证
 - API Key 认证
 - 多租户支持
 
 **安全特性**:
+
 - Token 自动刷新
 - 权限最小化原则
 - 审计日志记录
@@ -473,11 +500,13 @@ services:
 ### 7.2 数据安全
 
 **加密措施**:
+
 - 传输加密 (TLS 1.3)
 - 静态数据加密
 - 敏感配置加密
 
 **访问控制**:
+
 - 基于角色的访问控制 (RBAC)
 - API 限流保护
 - SQL 注入防护
@@ -499,16 +528,19 @@ services:
 ### 8.2 性能优化策略
 
 **数据库优化**:
+
 - 连接池管理
 - 查询索引优化
 - 读写分离
 
 **缓存策略**:
+
 - Redis 分布式缓存
 - 应用级缓存
 - 查询结果缓存
 
 **异步处理**:
+
 - Tokio 异步运行时
 - 消息队列异步通信
 - 并行任务执行
@@ -520,18 +552,21 @@ services:
 ### 9.1 监控指标
 
 **业务指标**:
+
 - 任务执行成功率
 - 任务平均执行时间
 - 队列积压深度
 - 工作节点健康状态
 
 **系统指标**:
+
 - CPU 使用率
 - 内存使用率
 - 网络 I/O
 - 磁盘 I/O
 
 **应用指标**:
+
 - HTTP 请求量和延迟
 - 数据库连接数
 - 缓存命中率
@@ -540,11 +575,13 @@ services:
 ### 9.2 告警策略
 
 **告警级别**:
+
 - **Critical**: 服务不可用
 - **Warning**: 性能降级
 - **Info**: 状态变更通知
 
 **通知渠道**:
+
 - 邮件通知
 - Webhook 集成
 - 日志记录
@@ -552,12 +589,14 @@ services:
 ### 9.3 分布式追踪
 
 **追踪范围**:
+
 - HTTP 请求链路
 - 数据库操作
 - 消息队列通信
 - 服务间调用
 
 **追踪工具**:
+
 - OpenTelemetry 标准
 - Jaeger 追踪系统
 - 结构化日志
@@ -569,11 +608,13 @@ services:
 ### 10.1 自动化测试
 
 **测试层级**:
+
 - 单元测试: 覆盖率 > 80%
 - 集成测试: 主要业务流程
 - 端到端测试: 关键用户场景
 
 **测试工具**:
+
 - Rust 内置测试框架
 - TestContainers 集成测试
 - Mockall 模拟依赖
@@ -581,11 +622,13 @@ services:
 ### 10.2 代码质量
 
 **静态分析**:
+
 - Clippy 代码检查
 - 格式化标准 (rustfmt)
 - 依赖安全扫描
 
 **架构检查**:
+
 - 依赖关系验证
 - 循环依赖检测
 - 架构合规性检查
@@ -593,6 +636,7 @@ services:
 ### 10.3 CI/CD 流水线
 
 **自动化流程**:
+
 1. 代码提交触发构建
 2. 运行单元测试和集成测试
 3. 执行静态代码分析
@@ -609,11 +653,13 @@ services:
 ### 11.1 水平扩展
 
 **无状态服务**:
+
 - API 服务可任意扩展
 - Worker 节点动态增减
 - 负载均衡器分发请求
 
 **数据分片**:
+
 - 任务按租户分区
 - 时间范围分表
 - 读写分离
@@ -621,11 +667,13 @@ services:
 ### 11.2 功能扩展
 
 **插件系统**:
+
 - 自定义任务执行器
 - 第三方集成接口
 - 扩展监控指标
 
 **多租户支持**:
+
 - 数据隔离
 - 资源配额
 - 权限隔离
@@ -633,11 +681,13 @@ services:
 ### 11.3 云原生支持
 
 **Kubernetes 部署**:
+
 - Pod 自动扩缩容
 - 服务发现和配置
 - 健康检查和自愈
 
 **云服务集成**:
+
 - 托管数据库
 - 对象存储
 - 监控和日志服务
