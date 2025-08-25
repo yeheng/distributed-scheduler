@@ -9,6 +9,22 @@ authors = ["Scheduler Team"]
 name = "scheduler"
 path = "src/main.rs"
 
+[[bin]]
+name = "scheduler-dispatcher"
+path = "src/bin/dispatcher.rs"
+
+[[bin]]
+name = "scheduler-worker"
+path = "src/bin/worker.rs"
+
+[[bin]]
+name = "scheduler-api"
+path = "src/bin/api.rs"
+
+[[bin]]
+name = "scheduler-cli"
+path = "src/bin/cli.rs"
+
 [dependencies]
 # 工作区内部crates
 scheduler-core = { path = "crates/core" }
