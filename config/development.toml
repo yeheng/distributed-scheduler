@@ -1,84 +1,31 @@
 # 开发环境配置文件
+# 继承 base.toml 的默认配置，只覆盖开发环境特定的设置
 
 [database]
+# 开发环境数据库连接
 url = "postgresql://postgres:123456@localhost:5432/scheduler"
-max_connections = 10
-min_connections = 1
-connection_timeout_seconds = 30
-idle_timeout_seconds = 600
 
 [message_queue]
-# 消息队列类型: "rabbitmq" 或 "redis_stream"
+# Redis Stream 开发环境配置
 type = "redis_stream"
 url = "redis://localhost:6379"
-task_queue = "tasks"
-status_queue = "status_updates"
-heartbeat_queue = "heartbeats"
-control_queue = "control"
-max_retries = 3
-retry_delay_seconds = 60
-connection_timeout_seconds = 30
-
-# Redis Stream配置（当type = "redis_stream"时使用）
-[message_queue.redis]
-host = "localhost"
-port = 6379
-database = 0
-connection_timeout_seconds = 30
-max_retry_attempts = 3
-retry_delay_seconds = 1
-
-# RabbitMQ配置示例（当type = "rabbitmq"时使用）
-# 取消下面的注释并注释掉上面的redis配置来切换到RabbitMQ
-# [message_queue]
-# type = "rabbitmq"
-# url = "amqp://guest:guest@localhost:5672"
-# task_queue = "tasks"
-# status_queue = "status_updates"
-# heartbeat_queue = "heartbeats"
-# control_queue = "control"
-
-[dispatcher]
-enabled = true
-schedule_interval_seconds = 10
-max_concurrent_dispatches = 100
-worker_timeout_seconds = 90
-dispatch_strategy = "round_robin"
 
 [worker]
-enabled = false
+# 开发环境 Worker 配置
 worker_id = "dev-worker-001"
 hostname = "localhost"
 ip_address = "127.0.0.1"
-max_concurrent_tasks = 5
-supported_task_types = ["shell", "http"]
-heartbeat_interval_seconds = 30
-task_poll_interval_seconds = 5
 
 [api]
-enabled = true
+# 开发环境 API 配置
 bind_address = "127.0.0.1:8080"
-cors_enabled = true
 cors_origins = ["http://localhost:3000", "http://localhost:8080", "http://127.0.0.1:3000", "http://127.0.0.1:8080"]
-request_timeout_seconds = 30
-max_request_size_mb = 10
 
 [api.auth]
-enabled = false
+# 开发环境认证配置（默认关闭）
 jwt_secret = "dev_secret_key_for_development_only"
-jwt_expiration_hours = 24
-api_keys = {}
-
-[api.rate_limiting]
-enabled = false
-max_requests_per_minute = 100
-refill_rate_per_second = 1.0
-burst_size = 10
-endpoint_limits = {}
 
 [observability]
-tracing_enabled = true
-metrics_enabled = true
-metrics_endpoint = "/metrics"
+# 开发环境日志级别
 log_level = "debug"
 jaeger_endpoint = "http://localhost:14268/api/traces"

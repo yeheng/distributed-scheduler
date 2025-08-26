@@ -1,6 +1,8 @@
-# 生产环境配置模板
+# 生产环境配置文件
+# 继承 base.toml 的默认配置，只覆盖生产环境特定的设置
 
 [database]
+# 生产环境数据库连接
 url = "postgresql://db-host:5432/scheduler_prod"
 max_connections = 50
 min_connections = 10
@@ -8,45 +10,27 @@ connection_timeout_seconds = 60
 idle_timeout_seconds = 1800
 
 [message_queue]
-# 消息队列类型: "rabbitmq" 或 "redis_stream"
-type = "redis_stream"
+# Redis Stream 生产环境配置
 url = "redis://redis-host:6379"
-task_queue = "tasks"
-status_queue = "status_updates"
-heartbeat_queue = "heartbeats"
-control_queue = "control"
 max_retries = 5
 retry_delay_seconds = 120
 connection_timeout_seconds = 60
 
-# Redis Stream配置（推荐用于生产环境）
 [message_queue.redis]
 host = "redis-host"
-port = 6379
-database = 0
 connection_timeout_seconds = 60
 max_retry_attempts = 5
 retry_delay_seconds = 2
 
-# RabbitMQ配置示例（生产环境推荐）
-# 取消下面的注释并注释掉上面的redis配置来切换到RabbitMQ
-# [message_queue]
-# type = "rabbitmq"
-# url = "amqp://prod-user:secure-password@mq-host:5672"
-# task_queue = "tasks"
-# status_queue = "status_updates"
-# heartbeat_queue = "heartbeats"
-# control_queue = "control"
-
 [dispatcher]
-enabled = true
+# 生产环境调度器配置
 schedule_interval_seconds = 30
 max_concurrent_dispatches = 500
 worker_timeout_seconds = 180
 dispatch_strategy = "load_balancer"
 
 [worker]
-enabled = false
+# 生产环境 Worker 配置
 worker_id = "prod-worker"
 hostname = "worker-host"
 ip_address = "10.0.0.100"
@@ -56,7 +40,7 @@ heartbeat_interval_seconds = 60
 task_poll_interval_seconds = 10
 
 [api]
-enabled = true
+# 生产环境 API 配置
 bind_address = "0.0.0.0:8443"
 cors_enabled = false
 cors_origins = []
@@ -64,21 +48,19 @@ request_timeout_seconds = 60
 max_request_size_mb = 50
 
 [api.auth]
+# 生产环境认证配置（启用）
 enabled = true
 jwt_secret = "placeholder_for_secret_manager"
 jwt_expiration_hours = 8
-api_keys = {}
 
 [api.rate_limiting]
+# 生产环境限流配置（启用）
 enabled = true
 max_requests_per_minute = 30
 refill_rate_per_second = 0.5
 burst_size = 5
-endpoint_limits = {}
 
 [observability]
-tracing_enabled = true
-metrics_enabled = true
-metrics_endpoint = "/metrics"
+# 生产环境日志级别
 log_level = "warn"
 jaeger_endpoint = "http://jaeger:14268/api/traces"

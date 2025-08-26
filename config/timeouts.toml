@@ -1,0 +1,34 @@
+# 超时配置文件
+# 此文件包含系统中不同操作类型的超时设置
+
+# 默认超时设置（秒）
+[timeouts]
+database = 30
+database_long_running = 300  # 用于迁移、批量操作
+message_queue = 10
+message_queue_connection = 15
+external_api = 15
+webhook = 20
+internal_service = 5
+inter_service = 8
+task_execution_default = 60
+task_execution_max = 3600
+schedule_scan = 45
+dependency_check = 20
+task_dispatch = 15
+worker_heartbeat = 10
+worker_registration = 15
+circuit_breaker_reset = 60
+
+# 环境特定超时覆盖
+[timeouts.development]
+database = 60
+message_queue = 30
+
+[timeouts.production]
+database = 15
+message_queue = 5
+
+[timeouts.testing]
+database = 5
+message_queue = 2

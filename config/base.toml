@@ -1,0 +1,90 @@
+# 基础配置文件 - 包含所有默认设置
+# 这个文件定义了系统的默认配置，环境特定配置会覆盖这些默认值
+# 不要直接修改此文件，使用环境特定的配置文件来覆盖设置
+
+[database]
+# 数据库连接配置
+url = "postgresql://localhost:5432/scheduler"
+max_connections = 10
+min_connections = 1
+connection_timeout_seconds = 30
+idle_timeout_seconds = 600
+
+[message_queue]
+# 消息队列基础配置
+type = "redis_stream"  # 支持 "redis_stream" 或 "rabbitmq"
+task_queue = "tasks"
+status_queue = "status_updates"
+heartbeat_queue = "heartbeats"
+control_queue = "control"
+max_retries = 3
+retry_delay_seconds = 60
+connection_timeout_seconds = 30
+
+# Redis Stream 默认配置
+[message_queue.redis]
+host = "localhost"
+port = 6379
+database = 0
+connection_timeout_seconds = 30
+max_retry_attempts = 3
+retry_delay_seconds = 1
+pool_min_idle = 1
+pool_max_open = 10
+pool_timeout_seconds = 30
+
+[dispatcher]
+# 任务调度器配置
+enabled = true
+schedule_interval_seconds = 10
+max_concurrent_dispatches = 100
+worker_timeout_seconds = 90
+dispatch_strategy = "round_robin"
+
+[worker]
+# Worker 默认配置
+enabled = false
+max_concurrent_tasks = 5
+supported_task_types = ["shell", "http"]
+heartbeat_interval_seconds = 30
+task_poll_interval_seconds = 5
+
+[api]
+# API 服务器配置
+enabled = true
+bind_address = "127.0.0.1:8080"
+cors_enabled = true
+cors_origins = ["http://localhost:3000", "http://localhost:8080"]
+request_timeout_seconds = 30
+max_request_size_mb = 10
+
+[api.auth]
+# 认证默认配置（默认关闭）
+enabled = false
+jwt_expiration_hours = 24
+api_keys = {}
+
+[api.rate_limiting]
+# 限流默认配置（默认关闭）
+enabled = false
+max_requests_per_minute = 100
+refill_rate_per_second = 1.0
+burst_size = 10
+endpoint_limits = {}
+
+[observability]
+# 可观测性配置
+tracing_enabled = true
+metrics_enabled = true
+metrics_endpoint = "/metrics"
+log_level = "info"
+
+# 超时配置
+[timeouts]
+database_timeout = 30
+message_queue_timeout = 10
+external_api_timeout = 15
+task_execution_default_timeout = 60
+task_execution_max_timeout = 3600
+worker_heartbeat_timeout = 10
+circuit_breaker_reset_timeout = 60
