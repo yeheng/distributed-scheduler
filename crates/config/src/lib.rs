@@ -5,11 +5,9 @@ pub mod validation_new;
 
 // 现有模块（保持向后兼容）
 pub mod circuit_breaker;
-pub mod enhanced_validation;
 pub mod environment;
 pub mod models;
 pub mod security;
-pub mod security_policy;
 
 // Re-export commonly used types
 
@@ -20,9 +18,6 @@ pub use validation_new::{BasicConfigValidator, ValidationUtils, ConfigValidator}
 
 // 现有API（保持向后兼容）
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitState};
-pub use enhanced_validation::{
-    ValidationError, ValidationResult, ValidationScore, ValidationWarning,
-};
 pub use environment::{ConfigProfile, Environment, ProfileRegistry};
 pub use models::{
     ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
