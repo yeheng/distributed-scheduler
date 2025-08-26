@@ -4,7 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
-scheduler-domain = { path = "../domain" }
+scheduler-domain = { path = "../domain", features = ["sqlx-support"] }
 scheduler-errors = { path = "../errors" }
 scheduler-config = { path = "../config" }
 scheduler-observability = { path = "../observability" }

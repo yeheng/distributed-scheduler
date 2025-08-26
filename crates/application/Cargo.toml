@@ -36,7 +36,6 @@ parking_lot = { workspace = true }
 cron = "0.15"
 
 # Additional dependencies
-scheduler-infrastructure = { path = "../infrastructure" }
 tracing-opentelemetry = "0.31"
 
 [dev-dependencies]

@@ -5,6 +5,10 @@ edition = "2021"
 description = "Configuration management for the distributed task scheduler system"
 authors = ["Scheduler Team"]
 
+[features]
+default = ["default-encryption"]
+default-encryption = []
+
 [dependencies]
 # Serialization and configuration
 serde = { version = "1.0", features = ["derive"] }

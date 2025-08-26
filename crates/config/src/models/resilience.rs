@@ -1,5 +1,5 @@
 use crate::circuit_breaker::CircuitBreakerConfig;
-use crate::validation::ConfigValidator;
+use crate::validation_new::ConfigValidator;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

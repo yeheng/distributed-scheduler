@@ -1,4 +1,4 @@
-use crate::validation::{ConfigValidator, ValidationUtils};
+use crate::validation_new::{ConfigValidator, ValidationUtils};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

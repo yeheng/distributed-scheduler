@@ -3,6 +3,10 @@ name = "scheduler-domain"
 version = "0.1.0"
 edition = "2021"
 
+[features]
+# 可选的数据库支持，只在需要时启用
+sqlx-support = ["sqlx"]
+
 [dependencies]
 # 只依赖必要的基础库，不依赖其他scheduler crates
 # 体现依赖倒置原则，领域层不依赖任何具体实现
@@ -14,10 +18,11 @@ uuid = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
-# 添加 sqlx 依赖以支持数据库类型转换
-sqlx = { workspace = true }
 tracing = { workspace = true }
 scheduler-errors = { path = "../errors" }
+
+# 可选的数据库支持
+sqlx = { workspace = true, optional = true }
 
 [dev-dependencies]
 tempfile = {workspace = true}

@@ -1,0 +1,26 @@
+[package]
+name = "scheduler-common"
+version = "0.1.0"
+edition = "2021"
+description = "分布式任务调度系统的共享工具和常量模块"
+
+[dependencies]
+# 只依赖最基础的库，不依赖其他scheduler crates
+tokio = { workspace = true }
+serde = { workspace = true }
+serde_json = { workspace = true }
+chrono = { workspace = true }
+uuid = { workspace = true }
+anyhow = { workspace = true }
+thiserror = { workspace = true }
+tracing = { workspace = true }
+rand = { workspace = true }
+hostname = { workspace = true }
+async-trait = { workspace = true }
+
+# 错误处理模块
+scheduler-errors = { path = "../errors" }
+
+[dev-dependencies]
+tempfile = { workspace = true }
+tokio-test = "0.4.4"

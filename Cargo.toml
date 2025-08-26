@@ -28,6 +28,7 @@ path = "src/bin/cli.rs"
 [dependencies]
 # 工作区内部crates
 scheduler-core = { path = "crates/core" }
+scheduler-common = { path = "crates/common" }
 scheduler-domain = { path = "crates/domain" }
 scheduler-application = { path = "crates/application" }
 scheduler-dispatcher = { path = "crates/dispatcher" }
@@ -84,6 +85,7 @@ criterion = { version = "0.7", features = ["html_reports"] }
 resolver = "2"
 members = [
     "crates/core",
+    "crates/common",
     "crates/domain",
     "crates/application",
     "crates/dispatcher",

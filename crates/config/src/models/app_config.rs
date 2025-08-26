@@ -11,7 +11,7 @@ use super::{
     message_queue::MessageQueueConfig,
     resilience::ResilienceConfig,
 };
-use crate::validation::ConfigValidator;
+use crate::validation_new::ConfigValidator;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AppConfig {

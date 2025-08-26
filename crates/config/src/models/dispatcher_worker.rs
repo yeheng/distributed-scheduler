@@ -1,4 +1,4 @@
-use crate::validation::{ConfigValidator, ValidationUtils};
+use crate::validation_new::{ConfigValidator, ValidationUtils};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -16,6 +16,7 @@ impl ConfigValidator for DispatcherConfig {
         ValidationUtils::validate_count(
             self.max_concurrent_dispatches,
             "dispatcher.max_concurrent_dispatches",
+            10000,
         )?;
         ValidationUtils::validate_timeout_seconds(self.worker_timeout_seconds)?;
 
@@ -55,7 +56,7 @@ impl ConfigValidator for WorkerConfig {
         ValidationUtils::validate_not_empty(&self.hostname, "worker.hostname")?;
         ValidationUtils::validate_not_empty(&self.ip_address, "worker.ip_address")?;
 
-        ValidationUtils::validate_count(self.max_concurrent_tasks, "worker.max_concurrent_tasks")?;
+        ValidationUtils::validate_count(self.max_concurrent_tasks, "worker.max_concurrent_tasks", 1000)?;
         ValidationUtils::validate_timeout_seconds(self.heartbeat_interval_seconds)?;
         ValidationUtils::validate_timeout_seconds(self.task_poll_interval_seconds)?;
 

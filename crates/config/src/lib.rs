@@ -1,29 +1,33 @@
+// 新的模块结构（推荐使用）
+pub mod core;
+pub mod security_new;
+pub mod validation_new;
+
+// 现有模块（保持向后兼容）
 pub mod circuit_breaker;
-pub mod encrypted_config_storage;
 pub mod enhanced_validation;
 pub mod environment;
-pub mod jwt_secret_manager;
 pub mod models;
-pub mod secret_manager;
 pub mod security;
 pub mod security_policy;
-pub mod validation;
 
 // Re-export commonly used types
+
+// 新的简化API（推荐使用）
+pub use core::constants;
+pub use security_new::{Encryptor, SimpleSecretManager, SecretType, SecretStatus};
+pub use validation_new::{BasicConfigValidator, ValidationUtils, ConfigValidator};
+
+// 现有API（保持向后兼容）
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitState};
-pub use encrypted_config_storage::{EncryptedConfigStorage, EncryptionStatus};
 pub use enhanced_validation::{
-    ConfigValidator, ValidationError, ValidationResult, ValidationScore, ValidationWarning,
+    ValidationError, ValidationResult, ValidationScore, ValidationWarning,
 };
 pub use environment::{ConfigProfile, Environment, ProfileRegistry};
-pub use jwt_secret_manager::{JwtSecret, JwtSecretManager, RotationStatus};
 pub use models::{
     ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
     MessageQueueConfig, MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig,
     RedisConfig, ResilienceConfig, WorkerConfig,
-};
-pub use secret_manager::{
-    RotationPolicy, SecretEntry, SecretManager, SecretType, SecretValidation,
 };
 pub use security::{
     ConfigSecurity, SecurityEvent, SecurityEventType, SecuritySeverity, SENSITIVE_PATTERNS,

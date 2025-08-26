@@ -1,4 +1,4 @@
-use crate::validation::ConfigValidator;
+use crate::validation_new::ConfigValidator;
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 
