@@ -17,7 +17,17 @@ pub fn default_config() -> Value {
         
         // 消息队列配置
         "message_queue": {
+            "type": "RedisStream",
             "url": "redis://localhost:6379",
+            "redis": {
+                "host": "127.0.0.1",
+                "port": 6379,
+                "database": 0,
+                "password": null,
+                "connection_timeout_seconds": 30,
+                "max_retry_attempts": 3,
+                "retry_delay_seconds": 5
+            },
             "task_queue": "tasks",
             "status_queue": "status_updates",
             "heartbeat_queue": "heartbeats",
@@ -59,12 +69,26 @@ pub fn default_config() -> Value {
             "auth": {
                 "enabled": false,
                 "jwt_secret": "your-secret-key-change-this-in-production",
-                "jwt_expiration_hours": 24
+                "jwt_expiration_hours": 24,
+                "api_keys": {
+                    "default": {
+                        "name": "Default API Key",
+                        "permissions": ["TaskRead", "TaskWrite"],
+                        "is_active": true
+                    }
+                }
             },
             "rate_limiting": {
                 "enabled": false,
-                "requests_per_minute": 60,
-                "burst_size": 10
+                "max_requests_per_minute": 60,
+                "refill_rate_per_second": 1.0,
+                "burst_size": 10,
+                "endpoint_limits": {
+                    "/api/tasks": {
+                        "max_requests_per_minute": 100,
+                        "burst_size": 10
+                    }
+                }
             }
         },
         
@@ -80,15 +104,74 @@ pub fn default_config() -> Value {
         // 执行器配置
         "executor": {
             "enabled": true,
-            "default_executor": "shell"
+            "executors": {
+                "shell": {
+                    "executor_type": "shell",
+                    "config": null,
+                    "supported_task_types": ["shell"],
+                    "priority": 100,
+                    "max_concurrent_tasks": 10,
+                    "timeout_seconds": 300,
+                    "retry_config": {
+                        "max_retries": 3,
+                        "base_delay_ms": 1000,
+                        "max_delay_ms": 30000,
+                        "backoff_multiplier": 2.0,
+                        "jitter_enabled": true
+                    }
+                },
+                "http": {
+                    "executor_type": "http",
+                    "config": null,
+                    "supported_task_types": ["http"],
+                    "priority": 90,
+                    "max_concurrent_tasks": 20,
+                    "timeout_seconds": 60,
+                    "retry_config": {
+                        "max_retries": 3,
+                        "base_delay_ms": 1000,
+                        "max_delay_ms": 30000,
+                        "backoff_multiplier": 2.0,
+                        "jitter_enabled": true
+                    }
+                }
+            },
+            "default_executor": "shell",
+            "executor_factory": {
+                "auto_discovery": false,
+                "discovery_path": "./executors",
+                "dynamic_loading": false,
+                "plugin_directories": ["./plugins"],
+                "validation_enabled": true
+            }
         },
         
         // 弹性配置
         "resilience": {
-            "retry_attempts": 3,
-            "retry_delay_seconds": 5,
-            "circuit_breaker_threshold": 5,
-            "circuit_breaker_timeout_seconds": 60
+            "database_circuit_breaker": {
+                "failure_threshold": 5,
+                "recovery_timeout": 60,
+                "success_threshold": 3,
+                "call_timeout": 30,
+                "backoff_multiplier": 2.0,
+                "max_recovery_timeout": 300
+            },
+            "message_queue_circuit_breaker": {
+                "failure_threshold": 3,
+                "recovery_timeout": 30,
+                "success_threshold": 2,
+                "call_timeout": 10,
+                "backoff_multiplier": 1.5,
+                "max_recovery_timeout": 180
+            },
+            "external_service_circuit_breaker": {
+                "failure_threshold": 3,
+                "recovery_timeout": 45,
+                "success_threshold": 3,
+                "call_timeout": 15,
+                "backoff_multiplier": 2.0,
+                "max_recovery_timeout": 240
+            }
         }
     });
     

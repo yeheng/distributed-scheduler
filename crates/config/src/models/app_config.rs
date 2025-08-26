@@ -6,7 +6,7 @@ use figment::{
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 
-use crate::defaults::{default_config, environment_overrides};
+use crate::defaults::environment_overrides;
 
 use super::{
     api_observability::{ApiConfig, ObservabilityConfig},
@@ -91,10 +91,12 @@ impl AppConfig {
     /// 4. 指定的配置文件
     /// 5. 环境变量（前缀 SCHEDULER_）
     pub fn load(config_path: Option<&str>) -> Result<Self> {
+        use figment::providers::Serialized;
+        
         let mut figment = Figment::new();
         
         // 1. 加载默认配置
-        figment = figment.merge(("", default_config()));
+        figment = figment.merge(Serialized::defaults(AppConfig::default()));
         
         // 2. 根据环境变量加载环境特定配置
         if let Ok(env) = std::env::var("SCHEDULER_ENV") {
@@ -149,7 +151,7 @@ impl AppConfig {
         // 5. 最后合并环境变量（优先级最高）
         figment = figment.merge(
             Env::prefixed("SCHEDULER_")
-                .split("_")
+                .split("__")
                 .ignore(&["SCHEDULER_ENV"]) // 忽略环境标识变量
         );
 
@@ -178,11 +180,13 @@ impl AppConfig {
     
     /// 加载默认配置（不加载任何文件，仅使用默认值和环境变量）
     pub fn default_with_env() -> Result<Self> {
+        use figment::providers::Serialized;
+        
         let figment = Figment::new()
-            .merge(("", default_config()))
+            .merge(Serialized::defaults(AppConfig::default()))
             .merge(
                 Env::prefixed("SCHEDULER_")
-                    .split("_")
+                    .split("__")
                     .ignore(&["SCHEDULER_ENV"])
             );
 
