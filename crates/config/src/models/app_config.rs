@@ -1,7 +1,12 @@
 use anyhow::{Context, Result};
-use config::{Config as ConfigBuilder, Environment, File, FileFormat};
+use figment::{
+    providers::{Env, Format, Json, Toml},
+    Figment
+};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
+
+use crate::defaults::{default_config, environment_overrides};
 
 use super::{
     api_observability::{ApiConfig, ObservabilityConfig},
@@ -77,95 +82,136 @@ impl Default for AppConfig {
 }
 
 impl AppConfig {
+    /// 加载配置文件，支持多层配置合并
+    /// 
+    /// 配置合并顺序（后面的覆盖前面的）：
+    /// 1. 默认配置
+    /// 2. 环境特定配置（通过环境变量SCHEDULER_ENV指定）
+    /// 3. 基础配置文件（base.toml）
+    /// 4. 指定的配置文件
+    /// 5. 环境变量（前缀 SCHEDULER_）
     pub fn load(config_path: Option<&str>) -> Result<Self> {
-        let mut builder = ConfigBuilder::builder();
-
+        let mut figment = Figment::new();
+        
+        // 1. 加载默认配置
+        figment = figment.merge(("", default_config()));
+        
+        // 2. 根据环境变量加载环境特定配置
+        if let Ok(env) = std::env::var("SCHEDULER_ENV") {
+            if let Some(env_overrides) = environment_overrides(&env) {
+                figment = figment.merge(("", env_overrides));
+            }
+        }
+        
+        // 3. 尝试加载基础配置文件
+        let base_config_paths = [
+            "config/base.toml",
+            "base.toml",
+            "/etc/scheduler/base.toml",
+        ];
+        
+        for path in &base_config_paths {
+            if Path::new(path).exists() {
+                figment = figment.merge(Toml::file(path));
+                break;
+            }
+        }
+        
+        // 4. 加载指定的配置文件或默认配置文件
         if let Some(path) = config_path {
             if Path::new(path).exists() {
-                builder = builder.add_source(File::new(path, FileFormat::Toml));
+                // 根据文件扩展名选择合适的提供器
+                if path.ends_with(".json") {
+                    figment = figment.merge(Json::file(path));
+                } else {
+                    // 默认为TOML
+                    figment = figment.merge(Toml::file(path));
+                }
             } else {
                 return Err(anyhow::anyhow!("配置文件不存在: {}", path));
             }
         } else {
+            // 尝试默认配置文件路径
             let default_paths = [
                 "config/scheduler.toml",
                 "scheduler.toml",
                 "/etc/scheduler/config.toml",
             ];
 
-            let mut config_file_found = false;
             for path in &default_paths {
                 if Path::new(path).exists() {
-                    builder = builder.add_source(File::new(path, FileFormat::Toml));
-                    config_file_found = true;
+                    figment = figment.merge(Toml::file(path));
                     break;
                 }
             }
-
-            if !config_file_found {
-                builder = builder
-                    .set_default("database.url", "postgresql://localhost/scheduler")?
-                    .set_default("database.max_connections", 10)?
-                    .set_default("database.min_connections", 1)?
-                    .set_default("database.connection_timeout_seconds", 30)?
-                    .set_default("database.idle_timeout_seconds", 600)?
-                    .set_default("message_queue.url", "redis://localhost:6379")?
-                    .set_default("message_queue.task_queue", "tasks")?
-                    .set_default("message_queue.status_queue", "status_updates")?
-                    .set_default("message_queue.heartbeat_queue", "heartbeats")?
-                    .set_default("message_queue.control_queue", "control")?
-                    .set_default("message_queue.max_retries", 3)?
-                    .set_default("message_queue.retry_delay_seconds", 5)?
-                    .set_default("message_queue.connection_timeout_seconds", 30)?
-                    .set_default("dispatcher.enabled", true)?
-                    .set_default("dispatcher.schedule_interval_seconds", 10)?
-                    .set_default("dispatcher.max_concurrent_dispatches", 100)?
-                    .set_default("dispatcher.worker_timeout_seconds", 90)?
-                    .set_default("dispatcher.dispatch_strategy", "round_robin")?
-                    .set_default("worker.enabled", false)?
-                    .set_default("worker.worker_id", "worker-001")?
-                    .set_default("worker.hostname", "localhost")?
-                    .set_default("worker.ip_address", "127.0.0.1")?
-                    .set_default("worker.max_concurrent_tasks", 5)?
-                    .set_default("worker.heartbeat_interval_seconds", 30)?
-                    .set_default("worker.task_poll_interval_seconds", 5)?
-                    .set_default("worker.supported_task_types", vec!["shell", "http"])?
-                    .set_default("api.enabled", true)?
-                    .set_default("api.bind_address", "0.0.0.0:8080")?
-                    .set_default("api.cors_enabled", true)?
-                    .set_default("api.cors_origins", vec!["*"])?
-                    .set_default("api.request_timeout_seconds", 30)?
-                    .set_default("api.max_request_size_mb", 10)?
-                    .set_default("api.auth.enabled", false)?
-                    .set_default(
-                        "api.auth.jwt_secret",
-                        "your-secret-key-change-this-in-production",
-                    )?
-                    .set_default("api.auth.jwt_expiration_hours", 24)?
-                    .set_default("observability.tracing_enabled", true)?
-                    .set_default("observability.metrics_enabled", true)?
-                    .set_default("observability.metrics_endpoint", "/metrics")?
-                    .set_default("observability.log_level", "info")?
-                    .set_default("executor.enabled", true)?
-                    .set_default("executor.default_executor", "shell")?;
-            }
         }
 
-        builder = builder.add_source(
-            Environment::with_prefix("SCHEDULER")
-                .separator("_")
-                .try_parsing(true),
+        // 5. 最后合并环境变量（优先级最高）
+        figment = figment.merge(
+            Env::prefixed("SCHEDULER_")
+                .split("_")
+                .ignore(&["SCHEDULER_ENV"]) // 忽略环境标识变量
         );
 
-        let config: AppConfig = builder
-            .build()
-            .context("构建配置失败")?
-            .try_deserialize()
-            .context("反序列化配置失败")?;
+        // 提取并验证配置
+        let config: AppConfig = figment
+            .extract()
+            .context("配置提取失败")?;
 
         config.validate()?;
 
         Ok(config)
+    }
+
+    /// 从环境加载配置（优先级：指定环境 > development）
+    pub fn from_env(env: Option<&str>) -> Result<Self> {
+        let env_name = env.unwrap_or("development");
+        std::env::set_var("SCHEDULER_ENV", env_name);
+        
+        Self::load(None)
+    }
+    
+    /// 从指定文件加载配置
+    pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
+        Self::load(Some(path.as_ref().to_str().unwrap()))
+    }
+    
+    /// 加载默认配置（不加载任何文件，仅使用默认值和环境变量）
+    pub fn default_with_env() -> Result<Self> {
+        let figment = Figment::new()
+            .merge(("", default_config()))
+            .merge(
+                Env::prefixed("SCHEDULER_")
+                    .split("_")
+                    .ignore(&["SCHEDULER_ENV"])
+            );
+
+        let config: AppConfig = figment
+            .extract()
+            .context("配置提取失败")?;
+
+        config.validate()?;
+        Ok(config)
+    }
+    
+    /// 获取当前配置的环境名称
+    pub fn environment(&self) -> String {
+        std::env::var("SCHEDULER_ENV").unwrap_or_else(|_| "development".to_string())
+    }
+    
+    /// 检查是否为生产环境
+    pub fn is_production(&self) -> bool {
+        self.environment() == "production"
+    }
+    
+    /// 检查是否为开发环境
+    pub fn is_development(&self) -> bool {
+        matches!(self.environment().as_str(), "development" | "dev")
+    }
+    
+    /// 检查是否为测试环境
+    pub fn is_test(&self) -> bool {
+        matches!(self.environment().as_str(), "test" | "testing")
     }
 
     pub fn from_toml(toml_str: &str) -> Result<Self> {

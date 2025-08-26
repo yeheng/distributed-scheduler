@@ -1,7 +1,9 @@
 // 新的模块结构（推荐使用）
 pub mod core;
+pub mod defaults;  // 新增defaults模块
 pub mod security_new;
 pub mod validation_new;
+pub mod tests;
 
 // 现有模块（保持向后兼容）
 pub mod circuit_breaker;

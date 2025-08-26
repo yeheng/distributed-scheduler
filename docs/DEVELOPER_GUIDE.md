@@ -66,6 +66,7 @@ graph TD
 ### 层次架构说明
 
 #### 1. 基础层 (Foundation Layer)
+
 ```rust
 // scheduler-errors: 统一错误处理
 pub enum SchedulerError {
@@ -90,6 +91,7 @@ pub struct Container {
 ```
 
 #### 2. 应用层 (Application Layer)
+
 ```rust
 // scheduler-application: 业务服务实现
 #[async_trait]
@@ -113,6 +115,7 @@ impl TaskControlService for TaskService {
 ```
 
 #### 3. 基础设施层 (Infrastructure Layer)
+
 ```rust
 // scheduler-infrastructure: 具体实现
 impl TaskRepository for PostgreSQLTaskRepository {
