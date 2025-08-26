@@ -1,7 +1,7 @@
 // 新的模块结构（推荐使用）
 pub mod core;
 pub mod defaults;  // 新增defaults模块
-pub mod security_new;
+pub mod security;
 pub mod validation_new;
 pub mod tests;
 
@@ -9,13 +9,10 @@ pub mod tests;
 pub mod circuit_breaker;
 pub mod environment;
 pub mod models;
-pub mod security;
-
-// Re-export commonly used types
 
 // 新的简化API（推荐使用）
 pub use core::constants;
-pub use security_new::{Encryptor, SimpleSecretManager, SecretType, SecretStatus};
+pub use security::{Encryptor, SimpleSecretManager, SecretType, SecretEntry, SecretStatus};
 pub use validation_new::{BasicConfigValidator, ValidationUtils, ConfigValidator};
 
 // 现有API（保持向后兼容）
@@ -25,9 +22,6 @@ pub use models::{
     ApiConfig, AppConfig, DatabaseConfig, DispatcherConfig, LogConfig, LogLevel,
     MessageQueueConfig, MessageQueueType, ObservabilityConfig, OutputFormat, RateLimitingConfig,
     RedisConfig, ResilienceConfig, WorkerConfig,
-};
-pub use security::{
-    ConfigSecurity, SecurityEvent, SecurityEventType, SecuritySeverity, SENSITIVE_PATTERNS,
 };
 
 /// Configuration error type

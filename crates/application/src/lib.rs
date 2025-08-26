@@ -1,10 +1,9 @@
-pub mod interfaces;
 pub mod ports;
-pub mod services;
+pub mod use_cases;
 
-// Re-export services and ports, but not interfaces to avoid duplicates
+// Re-export ports and use_cases
 pub use ports::*;
-pub use services::*;
+pub use use_cases::*;
 
 #[cfg(test)]
 mod tests {
@@ -176,7 +175,7 @@ mod tests {
 
     #[test]
     fn test_cron_scheduler_creation() {
-        use crate::services::cron_utils::CronScheduler;
+        use crate::use_cases::cron_utils::CronScheduler;
 
         let scheduler = CronScheduler::new("0 0 * * * *").unwrap();
         assert_eq!(
@@ -187,7 +186,7 @@ mod tests {
 
     #[test]
     fn test_cron_scheduler_invalid_expression() {
-        use crate::services::cron_utils::CronScheduler;
+        use crate::use_cases::cron_utils::CronScheduler;
 
         let result = CronScheduler::new("invalid cron expression");
         assert!(result.is_err());
@@ -202,7 +201,7 @@ mod tests {
 
     #[test]
     fn test_dependency_check_result_creation() {
-        use crate::services::dependency_checker::DependencyCheckResult;
+        use crate::use_cases::dependency_checker::DependencyCheckResult;
 
         let result = DependencyCheckResult {
             can_execute: true,
@@ -217,7 +216,7 @@ mod tests {
 
     #[test]
     fn test_scheduler_stats_creation() {
-        use crate::interfaces::service_interfaces::SchedulerStats;
+        use crate::ports::service_interfaces::SchedulerStats;
 
         let stats = SchedulerStats {
             total_tasks: 100,
@@ -238,7 +237,7 @@ mod tests {
 
     #[test]
     fn test_worker_load_stats_creation() {
-        use crate::interfaces::service_interfaces::WorkerLoadStats;
+        use crate::ports::service_interfaces::WorkerLoadStats;
 
         let stats = WorkerLoadStats {
             worker_id: "worker-1".to_string(),
@@ -258,7 +257,7 @@ mod tests {
 
     #[test]
     fn test_worker_heartbeat_creation() {
-        use crate::interfaces::service_interfaces::WorkerHeartbeat;
+        use crate::ports::service_interfaces::WorkerHeartbeat;
 
         let heartbeat = WorkerHeartbeat {
             current_task_count: 2,
@@ -274,7 +273,7 @@ mod tests {
 
     #[test]
     fn test_data_structures_are_send_sync() {
-        use crate::interfaces::service_interfaces::*;
+        use crate::ports::service_interfaces::*;
 
         fn assert_send_sync<T: Send + Sync>() {}
 
@@ -286,7 +285,7 @@ mod tests {
 
     #[test]
     fn test_data_structures_are_clone() {
-        use crate::interfaces::service_interfaces::*;
+        use crate::ports::service_interfaces::*;
 
         let stats = SchedulerStats {
             total_tasks: 100,
@@ -304,7 +303,7 @@ mod tests {
 
     #[test]
     fn test_data_structures_debug() {
-        use crate::interfaces::service_interfaces::*;
+        use crate::ports::service_interfaces::*;
 
         let stats = SchedulerStats {
             total_tasks: 1,

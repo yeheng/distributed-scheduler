@@ -2,6 +2,52 @@ use crate::entities::{Task, TaskFilter, TaskRun, TaskRunStatus, WorkerInfo, Work
 use async_trait::async_trait;
 use chrono::{DateTime, Utc};
 use scheduler_errors::SchedulerResult;
+use serde::{Deserialize, Serialize};
+use uuid::Uuid;
+
+// User domain entities
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct User {
+    pub id: Uuid,
+    pub username: String,
+    pub email: String,
+    pub password_hash: String,
+    pub role: UserRole,
+    pub is_active: bool,
+    pub created_at: DateTime<Utc>,
+    pub updated_at: DateTime<Utc>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq)]
+pub enum UserRole {
+    Admin,
+    Operator,
+    Viewer,
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct CreateUserRequest {
+    pub username: String,
+    pub email: String,
+    pub password: String,
+    pub role: UserRole,
+}
+
+#[async_trait]
+pub trait UserRepository: Send + Sync {
+    async fn create(&self, request: &CreateUserRequest) -> SchedulerResult<User>;
+    async fn get_by_id(&self, user_id: Uuid) -> SchedulerResult<Option<User>>;
+    async fn get_by_username(&self, username: &str) -> SchedulerResult<Option<User>>;
+    async fn get_by_email(&self, email: &str) -> SchedulerResult<Option<User>>;
+    async fn update(&self, user: &User) -> SchedulerResult<()>;
+    async fn delete(&self, user_id: Uuid) -> SchedulerResult<()>;
+    async fn list_users(&self, limit: Option<i64>, offset: Option<i64>) -> SchedulerResult<Vec<User>>;
+    async fn update_password(&self, user_id: Uuid, password_hash: &str) -> SchedulerResult<()>;
+    async fn update_role(&self, user_id: Uuid, role: UserRole) -> SchedulerResult<()>;
+    async fn activate_user(&self, user_id: Uuid) -> SchedulerResult<()>;
+    async fn deactivate_user(&self, user_id: Uuid) -> SchedulerResult<()>;
+    async fn authenticate_user(&self, username: &str, password: &str) -> SchedulerResult<Option<User>>;
+}
 
 #[async_trait]
 pub trait TaskRepository: Send + Sync {

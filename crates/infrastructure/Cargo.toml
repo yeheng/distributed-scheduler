@@ -16,6 +16,7 @@ uuid = { workspace = true }
 anyhow = { workspace = true }
 thiserror = { workspace = true }
 async-trait = { workspace = true }
+bcrypt = "0.17"
 sqlx = { workspace = true }
 tracing = { workspace = true }
 lapin = { workspace = true }

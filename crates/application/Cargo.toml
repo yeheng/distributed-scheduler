@@ -31,6 +31,7 @@ tracing.workspace = true
 # Utilities
 uuid = { workspace = true, features = ["v4", "serde"] }
 parking_lot = { workspace = true }
+bcrypt = "0.17"
 
 # Cron scheduling
 cron = "0.15"
