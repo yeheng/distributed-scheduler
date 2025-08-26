@@ -116,6 +116,7 @@ Dockerfile 使用多阶段构建来优化镜像大小：
 2. **运行时阶段**: 使用轻量级 Debian 镜像运行应用
 
 优化效果：
+
 - 构建镜像: ~2GB
 - 运行时镜像: ~200MB
 
@@ -169,6 +170,7 @@ docker exec -i scheduler-postgres psql -U postgres scheduler < backup.sql
 ### 数据目录
 
 容器内数据目录：
+
 - 数据库数据: `/var/lib/postgresql/data`
 - RabbitMQ 数据: `/var/lib/rabbitmq`
 - 应用日志: `/var/log/scheduler`
@@ -249,6 +251,7 @@ docker-compose up -d --scale dispatcher=3
 ### 常见问题
 
 1. **数据库连接失败**
+
    ```bash
    # 检查数据库状态
    docker-compose exec postgres pg_isready -U postgres
@@ -258,6 +261,7 @@ docker-compose up -d --scale dispatcher=3
    ```
 
 2. **消息队列连接失败**
+
    ```bash
    # 检查 RabbitMQ 状态
    docker-compose exec rabbitmq rabbitmq-diagnostics ping
@@ -267,6 +271,7 @@ docker-compose up -d --scale dispatcher=3
    ```
 
 3. **应用启动失败**
+
    ```bash
    # 查看应用日志
    docker-compose logs dispatcher
@@ -278,6 +283,7 @@ docker-compose up -d --scale dispatcher=3
 ### 性能调优
 
 1. **资源限制**
+
    ```yaml
    services:
      dispatcher:
@@ -292,6 +298,7 @@ docker-compose up -d --scale dispatcher=3
    ```
 
 2. **数据库连接池**
+
    ```bash
    # 调整数据库连接数
    -e DATABASE_MAX_CONNECTIONS=50
@@ -331,9 +338,10 @@ secrets:
 
 ### Prometheus 指标
 
-访问 http://localhost:9090 查看 Prometheus 监控。
+访问 <http://localhost:9090> 查看 Prometheus 监控。
 
 关键指标：
+
 - 任务执行成功率
 - 任务执行时间
 - Worker 节点状态
@@ -341,9 +349,10 @@ secrets:
 
 ### Grafana 面板
 
-访问 http://localhost:3000 查看 Grafana 面板（admin/admin）。
+访问 <http://localhost:3000> 查看 Grafana 面板（admin/admin）。
 
 预配置面板：
+
 - 系统概览
 - 任务执行统计
 - Worker 节点监控

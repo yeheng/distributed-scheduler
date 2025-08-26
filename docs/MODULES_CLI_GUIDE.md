@@ -7,6 +7,7 @@
 ## 可用的二进制程序
 
 ### 1. scheduler-dispatcher - 任务调度器
+
 负责任务的调度和分发。
 
 ```bash
@@ -21,11 +22,13 @@ cargo run --bin scheduler-dispatcher -- --log-format json
 ```
 
 **选项参数：**
+
 - `-c, --config <FILE>`: 配置文件路径 (默认: config/scheduler.toml)
 - `-l, --log-level <LEVEL>`: 日志级别 [trace, debug, info, warn, error] (默认: info)
 - `--log-format <FORMAT>`: 日志格式 [json, pretty] (默认: pretty)
 
 ### 2. scheduler-worker - Worker节点
+
 执行从调度器分发来的任务。
 
 ```bash
@@ -44,6 +47,7 @@ cargo run --bin scheduler-worker -- \
 ```
 
 **选项参数：**
+
 - `-w, --worker-id <ID>`: Worker节点唯一标识符 (必需)
 - `-c, --config <FILE>`: 配置文件路径 (默认: config/scheduler.toml)
 - `-m, --max-tasks <COUNT>`: 最大并发任务数量
@@ -51,6 +55,7 @@ cargo run --bin scheduler-worker -- \
 - `--log-format <FORMAT>`: 日志格式 [json, pretty] (默认: pretty)
 
 ### 3. scheduler-api - API服务器
+
 提供REST API接口用于任务管理和系统监控。
 
 ```bash
@@ -65,6 +70,7 @@ cargo run --bin scheduler-api -- --cors
 ```
 
 **选项参数：**
+
 - `-c, --config <FILE>`: 配置文件路径 (默认: config/scheduler.toml)
 - `-h, --host <HOST>`: 绑定的主机地址 (默认: 127.0.0.1)
 - `-p, --port <PORT>`: 监听端口 (默认: 8080)
@@ -73,6 +79,7 @@ cargo run --bin scheduler-api -- --cors
 - `--log-format <FORMAT>`: 日志格式 [json, pretty] (默认: pretty)
 
 ### 4. scheduler - 完整系统 (原有入口)
+
 运行完整的调度系统，支持所有模式。
 
 ```bash
@@ -88,6 +95,7 @@ cargo run --bin scheduler -- --mode api
 ## CLI 管理工具
 
 ### scheduler-cli - 命令行管理工具
+
 提供任务管理、Worker管理、系统监控等功能。
 
 #### 任务管理
@@ -188,11 +196,12 @@ cargo run --bin scheduler-cli -- config example
 
 所有CLI命令都支持以下全局选项：
 
-- `--api-url <URL>`: API服务器基础URL (默认: http://127.0.0.1:8080)
+- `--api-url <URL>`: API服务器基础URL (默认: <http://127.0.0.1:8080>)
 - `--api-key <KEY>`: API认证密钥 (也可通过 SCHEDULER_API_KEY 环境变量设置)
 - `-c, --config <FILE>`: 配置文件路径 (默认: config/scheduler.toml)
 
 示例：
+
 ```bash
 # 使用自定义API URL和认证
 cargo run --bin scheduler-cli -- \
@@ -210,12 +219,14 @@ cargo run --bin scheduler-cli -- task list
 ### 分布式部署
 
 1. **调度器节点**：
+
 ```bash
 # 在调度服务器上运行
 cargo run --bin scheduler-dispatcher -- --config config/production.toml
 ```
 
 2. **Worker节点**：
+
 ```bash
 # 在各个Worker服务器上运行
 cargo run --bin scheduler-worker -- \
@@ -225,6 +236,7 @@ cargo run --bin scheduler-worker -- \
 ```
 
 3. **API服务器**：
+
 ```bash
 # 在API服务器上运行
 cargo run --bin scheduler-api -- \
@@ -235,6 +247,7 @@ cargo run --bin scheduler-api -- \
 ```
 
 4. **管理操作**：
+
 ```bash
 # 使用CLI工具管理系统
 cargo run --bin scheduler-cli -- \

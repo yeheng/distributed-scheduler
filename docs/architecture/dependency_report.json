@@ -1,8 +1,8 @@
 {
   "summary": {
     "total_crates": 11,
-    "total_dependencies": 32,
-    "average_dependencies_per_crate": 2.91,
+    "total_dependencies": 33,
+    "average_dependencies_per_crate": 3.0,
     "cycles_found": 0,
     "architecture_violations": 0
   },
@@ -37,6 +37,7 @@
     ],
     "application": [
       "domain",
+      "config",
       "errors",
       "infrastructure"
     ],
@@ -101,6 +102,7 @@
     "config": [
       "observability",
       "api",
+      "application",
       "worker",
       "infrastructure"
     ],
