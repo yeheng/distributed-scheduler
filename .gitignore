@@ -24,3 +24,5 @@ Thumbs.db
 *.sqlite
 
 .roo
+.repomixignore
+repomix.config.json
