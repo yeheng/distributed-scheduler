@@ -5,14 +5,17 @@
 经过优化后，配置文件采用分层结构，减少了重复配置，提高了可维护性：
 
 ### 基础配置文件
+
 - **`base.toml`** - 包含所有默认配置设置，作为其他配置文件的基础
 
 ### 环境特定配置文件
+
 - **`development.toml`** - 开发环境配置，只包含与base.toml不同的设置
 - **`production.toml`** - 生产环境配置，只包含与base.toml不同的设置  
 - **`staging.toml`** - 测试环境配置，只包含与base.toml不同的设置
 
 ### 功能特定配置文件
+
 - **`auth.toml`** - 认证和授权相关配置
 - **`security.toml`** - 安全策略和防护配置
 - **`timeouts.toml`** - 各种操作的超时设置
@@ -26,19 +29,23 @@
 ## 使用方法
 
 ### 开发环境
+
 ```bash
 export ENVIRONMENT=development
 cargo run --bin api
 ```
 
 ### 生产环境
+
 ```bash
 export ENVIRONMENT=production
 cargo run --release --bin api
 ```
 
 ### 自定义配置
+
 如需自定义配置，建议：
+
 1. 复制对应的环境配置文件
 2. 修改你需要的设置
 3. 通过配置文件路径参数指定使用自定义配置
@@ -76,6 +83,7 @@ worker_id = "${WORKER_ID:-default-worker-001}"
 ### 示例迁移
 
 **旧配置文件 (rabbitmq.toml):**
+
 ```toml
 [message_queue]
 type = "rabbitmq"
@@ -83,6 +91,7 @@ url = "amqp://guest:guest@localhost:5672/"
 ```
 
 **新配置 (development.toml):**
+
 ```toml
 [message_queue]
 type = "rabbitmq"  
