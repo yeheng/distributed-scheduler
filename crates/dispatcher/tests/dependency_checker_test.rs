@@ -8,14 +8,14 @@ mod dependency_checker_tests {
     use serde_json::json;
     use std::sync::Arc;
 
-    use scheduler_dispatcher::dependency_checker::*;
+    use scheduler_application::use_cases::{DependencyCheckService, DependencyCheckServiceTrait};
 
     #[tokio::test]
     async fn test_dependency_checker_creation() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
 
-        let checker = DependencyChecker::new(task_repo, task_run_repo);
+        let checker = DependencyCheckService::new(task_repo, task_run_repo);
         assert!(std::ptr::addr_of!(checker).is_aligned());
     }
 
@@ -23,7 +23,7 @@ mod dependency_checker_tests {
     async fn test_check_dependencies_no_deps() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
-        let checker = DependencyChecker::new(task_repo.clone(), task_run_repo);
+        let checker = DependencyCheckService::new(task_repo.clone(), task_run_repo);
 
         let task = TaskBuilder::new()
             .with_id(1)
@@ -36,7 +36,7 @@ mod dependency_checker_tests {
 
         task_repo.create(&task).await.unwrap();
 
-        let result = checker.check_dependencies(&task).await;
+        let result = DependencyCheckServiceTrait::check_dependencies(&checker, &task).await;
         assert!(result.is_ok());
         assert!(result.unwrap().can_execute);
     }
@@ -45,7 +45,7 @@ mod dependency_checker_tests {
     async fn test_check_dependencies_with_successful_deps() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
-        let checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
+        let checker = DependencyCheckService::new(task_repo.clone(), task_run_repo.clone());
 
         // Create successful dependency run
         let successful_run = TaskRunBuilder::new()
@@ -67,7 +67,7 @@ mod dependency_checker_tests {
 
         task_repo.create(&task).await.unwrap();
 
-        let result = checker.check_dependencies(&task).await;
+        let result = DependencyCheckServiceTrait::check_dependencies(&checker, &task).await;
         assert!(result.is_ok());
         assert!(result.unwrap().can_execute);
     }
@@ -76,7 +76,7 @@ mod dependency_checker_tests {
     async fn test_check_dependencies_with_failed_deps() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
-        let checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
+        let checker = DependencyCheckService::new(task_repo.clone(), task_run_repo.clone());
 
         // Create failed dependency run
         let failed_run = TaskRunBuilder::new()
@@ -98,7 +98,7 @@ mod dependency_checker_tests {
 
         task_repo.create(&task).await.unwrap();
 
-        let result = checker.check_dependencies(&task).await;
+        let result = DependencyCheckServiceTrait::check_dependencies(&checker, &task).await;
         assert!(result.is_ok());
         assert!(!result.unwrap().can_execute);
     }
@@ -107,9 +107,9 @@ mod dependency_checker_tests {
     async fn test_validate_dependencies_self_dependency() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
-        let checker = DependencyChecker::new(task_repo, task_run_repo);
+        let checker = DependencyCheckService::new(task_repo, task_run_repo);
 
-        let result = checker.validate_dependencies(1, &[1]).await;
+        let result = DependencyCheckServiceTrait::validate_dependencies(&checker, 1, &[1]).await;
         assert!(result.is_err());
         assert!(matches!(
             result.unwrap_err(),
@@ -121,9 +121,9 @@ mod dependency_checker_tests {
     async fn test_validate_dependencies_nonexistent_task() {
         let task_repo = Arc::new(MockTaskRepository::new());
         let task_run_repo = Arc::new(MockTaskRunRepository::new());
-        let checker = DependencyChecker::new(task_repo, task_run_repo);
+        let checker = DependencyCheckService::new(task_repo, task_run_repo);
 
-        let result = checker.validate_dependencies(1, &[999]).await;
+        let result = DependencyCheckServiceTrait::validate_dependencies(&checker, 1, &[999]).await;
         assert!(result.is_err());
         // The specific error type might be different - let's just check it's an error
         assert!(result.is_err());

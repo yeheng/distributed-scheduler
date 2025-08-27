@@ -1,4 +1,4 @@
-use chrono::{DateTime, Utc};
+use chrono::{DateTime, Duration, Utc};
 use cron::Schedule;
 use std::str::FromStr;
 use tracing::{debug, warn};
@@ -89,5 +89,73 @@ impl CronScheduler {
 
     pub fn get_schedule_description(&self) -> String {
         format!("Cron schedule: {}", self.schedule)
+    }
+
+    // Additional methods from dispatcher version
+    pub fn next_execution_time(&self, from: DateTime<Utc>) -> Option<DateTime<Utc>> {
+        self.schedule.after(&from).next()
+    }
+
+    pub fn upcoming_times(&self, from: DateTime<Utc>, count: usize) -> Vec<DateTime<Utc>> {
+        self.schedule.after(&from).take(count).collect()
+    }
+
+    pub fn is_task_overdue(
+        &self,
+        last_run: Option<DateTime<Utc>>,
+        now: DateTime<Utc>,
+        grace_period_minutes: i64,
+    ) -> bool {
+        match last_run {
+            Some(last) => {
+                if let Some(expected_time) = self.schedule.after(&last).next() {
+                    let grace_period = Duration::minutes(grace_period_minutes);
+                    let overdue_threshold = expected_time + grace_period;
+                    now > overdue_threshold
+                } else {
+                    false
+                }
+            }
+            None => {
+                let check_from = now - Duration::hours(24); // 检查过去24小时
+                if let Some(expected_time) = self.schedule.after(&check_from).next() {
+                    let grace_period = Duration::minutes(grace_period_minutes);
+                    let overdue_threshold = expected_time + grace_period;
+                    now > overdue_threshold && expected_time < now
+                } else {
+                    false
+                }
+            }
+        }
+    }
+
+    pub fn get_frequency_description(&self) -> String {
+        let upcoming = self.upcoming_times(Utc::now(), 2);
+        if upcoming.len() >= 2 {
+            let interval = upcoming[1] - upcoming[0];
+            let seconds = interval.num_seconds();
+
+            match seconds {
+                s if s < 60 => format!("每{s}秒"),
+                s if s < 3600 => format!("每{}分钟", s / 60),
+                s if s < 86400 => format!("每{}小时", s / 3600),
+                s if s < 604800 => format!("每{}天", s / 86400),
+                s => format!("每{}周", s / 604800),
+            }
+        } else {
+            "无法确定频率".to_string()
+        }
+    }
+
+    pub fn time_until_next_execution(&self, now: DateTime<Utc>) -> Option<Duration> {
+        self.schedule.after(&now).next().map(|next| next - now)
+    }
+
+    pub fn will_execute_within(&self, from: DateTime<Utc>, duration: Duration) -> bool {
+        if let Some(next_time) = self.schedule.after(&from).next() {
+            next_time <= from + duration
+        } else {
+            false
+        }
     }
 }

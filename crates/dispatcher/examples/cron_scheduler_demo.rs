@@ -1,5 +1,5 @@
 use chrono::Utc;
-use scheduler_dispatcher::cron_utils::CronScheduler;
+use scheduler_application::use_cases::CronScheduler;
 
 fn main() -> Result<(), Box<dyn std::error::Error>> {
     println!("=== CRON调度器演示 ===\n");

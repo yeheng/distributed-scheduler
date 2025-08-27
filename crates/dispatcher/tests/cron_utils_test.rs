@@ -1,6 +1,6 @@
 #[cfg(test)]
 mod cron_utils_tests {
-    use scheduler_dispatcher::cron_utils::*;
+    use scheduler_application::use_cases::CronScheduler;
 
     use chrono::{Duration, Utc};
     use chrono::{TimeZone, Timelike};

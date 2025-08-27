@@ -20,15 +20,14 @@ use scheduler_infrastructure::TimeoutUtils;
 use scheduler_observability::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use crate::cron_utils::CronScheduler;
-use crate::dependency_checker::{DependencyCheckService, DependencyChecker};
+use scheduler_application::use_cases::{CronScheduler, DependencyCheckService, DependencyCheckServiceTrait, DependencyCheckResult};
 
 pub struct TaskScheduler {
     pub task_repo: Arc<dyn TaskRepository>,
     pub task_run_repo: Arc<dyn TaskRunRepository>,
     pub message_queue: Arc<dyn MessageQueue>,
     pub task_queue_name: String,
-    pub dependency_checker: DependencyChecker,
+    pub dependency_checker: DependencyCheckService,
     pub metrics: Arc<MetricsCollector>,
     pub is_running: AtomicBool,
     pub start_time: Arc<Mutex<Option<Instant>>>,
@@ -43,7 +42,7 @@ impl TaskScheduler {
         task_queue_name: String,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let dependency_checker = DependencyChecker::new(task_repo.clone(), task_run_repo.clone());
+        let dependency_checker = DependencyCheckService::new(task_repo.clone(), task_run_repo.clone());
 
         Self {
             task_repo,
@@ -185,7 +184,7 @@ impl TaskSchedulerService for TaskScheduler {
     async fn check_dependencies(&self, task: &Task) -> SchedulerResult<bool> {
         let span = TaskTracer::dependency_check_span(task.id, &task.name);
         let _guard = span.enter();
-        let check_result = self.dependency_checker.check_dependencies(task).await?;
+        let check_result = DependencyCheckServiceTrait::check_dependencies(&self.dependency_checker, task).await?;
 
         StructuredLogger::log_dependency_check(
             task.id,
