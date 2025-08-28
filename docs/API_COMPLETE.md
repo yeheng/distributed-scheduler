@@ -140,7 +140,7 @@ Create a new API key for programmatic access.
 {
   "success": true,
   "data": {
-    "api_key": "sk_live_abcd1234efgh5678ijkl9012mnop3456",
+    "api_key": "sk_live",
     "name": "deployment-service",
     "permissions": ["TaskRead", "TaskWrite", "WorkerRead"],
     "created_at": "2024-01-01T00:00:00Z",
