@@ -72,11 +72,9 @@ impl MessageQueueFactory {
         } else {
             0
         };
-        let password = if !url.password().unwrap_or("").is_empty() {
-            Some(url.password().unwrap().to_string())
-        } else {
-            None
-        };
+        let password = url.password()
+            .filter(|pwd| !pwd.is_empty())
+            .map(|pwd| pwd.to_string());
 
         Ok(RedisStreamConfig {
             host,

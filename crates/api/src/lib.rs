@@ -8,7 +8,7 @@ pub mod types;
 pub mod validation;
 
 use axum::Router;
-use scheduler_application::TaskControlService;
+use scheduler_application::task_services::TaskControlService;
 use std::sync::Arc;
 use tower::ServiceBuilder;
 
@@ -161,7 +161,7 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
-    use scheduler_application::TaskControlService;
+    use scheduler_application::task_services::TaskControlService;
     use scheduler_domain::*;
     use std::sync::Arc;
     use tower::ServiceExt;

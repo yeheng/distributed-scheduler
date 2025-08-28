@@ -1,11 +1,11 @@
 pub mod sqlite_task_repository;
 pub mod sqlite_task_run_repository;
-pub mod sqlite_user_repository;
+// pub mod sqlite_user_repository;
 pub mod sqlite_worker_repository;
 
 pub use sqlite_task_repository::SqliteTaskRepository;
 pub use sqlite_task_run_repository::SqliteTaskRunRepository;
-pub use sqlite_user_repository::SqliteUserRepository;
+// pub use sqlite_user_repository::SqliteUserRepository;
 pub use sqlite_worker_repository::SqliteWorkerRepository;
 
 use anyhow::Result;

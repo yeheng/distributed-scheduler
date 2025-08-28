@@ -470,7 +470,7 @@ mod tests {
     use super::*;
     use crate::handlers::tasks::CreateTaskRequest;
     use async_trait::async_trait;
-    use scheduler_application::TaskControlService;
+    use scheduler_application::task_services::TaskControlService;
     use scheduler_domain::*;
     use scheduler_errors::SchedulerResult;
     use serde_json::json;

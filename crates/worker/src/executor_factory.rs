@@ -3,7 +3,7 @@ use std::sync::Arc;
 
 use anyhow::Context;
 use async_trait::async_trait;
-use scheduler_application::ports::{ExecutorRegistry, ExecutorStatus, TaskExecutor};
+use scheduler_application::{ExecutorRegistry, ExecutorStatus, TaskExecutor};
 use scheduler_config::models::ExecutorConfig;
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use tokio::sync::RwLock;

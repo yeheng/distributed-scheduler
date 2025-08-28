@@ -1,5 +1,5 @@
 use scheduler_api::routes::{create_routes, AppState};
-use scheduler_application::TaskControlService;
+use scheduler_application::task_services::TaskControlService;
 use scheduler_domain::{TaskRepository, TaskRun, TaskRunRepository, WorkerRepository};
 use scheduler_errors::SchedulerResult;
 use scheduler_infrastructure::database::postgres::{

@@ -10,9 +10,7 @@ use chrono::{DateTime, Utc};
 use futures::stream::{self, StreamExt};
 use tracing::{debug, error, info, warn};
 
-use scheduler_application::interfaces::service_interfaces::SchedulerStats;
-use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_application::ports::MessageQueue;
+use scheduler_application::{SchedulerStats, TaskSchedulerService, MessageQueue};
 use scheduler_domain::entities::{Message, Task, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 use scheduler_errors::{SchedulerError, SchedulerResult};
@@ -276,6 +274,93 @@ impl TaskSchedulerService for TaskScheduler {
 
         Ok(())
     }
+
+    async fn start(&self) -> SchedulerResult<()> {
+        info!("启动任务调度器");
+        self.is_running.store(true, Ordering::SeqCst);
+        let mut start_time = self.start_time.lock().await;
+        *start_time = Some(Instant::now());
+        Ok(())
+    }
+
+    async fn stop(&self) -> SchedulerResult<()> {
+        info!("停止任务调度器");
+        self.is_running.store(false, Ordering::SeqCst);
+        Ok(())
+    }
+
+    async fn schedule_task(&self, task: &Task) -> SchedulerResult<()> {
+        info!("调度任务: {}", task.name);
+        if let Some(task_run) = self.schedule_task_if_needed(task).await? {
+            info!("成功创建并调度任务运行实例: {}", task_run.id);
+        }
+        Ok(())
+    }
+
+    async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()> {
+        for task in tasks {
+            self.schedule_task(task).await?;
+        }
+        Ok(())
+    }
+
+    async fn is_running(&self) -> bool {
+        self.is_running.load(Ordering::SeqCst)
+    }
+
+    async fn get_stats(&self) -> SchedulerResult<SchedulerStats> {
+        // 获取任务统计信息
+        let active_tasks = self.task_repo.get_active_tasks().await?.len() as i64;
+
+        // 获取运行中的任务数量
+        let running_task_runs = self
+            .task_run_repo
+            .get_by_status(TaskRunStatus::Running)
+            .await?
+            .len() as i64;
+
+        // 获取待处理的任务数量
+        let pending_task_runs = self
+            .task_run_repo
+            .get_by_status(TaskRunStatus::Pending)
+            .await?
+            .len() as i64;
+
+        // 计算运行时间
+        let uptime_seconds = if let Ok(start_time_guard) = self.start_time.try_lock() {
+            if let Some(start_time) = *start_time_guard {
+                start_time.elapsed().as_secs()
+            } else {
+                0
+            }
+        } else {
+            0
+        };
+
+        // 获取最后调度时间
+        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.try_lock() {
+            *last_schedule_guard
+        } else {
+            None
+        };
+
+        Ok(SchedulerStats {
+            total_tasks: active_tasks, // 简化实现，使用活跃任务数
+            active_tasks,
+            running_task_runs,
+            pending_task_runs,
+            uptime_seconds,
+            last_schedule_time,
+        })
+    }
+
+    async fn reload_config(&self) -> SchedulerResult<()> {
+        info!("重新加载调度器配置");
+        // 实现配置重新加载逻辑
+        // 这里可以重新初始化依赖检查器或者其他配置相关的组件
+        info!("调度器配置重新加载完成");
+        Ok(())
+    }
 }
 
 impl TaskScheduler {
@@ -389,117 +474,5 @@ impl TaskScheduler {
                 Ok(false)
             }
         }
-    }
-
-    async fn start(&self) -> SchedulerResult<()> {
-        info!("启动任务调度器");
-        self.is_running.store(true, Ordering::SeqCst);
-        let mut start_time = self.start_time.lock().await;
-        *start_time = Some(Instant::now());
-        Ok(())
-    }
-
-    async fn stop(&self) -> SchedulerResult<()> {
-        info!("停止任务调度器");
-        self.is_running.store(false, Ordering::SeqCst);
-        Ok(())
-    }
-
-    async fn schedule_task(&self, task: &Task) -> SchedulerResult<()> {
-        info!("调度任务: {}", task.name);
-        if let Some(task_run) = self.schedule_task_if_needed(task).await? {
-            info!("成功创建并调度任务运行实例: {}", task_run.id);
-        }
-        Ok(())
-    }
-
-    async fn schedule_tasks(&self, tasks: &[Task]) -> SchedulerResult<()> {
-        let task_count = tasks.len();
-        info!("批量调度 {} 个任务", task_count);
-
-        // 配置并发参数
-        let concurrency_limit = 10;
-
-        // 使用 futures::stream 进行并发处理
-        let results: Vec<SchedulerResult<()>> = stream::iter(tasks.iter())
-            .map(|task| {
-                let task_scheduler = self;
-                async move { task_scheduler.schedule_task(task).await }
-            })
-            .buffer_unordered(concurrency_limit)
-            .collect()
-            .await;
-
-        // 检查是否有错误发生
-        let error_count = results.iter().filter(|result| result.is_err()).count();
-        if error_count > 0 {
-            warn!("批量调度完成，但有 {} 个任务调度失败", error_count);
-        } else {
-            info!("批量调度完成，所有 {} 个任务调度成功", task_count);
-        }
-
-        // 返回第一个错误（如果有），否则返回成功
-        results
-            .into_iter()
-            .find(|result| result.is_err())
-            .unwrap_or(Ok(()))
-    }
-
-    async fn is_running(&self) -> bool {
-        self.is_running.load(Ordering::SeqCst)
-    }
-
-    async fn get_stats(&self) -> SchedulerResult<SchedulerStats> {
-        // 获取任务统计信息
-        let active_tasks = self.task_repo.get_active_tasks().await?.len() as i64;
-
-        // 获取运行中的任务数量
-        let running_task_runs = self
-            .task_run_repo
-            .get_by_status(TaskRunStatus::Running)
-            .await?
-            .len() as i64;
-
-        // 获取待处理的任务数量
-        let pending_task_runs = self
-            .task_run_repo
-            .get_by_status(TaskRunStatus::Pending)
-            .await?
-            .len() as i64;
-
-        // 计算运行时间
-        let uptime_seconds = if let Ok(start_time_guard) = self.start_time.try_lock() {
-            if let Some(start_time) = *start_time_guard {
-                start_time.elapsed().as_secs()
-            } else {
-                0
-            }
-        } else {
-            0
-        };
-
-        // 获取最后调度时间
-        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.try_lock() {
-            *last_schedule_guard
-        } else {
-            None
-        };
-
-        Ok(SchedulerStats {
-            total_tasks: active_tasks, // 简化实现，使用活跃任务数
-            active_tasks,
-            running_task_runs,
-            pending_task_runs,
-            uptime_seconds,
-            last_schedule_time,
-        })
-    }
-
-    async fn reload_config(&self) -> SchedulerResult<()> {
-        info!("重新加载调度器配置");
-        // 实现配置重新加载逻辑
-        // 这里可以重新初始化依赖检查器或者其他配置相关的组件
-        info!("调度器配置重新加载完成");
-        Ok(())
     }
 }

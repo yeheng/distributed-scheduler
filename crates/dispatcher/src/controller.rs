@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use async_trait::async_trait;
 use chrono::Utc;
+use scheduler_application::service_interfaces::MessageQueue;
 use tracing::{debug, error, info, warn};
 
-use scheduler_application::ports::{MessageQueue, TaskControlService};
+use scheduler_application::task_services::TaskControlService;
 use scheduler_domain::entities::{
     Message, TaskControlAction, TaskControlMessage, TaskRun, TaskRunStatus, TaskStatus,
 };

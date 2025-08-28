@@ -4,7 +4,7 @@ use std::sync::Arc;
 use async_trait::async_trait;
 use tracing::{debug, warn};
 
-use scheduler_application::ports::TaskDispatchStrategy;
+use scheduler_application::TaskDispatchStrategy;
 use scheduler_domain::entities::{Task, WorkerInfo};
 use scheduler_errors::SchedulerResult;
 
