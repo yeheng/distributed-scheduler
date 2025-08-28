@@ -1,5 +1,5 @@
 use axum::{body::Body, http::Request, http::StatusCode};
-use scheduler_application::TaskControlService;
+use scheduler_application::task_services::TaskControlService;
 use scheduler_errors::SchedulerResult;
 use serde_json::{json, Value};
 use tower::ServiceExt;
