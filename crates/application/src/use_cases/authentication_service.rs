@@ -1,4 +1,4 @@
-use scheduler_domain::repositories::{User, UserRepository, CreateUserRequest, UserRole};
+use scheduler_domain::repositories::{CreateUserRequest, User, UserRepository, UserRole};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use std::sync::Arc;
 use uuid::Uuid;
@@ -17,16 +17,16 @@ impl AuthenticationService {
     /// Create a new user account
     pub async fn create_user(&self, request: CreateUserRequest) -> SchedulerResult<User> {
         // Check if user already exists
-        if let Some(_) = self.user_repository.get_by_username(&request.username).await? {
-            return Err(SchedulerError::validation_error(
-                "Username already exists",
-            ));
+        if let Some(_) = self
+            .user_repository
+            .get_by_username(&request.username)
+            .await?
+        {
+            return Err(SchedulerError::validation_error("Username already exists"));
         }
 
         if let Some(_) = self.user_repository.get_by_email(&request.email).await? {
-            return Err(SchedulerError::validation_error(
-                "Email already exists",
-            ));
+            return Err(SchedulerError::validation_error("Email already exists"));
         }
 
         // Validate password strength
@@ -37,7 +37,11 @@ impl AuthenticationService {
     }
 
     /// Authenticate user with username and password
-    pub async fn authenticate_user(&self, username: &str, password: &str) -> SchedulerResult<Option<User>> {
+    pub async fn authenticate_user(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> SchedulerResult<Option<User>> {
         // Validate input
         if username.trim().is_empty() {
             return Err(SchedulerError::validation_error("Username cannot be empty"));
@@ -48,7 +52,9 @@ impl AuthenticationService {
         }
 
         // Delegate to repository for authentication
-        self.user_repository.authenticate_user(username, password).await
+        self.user_repository
+            .authenticate_user(username, password)
+            .await
     }
 
     /// Get user by ID
@@ -62,15 +68,28 @@ impl AuthenticationService {
     }
 
     /// Update user password
-    pub async fn change_password(&self, user_id: Uuid, old_password: &str, new_password: &str) -> SchedulerResult<()> {
+    pub async fn change_password(
+        &self,
+        user_id: Uuid,
+        old_password: &str,
+        new_password: &str,
+    ) -> SchedulerResult<()> {
         // Get user
-        let user = self.user_repository.get_by_id(user_id).await?
+        let user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
             .ok_or_else(|| SchedulerError::ValidationError("User not found".to_string()))?;
 
         // Verify old password through authentication
-        let auth_result = self.user_repository.authenticate_user(&user.username, old_password).await?;
+        let auth_result = self
+            .user_repository
+            .authenticate_user(&user.username, old_password)
+            .await?;
         if auth_result.is_none() {
-            return Err(SchedulerError::Permission("Invalid current password".to_string()));
+            return Err(SchedulerError::Permission(
+                "Invalid current password".to_string(),
+            ));
         }
 
         // Validate new password
@@ -78,13 +97,18 @@ impl AuthenticationService {
 
         // Hash new password and update
         let password_hash = self.hash_password(new_password)?;
-        self.user_repository.update_password(user_id, &password_hash).await
+        self.user_repository
+            .update_password(user_id, &password_hash)
+            .await
     }
 
     /// Update user role (admin only)
     pub async fn update_user_role(&self, user_id: Uuid, new_role: UserRole) -> SchedulerResult<()> {
         // Check if user exists
-        let _user = self.user_repository.get_by_id(user_id).await?
+        let _user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
             .ok_or_else(|| SchedulerError::ValidationError("User not found".to_string()))?;
 
         self.user_repository.update_role(user_id, new_role).await
@@ -101,14 +125,21 @@ impl AuthenticationService {
     }
 
     /// List users with pagination
-    pub async fn list_users(&self, limit: Option<i64>, offset: Option<i64>) -> SchedulerResult<Vec<User>> {
+    pub async fn list_users(
+        &self,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> SchedulerResult<Vec<User>> {
         self.user_repository.list_users(limit, offset).await
     }
 
     /// Delete user account
     pub async fn delete_user(&self, user_id: Uuid) -> SchedulerResult<()> {
         // Check if user exists
-        let _user = self.user_repository.get_by_id(user_id).await?
+        let _user = self
+            .user_repository
+            .get_by_id(user_id)
+            .await?
             .ok_or_else(|| SchedulerError::ValidationError("User not found".to_string()))?;
 
         self.user_repository.delete(user_id).await
@@ -154,9 +185,9 @@ impl AuthenticationService {
 mod tests {
     use super::*;
     use async_trait::async_trait;
+    use chrono::Utc;
     use std::collections::HashMap;
     use tokio::sync::RwLock;
-    use chrono::Utc;
 
     // Mock UserRepository for testing
     struct MockUserRepository {
@@ -213,7 +244,7 @@ mod tests {
         async fn get_by_username(&self, username: &str) -> SchedulerResult<Option<User>> {
             let username_index = self.username_index.read().await;
             let users = self.users.read().await;
-            
+
             if let Some(user_id) = username_index.get(username) {
                 Ok(users.get(user_id).cloned())
             } else {
@@ -224,7 +255,7 @@ mod tests {
         async fn get_by_email(&self, email: &str) -> SchedulerResult<Option<User>> {
             let email_index = self.email_index.read().await;
             let users = self.users.read().await;
-            
+
             if let Some(user_id) = email_index.get(email) {
                 Ok(users.get(user_id).cloned())
             } else {
@@ -232,9 +263,14 @@ mod tests {
             }
         }
 
-        async fn authenticate_user(&self, username: &str, password: &str) -> SchedulerResult<Option<User>> {
+        async fn authenticate_user(
+            &self,
+            username: &str,
+            password: &str,
+        ) -> SchedulerResult<Option<User>> {
             if let Some(user) = self.get_by_username(username).await? {
-                if user.is_active && bcrypt::verify(password, &user.password_hash).unwrap_or(false) {
+                if user.is_active && bcrypt::verify(password, &user.password_hash).unwrap_or(false)
+                {
                     Ok(Some(user))
                 } else {
                     Ok(None)
@@ -245,13 +281,35 @@ mod tests {
         }
 
         // Implement other required methods with minimal functionality for testing
-        async fn update(&self, _user: &User) -> SchedulerResult<()> { Ok(()) }
-        async fn delete(&self, _user_id: Uuid) -> SchedulerResult<()> { Ok(()) }
-        async fn list_users(&self, _limit: Option<i64>, _offset: Option<i64>) -> SchedulerResult<Vec<User>> { Ok(vec![]) }
-        async fn update_password(&self, _user_id: Uuid, _password_hash: &str) -> SchedulerResult<()> { Ok(()) }
-        async fn update_role(&self, _user_id: Uuid, _role: UserRole) -> SchedulerResult<()> { Ok(()) }
-        async fn activate_user(&self, _user_id: Uuid) -> SchedulerResult<()> { Ok(()) }
-        async fn deactivate_user(&self, _user_id: Uuid) -> SchedulerResult<()> { Ok(()) }
+        async fn update(&self, _user: &User) -> SchedulerResult<()> {
+            Ok(())
+        }
+        async fn delete(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
+        async fn list_users(
+            &self,
+            _limit: Option<i64>,
+            _offset: Option<i64>,
+        ) -> SchedulerResult<Vec<User>> {
+            Ok(vec![])
+        }
+        async fn update_password(
+            &self,
+            _user_id: Uuid,
+            _password_hash: &str,
+        ) -> SchedulerResult<()> {
+            Ok(())
+        }
+        async fn update_role(&self, _user_id: Uuid, _role: UserRole) -> SchedulerResult<()> {
+            Ok(())
+        }
+        async fn activate_user(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
+        async fn deactivate_user(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
     }
 
     #[tokio::test]
@@ -291,7 +349,9 @@ mod tests {
         service.create_user(request).await.unwrap();
 
         // Test authentication
-        let result = service.authenticate_user("testuser", "TestPassword123").await;
+        let result = service
+            .authenticate_user("testuser", "TestPassword123")
+            .await;
         assert!(result.is_ok());
         assert!(result.unwrap().is_some());
     }

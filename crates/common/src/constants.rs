@@ -1,5 +1,5 @@
 //! # 系统常量定义
-//! 
+//!
 //! 包含分布式任务调度系统的所有常量定义
 
 /// 系统名称
@@ -72,11 +72,8 @@ pub const DATABASE_URL_ENV: &str = "SCHEDULER_DATABASE_URL";
 pub const MESSAGE_QUEUE_URL_ENV: &str = "SCHEDULER_MESSAGE_QUEUE_URL";
 
 /// HTTP请求默认用户代理
-pub const DEFAULT_USER_AGENT: &str = concat!(
-    env!("CARGO_PKG_NAME"), 
-    "/", 
-    env!("CARGO_PKG_VERSION")
-);
+pub const DEFAULT_USER_AGENT: &str =
+    concat!(env!("CARGO_PKG_NAME"), "/", env!("CARGO_PKG_VERSION"));
 
 /// 支持的Cron表达式字段数
 pub const CRON_FIELDS_COUNT: usize = 6;

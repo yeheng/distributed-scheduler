@@ -2,7 +2,7 @@ use figment::value::Value;
 use serde_json::json;
 
 /// 系统默认配置
-/// 
+///
 /// 这个文件包含所有配置项的默认值，用于在没有配置文件或环境变量时提供回退值
 pub fn default_config() -> Value {
     let json_value = json!({
@@ -14,7 +14,7 @@ pub fn default_config() -> Value {
             "connection_timeout_seconds": 30,
             "idle_timeout_seconds": 600
         },
-        
+
         // 消息队列配置
         "message_queue": {
             "type": "RedisStream",
@@ -36,7 +36,7 @@ pub fn default_config() -> Value {
             "retry_delay_seconds": 5,
             "connection_timeout_seconds": 30
         },
-        
+
         // 调度器配置
         "dispatcher": {
             "enabled": true,
@@ -45,7 +45,7 @@ pub fn default_config() -> Value {
             "worker_timeout_seconds": 90,
             "dispatch_strategy": "round_robin"
         },
-        
+
         // Worker配置
         "worker": {
             "enabled": false,
@@ -57,7 +57,7 @@ pub fn default_config() -> Value {
             "task_poll_interval_seconds": 5,
             "supported_task_types": ["shell", "http"]
         },
-        
+
         // API服务配置
         "api": {
             "enabled": true,
@@ -91,7 +91,7 @@ pub fn default_config() -> Value {
                 }
             }
         },
-        
+
         // 可观测性配置
         "observability": {
             "tracing_enabled": true,
@@ -100,7 +100,7 @@ pub fn default_config() -> Value {
             "log_level": "info",
             "jaeger_endpoint": null
         },
-        
+
         // 执行器配置
         "executor": {
             "enabled": true,
@@ -145,7 +145,7 @@ pub fn default_config() -> Value {
                 "validation_enabled": true
             }
         },
-        
+
         // 弹性配置
         "resilience": {
             "database_circuit_breaker": {
@@ -174,7 +174,7 @@ pub fn default_config() -> Value {
             }
         }
     });
-    
+
     // 转换为figment Value
     figment::value::Value::serialize(&json_value).unwrap()
 }
@@ -193,7 +193,7 @@ pub fn environment_overrides(env: &str) -> Option<Value> {
                 "cors_origins": ["http://localhost:3000", "http://localhost:8000"]
             }
         })),
-        
+
         "production" => Some(json!({
             "worker": {
                 "max_concurrent_tasks": 10
@@ -214,7 +214,7 @@ pub fn environment_overrides(env: &str) -> Option<Value> {
                 }
             }
         })),
-        
+
         "test" => Some(json!({
             "database": {
                 "url": "postgresql://localhost/scheduler_test"
@@ -227,13 +227,11 @@ pub fn environment_overrides(env: &str) -> Option<Value> {
                 "tracing_enabled": false
             }
         })),
-        
-        _ => None
+
+        _ => None,
     };
-    
-    json_override.map(|json_val| {
-        figment::value::Value::serialize(&json_val).unwrap()
-    })
+
+    json_override.map(|json_val| figment::value::Value::serialize(&json_val).unwrap())
 }
 
 #[cfg(test)]
@@ -244,7 +242,7 @@ mod tests {
     fn test_default_config_structure() {
         let config = default_config();
         assert!(matches!(config, Value::Dict(..)));
-        
+
         // 验证主要配置段存在
         if let Value::Dict(_, dict) = &config {
             assert!(dict.contains_key("database"));
@@ -262,13 +260,13 @@ mod tests {
     fn test_environment_overrides() {
         let dev_overrides = environment_overrides("development");
         assert!(dev_overrides.is_some());
-        
+
         let prod_overrides = environment_overrides("production");
         assert!(prod_overrides.is_some());
-        
+
         let test_overrides = environment_overrides("test");
         assert!(test_overrides.is_some());
-        
+
         let unknown_overrides = environment_overrides("unknown");
         assert!(unknown_overrides.is_none());
     }
@@ -276,7 +274,7 @@ mod tests {
     #[test]
     fn test_development_overrides_structure() {
         let overrides = environment_overrides("development").unwrap();
-        
+
         // 验证开发环境的特定覆盖
         if let Value::Dict(_, dict) = &overrides {
             assert!(dict.contains_key("database"));

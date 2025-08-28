@@ -20,8 +20,16 @@ impl ConfigValidator for DatabaseConfig {
             ));
         }
 
-        ValidationUtils::validate_count(self.max_connections as usize, "database.max_connections", 1000)?;
-        ValidationUtils::validate_count(self.min_connections as usize, "database.min_connections", 1000)?;
+        ValidationUtils::validate_count(
+            self.max_connections as usize,
+            "database.max_connections",
+            1000,
+        )?;
+        ValidationUtils::validate_count(
+            self.min_connections as usize,
+            "database.min_connections",
+            1000,
+        )?;
 
         if self.min_connections > self.max_connections {
             return Err(crate::ConfigError::Validation(

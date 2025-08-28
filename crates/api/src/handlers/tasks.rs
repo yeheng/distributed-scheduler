@@ -280,7 +280,7 @@ pub async fn list_tasks(
     }
 
     let tasks = state.task_repo.list(&filter).await?;
-    
+
     // Create total_filter efficiently by moving values instead of cloning
     let total_filter = TaskFilter {
         status: filter.status,

@@ -18,7 +18,9 @@ use scheduler_infrastructure::TimeoutUtils;
 use scheduler_observability::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use scheduler_application::use_cases::{CronScheduler, DependencyCheckService, DependencyCheckServiceTrait};
+use scheduler_application::use_cases::{
+    CronScheduler, DependencyCheckService, DependencyCheckServiceTrait,
+};
 
 pub struct TaskScheduler {
     pub task_repo: Arc<dyn TaskRepository>,
@@ -40,7 +42,8 @@ impl TaskScheduler {
         task_queue_name: String,
         metrics: Arc<MetricsCollector>,
     ) -> Self {
-        let dependency_checker = DependencyCheckService::new(task_repo.clone(), task_run_repo.clone());
+        let dependency_checker =
+            DependencyCheckService::new(task_repo.clone(), task_run_repo.clone());
 
         Self {
             task_repo,
@@ -182,7 +185,8 @@ impl TaskSchedulerService for TaskScheduler {
     async fn check_dependencies(&self, task: &Task) -> SchedulerResult<bool> {
         let span = TaskTracer::dependency_check_span(task.id, &task.name);
         let _guard = span.enter();
-        let check_result = DependencyCheckServiceTrait::check_dependencies(&self.dependency_checker, task).await?;
+        let check_result =
+            DependencyCheckServiceTrait::check_dependencies(&self.dependency_checker, task).await?;
 
         StructuredLogger::log_dependency_check(
             task.id,
@@ -338,7 +342,8 @@ impl TaskSchedulerService for TaskScheduler {
         };
 
         // 获取最后调度时间
-        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.try_lock() {
+        let last_schedule_time = if let Ok(last_schedule_guard) = self.last_schedule_time.try_lock()
+        {
             *last_schedule_guard
         } else {
             None

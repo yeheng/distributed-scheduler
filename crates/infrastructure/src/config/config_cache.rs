@@ -57,7 +57,7 @@ impl ConfigCache {
     /// 从缓存中获取配置，如果不存在或过期则返回None
     pub fn get<T: CacheableConfig + Clone + 'static>(&self, key: &str) -> Option<Arc<T>> {
         let now = Instant::now();
-        
+
         if let Ok(mut cache) = self.cache.write() {
             if let Some(cached) = cache.get_mut(key) {
                 // 检查是否过期
@@ -67,11 +67,11 @@ impl ConfigCache {
                     self.increment_miss();
                     return None;
                 }
-                
+
                 // 更新访问统计
                 cached.access_count += 1;
                 cached.last_accessed = now;
-                
+
                 // 尝试转换类型
                 if let Some(config) = cached.data.as_any().downcast_ref::<T>() {
                     self.increment_hit();
@@ -79,7 +79,7 @@ impl ConfigCache {
                 }
             }
         }
-        
+
         self.increment_miss();
         None
     }
@@ -93,18 +93,18 @@ impl ConfigCache {
     pub fn put_with_ttl<T: CacheableConfig + Clone + 'static>(&self, config: T, ttl: Duration) {
         let key = config.cache_key();
         let now = Instant::now();
-        
+
         if let Ok(mut cache) = self.cache.write() {
             // 检查是否需要清理过期项
             if cache.len() >= self.max_entries {
                 self.evict_expired(&mut cache, now);
-                
+
                 // 如果仍然满了，移除最少访问的项
                 if cache.len() >= self.max_entries {
                     self.evict_lru(&mut cache);
                 }
             }
-            
+
             let cached = CachedConfig {
                 data: Arc::new(config),
                 created_at: now,
@@ -112,9 +112,9 @@ impl ConfigCache {
                 access_count: 0,
                 last_accessed: now,
             };
-            
+
             cache.insert(key, cached);
-            
+
             // 更新统计
             if let Ok(mut stats) = self.stats.write() {
                 stats.total_entries = cache.len();
@@ -126,13 +126,13 @@ impl ConfigCache {
     pub fn remove(&self, key: &str) -> bool {
         if let Ok(mut cache) = self.cache.write() {
             let removed = cache.remove(key).is_some();
-            
+
             if removed {
                 if let Ok(mut stats) = self.stats.write() {
                     stats.total_entries = cache.len();
                 }
             }
-            
+
             removed
         } else {
             false
@@ -143,7 +143,7 @@ impl ConfigCache {
     pub fn clear(&self) {
         if let Ok(mut cache) = self.cache.write() {
             cache.clear();
-            
+
             if let Ok(mut stats) = self.stats.write() {
                 stats.total_entries = 0;
             }
@@ -170,7 +170,7 @@ impl ConfigCache {
         let now = Instant::now();
         if let Ok(mut cache) = self.cache.write() {
             self.evict_expired(&mut cache, now);
-            
+
             if let Ok(mut stats) = self.stats.write() {
                 stats.total_entries = cache.len();
             }
@@ -184,7 +184,7 @@ impl ConfigCache {
             .filter(|(_, cached)| now.duration_since(cached.created_at) > cached.ttl)
             .map(|(key, _)| key.clone())
             .collect();
-        
+
         for key in keys_to_remove {
             cache.remove(&key);
             if let Ok(mut stats) = self.stats.write() {
@@ -233,13 +233,13 @@ impl CacheableConfig for AppConfig {
         // 使用配置的哈希值作为缓存键，确保相同配置使用相同缓存
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         // 使用关键配置字段生成哈希
         self.database.url.hash(&mut hasher);
         self.api.bind_address.hash(&mut hasher);
         self.worker.worker_id.hash(&mut hasher);
-        
+
         format!("app_config_{:x}", hasher.finish())
     }
 
@@ -247,7 +247,6 @@ impl CacheableConfig for AppConfig {
         serde_json::to_value(self).unwrap_or(serde_json::Value::Null)
     }
 }
-
 
 /// 全局配置缓存管理器
 // TODO: 等scheduler_config crate完善后启用
@@ -288,7 +287,6 @@ impl GlobalConfigCache {
         self.cache.clear();
     }
 }
-
 
 /// 配置缓存构建器
 pub struct ConfigCacheBuilder {
@@ -356,20 +354,20 @@ mod tests {
     #[test]
     fn test_config_cache_put_and_get() {
         let cache = ConfigCache::new(Duration::from_secs(60), 10);
-        
+
         let config = TestConfig {
             name: "test".to_string(),
             value: 42,
         };
-        
+
         // 缓存配置
         cache.put(config.clone());
-        
+
         // 获取配置
         let cached_config: Option<Arc<TestConfig>> = cache.get("test_config_test");
         assert!(cached_config.is_some());
         assert_eq!(cached_config.unwrap().value, 42);
-        
+
         // 统计信息
         let stats = cache.stats();
         assert_eq!(stats.hits, 1);
@@ -379,22 +377,22 @@ mod tests {
     #[test]
     fn test_config_cache_expiration() {
         let cache = ConfigCache::new(Duration::from_millis(100), 10);
-        
+
         let config = TestConfig {
             name: "expire_test".to_string(),
             value: 100,
         };
-        
+
         // 缓存配置
         cache.put(config);
-        
+
         // 立即获取应该成功
         let cached: Option<Arc<TestConfig>> = cache.get("test_config_expire_test");
         assert!(cached.is_some());
-        
+
         // 等待过期
         thread::sleep(Duration::from_millis(150));
-        
+
         // 再次获取应该失败
         let expired: Option<Arc<TestConfig>> = cache.get("test_config_expire_test");
         assert!(expired.is_none());
@@ -403,7 +401,7 @@ mod tests {
     #[test]
     fn test_config_cache_lru_eviction() {
         let cache = ConfigCache::new(Duration::from_secs(60), 2);
-        
+
         let config1 = TestConfig {
             name: "config1".to_string(),
             value: 1,
@@ -416,16 +414,16 @@ mod tests {
             name: "config3".to_string(),
             value: 3,
         };
-        
+
         // 缓存三个配置，应该触发LRU淘汰
         cache.put(config1.clone());
         cache.put(config2.clone());
         cache.put(config3.clone());
-        
+
         // config1应该被淘汰
         let cached1: Option<Arc<TestConfig>> = cache.get("test_config_config1");
         assert!(cached1.is_none());
-        
+
         // config2和config3应该还在
         let cached2: Option<Arc<TestConfig>> = cache.get("test_config_config2");
         let cached3: Option<Arc<TestConfig>> = cache.get("test_config_config3");
@@ -436,14 +434,14 @@ mod tests {
     #[test]
     fn test_global_config_cache() {
         let global_cache = GlobalConfigCache::new(Duration::from_secs(60), 10);
-        
+
         // 创建测试配置
         let config = AppConfig::default();
         let cache_key = config.cache_key();
-        
+
         // 缓存配置
         global_cache.cache_app_config(config.clone());
-        
+
         // 获取配置
         let cached = global_cache.get_app_config(&cache_key);
         assert!(cached.is_some());
@@ -456,14 +454,14 @@ mod tests {
             .with_ttl(Duration::from_secs(30))
             .with_max_entries(50)
             .build();
-        
+
         let config = TestConfig {
             name: "builder_test".to_string(),
             value: 999,
         };
-        
+
         cache.put(config.clone());
-        
+
         let cached: Option<Arc<TestConfig>> = cache.get("test_config_builder_test");
         assert!(cached.is_some());
         assert_eq!(cached.unwrap().value, 999);

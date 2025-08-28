@@ -290,7 +290,10 @@ async fn handle_task_commands(task_cmd: TaskCommands, config: &CliConfig) -> Res
             limit,
             offset,
         } => {
-            let mut url = format!("{}/api/v1/tasks?limit={}&offset={}", config.api_base_url, limit, offset);
+            let mut url = format!(
+                "{}/api/v1/tasks?limit={}&offset={}",
+                config.api_base_url, limit, offset
+            );
             if let Some(status) = status {
                 url.push_str(&format!("&status={}", status));
             }
@@ -363,7 +366,11 @@ async fn handle_worker_commands(worker_cmd: WorkerCommands, config: &CliConfig) 
                 url.push_str(&format!("?status={}", status));
             }
 
-            let response = client.get(&url).send().await.context("获取Worker列表失败")?;
+            let response = client
+                .get(&url)
+                .send()
+                .await
+                .context("获取Worker列表失败")?;
 
             if response.status().is_success() {
                 let workers: Value = response.json().await?;
@@ -375,7 +382,10 @@ async fn handle_worker_commands(worker_cmd: WorkerCommands, config: &CliConfig) 
         }
         WorkerActions::Get { worker_id } => {
             let response = client
-                .get(&format!("{}/api/v1/workers/{}", config.api_base_url, worker_id))
+                .get(&format!(
+                    "{}/api/v1/workers/{}",
+                    config.api_base_url, worker_id
+                ))
                 .send()
                 .await
                 .context("获取Worker详情失败")?;
@@ -443,18 +453,16 @@ async fn handle_status_commands(status_cmd: StatusCommands, config: &CliConfig) 
 async fn handle_config_commands(config_cmd: ConfigCommands, config: &CliConfig) -> Result<()> {
     match config_cmd.action {
         ConfigActions::Show => {
-            let app_config = AppConfig::load(Some(&config.config_path))
-                .context("加载配置文件失败")?;
+            let app_config =
+                AppConfig::load(Some(&config.config_path)).context("加载配置文件失败")?;
             println!("配置文件路径: {}", config.config_path);
             println!("配置内容:");
             println!("{:#?}", app_config);
         }
-        ConfigActions::Validate => {
-            match AppConfig::load(Some(&config.config_path)) {
-                Ok(_) => println!("✓ 配置文件验证通过"),
-                Err(e) => return Err(anyhow::anyhow!("✗ 配置文件验证失败: {}", e)),
-            }
-        }
+        ConfigActions::Validate => match AppConfig::load(Some(&config.config_path)) {
+            Ok(_) => println!("✓ 配置文件验证通过"),
+            Err(e) => return Err(anyhow::anyhow!("✗ 配置文件验证失败: {}", e)),
+        },
         ConfigActions::Example => {
             println!("示例配置文件内容:");
             println!("{}", generate_example_config());
@@ -473,7 +481,10 @@ fn create_http_client(_config: &CliConfig) -> Result<Client> {
 }
 
 fn print_tasks_table(tasks: &Value) -> Result<()> {
-    println!("{:<36} {:<20} {:<15} {:<20} {:<12}", "ID", "名称", "状态", "创建时间", "优先级");
+    println!(
+        "{:<36} {:<20} {:<15} {:<20} {:<12}",
+        "ID", "名称", "状态", "创建时间", "优先级"
+    );
     println!("{}", "-".repeat(100));
 
     if let Some(tasks_array) = tasks.as_array() {
@@ -484,7 +495,10 @@ fn print_tasks_table(tasks: &Value) -> Result<()> {
             let created_at = task["created_at"].as_str().unwrap_or("N/A");
             let priority = task["priority"].as_u64().unwrap_or(0);
 
-            println!("{:<36} {:<20} {:<15} {:<20} {:<12}", id, name, status, created_at, priority);
+            println!(
+                "{:<36} {:<20} {:<15} {:<20} {:<12}",
+                id, name, status, created_at, priority
+            );
         }
     }
 
@@ -499,10 +513,22 @@ fn print_task_details(task: &Value) -> Result<()> {
     println!("  状态: {}", task["status"].as_str().unwrap_or("N/A"));
     println!("  命令: {}", task["command"].as_str().unwrap_or("N/A"));
     println!("  优先级: {}", task["priority"].as_u64().unwrap_or(0));
-    println!("  最大重试次数: {}", task["max_retries"].as_u64().unwrap_or(0));
-    println!("  超时时间: {} 秒", task["timeout_seconds"].as_u64().unwrap_or(0));
-    println!("  创建时间: {}", task["created_at"].as_str().unwrap_or("N/A"));
-    println!("  更新时间: {}", task["updated_at"].as_str().unwrap_or("N/A"));
+    println!(
+        "  最大重试次数: {}",
+        task["max_retries"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  超时时间: {} 秒",
+        task["timeout_seconds"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  创建时间: {}",
+        task["created_at"].as_str().unwrap_or("N/A")
+    );
+    println!(
+        "  更新时间: {}",
+        task["updated_at"].as_str().unwrap_or("N/A")
+    );
 
     if let Some(cron) = task["cron_expression"].as_str() {
         println!("  Cron表达式: {}", cron);
@@ -516,7 +542,10 @@ fn print_task_details(task: &Value) -> Result<()> {
 }
 
 fn print_workers_table(workers: &Value) -> Result<()> {
-    println!("{:<20} {:<15} {:<15} {:<20} {:<10}", "Worker ID", "状态", "IP地址", "最后心跳", "任务数");
+    println!(
+        "{:<20} {:<15} {:<15} {:<20} {:<10}",
+        "Worker ID", "状态", "IP地址", "最后心跳", "任务数"
+    );
     println!("{}", "-".repeat(85));
 
     if let Some(workers_array) = workers.as_array() {
@@ -527,7 +556,10 @@ fn print_workers_table(workers: &Value) -> Result<()> {
             let last_heartbeat = worker["last_heartbeat"].as_str().unwrap_or("N/A");
             let task_count = worker["current_task_count"].as_u64().unwrap_or(0);
 
-            println!("{:<20} {:<15} {:<15} {:<20} {:<10}", id, status, ip, last_heartbeat, task_count);
+            println!(
+                "{:<20} {:<15} {:<15} {:<20} {:<10}",
+                id, status, ip, last_heartbeat, task_count
+            );
         }
     }
 
@@ -536,27 +568,66 @@ fn print_workers_table(workers: &Value) -> Result<()> {
 
 fn print_worker_details(worker: &Value) -> Result<()> {
     println!("Worker节点详情:");
-    println!("  Worker ID: {}", worker["worker_id"].as_str().unwrap_or("N/A"));
+    println!(
+        "  Worker ID: {}",
+        worker["worker_id"].as_str().unwrap_or("N/A")
+    );
     println!("  状态: {}", worker["status"].as_str().unwrap_or("N/A"));
     println!("  主机名: {}", worker["hostname"].as_str().unwrap_or("N/A"));
-    println!("  IP地址: {}", worker["ip_address"].as_str().unwrap_or("N/A"));
-    println!("  最大并发任务数: {}", worker["max_concurrent_tasks"].as_u64().unwrap_or(0));
-    println!("  当前任务数: {}", worker["current_task_count"].as_u64().unwrap_or(0));
-    println!("  注册时间: {}", worker["registered_at"].as_str().unwrap_or("N/A"));
-    println!("  最后心跳: {}", worker["last_heartbeat"].as_str().unwrap_or("N/A"));
+    println!(
+        "  IP地址: {}",
+        worker["ip_address"].as_str().unwrap_or("N/A")
+    );
+    println!(
+        "  最大并发任务数: {}",
+        worker["max_concurrent_tasks"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  当前任务数: {}",
+        worker["current_task_count"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  注册时间: {}",
+        worker["registered_at"].as_str().unwrap_or("N/A")
+    );
+    println!(
+        "  最后心跳: {}",
+        worker["last_heartbeat"].as_str().unwrap_or("N/A")
+    );
 
     Ok(())
 }
 
 fn print_system_status(status: &Value) -> Result<()> {
     println!("系统状态概览:");
-    println!("  系统启动时间: {}", status["uptime"].as_str().unwrap_or("N/A"));
-    println!("  总任务数: {}", status["total_tasks"].as_u64().unwrap_or(0));
-    println!("  活跃任务数: {}", status["active_tasks"].as_u64().unwrap_or(0));
-    println!("  完成任务数: {}", status["completed_tasks"].as_u64().unwrap_or(0));
-    println!("  失败任务数: {}", status["failed_tasks"].as_u64().unwrap_or(0));
-    println!("  在线Worker数: {}", status["online_workers"].as_u64().unwrap_or(0));
-    println!("  离线Worker数: {}", status["offline_workers"].as_u64().unwrap_or(0));
+    println!(
+        "  系统启动时间: {}",
+        status["uptime"].as_str().unwrap_or("N/A")
+    );
+    println!(
+        "  总任务数: {}",
+        status["total_tasks"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  活跃任务数: {}",
+        status["active_tasks"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  完成任务数: {}",
+        status["completed_tasks"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  失败任务数: {}",
+        status["failed_tasks"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  在线Worker数: {}",
+        status["online_workers"].as_u64().unwrap_or(0)
+    );
+    println!(
+        "  离线Worker数: {}",
+        status["offline_workers"].as_u64().unwrap_or(0)
+    );
 
     Ok(())
 }

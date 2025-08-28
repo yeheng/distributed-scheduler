@@ -57,10 +57,7 @@ impl SchedulerService {
 
         // 检查并发控制限制
         if !self.check_concurrent_limit(task).await? {
-            debug!(
-                "任务 {} 已达到最大并发限制，跳过本次调度",
-                task.name
-            );
+            debug!("任务 {} 已达到最大并发限制，跳过本次调度", task.name);
             return Ok(false);
         }
 
@@ -92,7 +89,7 @@ impl SchedulerService {
 
         // 使用默认并发限制（未来可以添加到Task结构体中）
         let max_concurrent_runs = task.max_retries.max(1); // 使用max_retries作为并发限制的代理
-        
+
         debug!(
             "任务 {} 并发检查: 运行中 {}/{}",
             task.name, running_count, max_concurrent_runs
@@ -312,12 +309,12 @@ impl TaskSchedulerService for SchedulerService {
 
     async fn reload_config(&self) -> SchedulerResult<()> {
         info!("重新加载调度器配置");
-        
+
         // 从配置文件重新加载配置
         match scheduler_config::AppConfig::load(None) {
             Ok(new_config) => {
                 info!("配置重新加载成功");
-                
+
                 // 检查并更新相关配置
                 // TODO: 实际项目中可以将配置传递给各个组件
                 debug!(
@@ -325,14 +322,15 @@ impl TaskSchedulerService for SchedulerService {
                     new_config.dispatcher.schedule_interval_seconds,
                     new_config.dispatcher.max_concurrent_dispatches
                 );
-                
+
                 Ok(())
             }
             Err(e) => {
                 error!("配置重新加载失败: {}", e);
-                Err(SchedulerError::Configuration(
-                    format!("配置重新加载失败: {}", e)
-                ))
+                Err(SchedulerError::Configuration(format!(
+                    "配置重新加载失败: {}",
+                    e
+                )))
             }
         }
     }

@@ -38,18 +38,9 @@ async fn main() -> Result<()> {
         .get_matches();
 
     // 获取命令行参数
-    let config_path = matches
-        .get_one::<String>("config")
-        .unwrap()
-        .to_string();
-    let log_level = matches
-        .get_one::<String>("log-level")
-        .unwrap()
-        .to_string();
-    let log_format = matches
-        .get_one::<String>("log-format")
-        .unwrap()
-        .to_string();
+    let config_path = matches.get_one::<String>("config").unwrap().to_string();
+    let log_level = matches.get_one::<String>("log-level").unwrap().to_string();
+    let log_format = matches.get_one::<String>("log-format").unwrap().to_string();
 
     // 创建启动配置
     let startup_config = StartupConfig {

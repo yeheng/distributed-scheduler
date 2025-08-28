@@ -5,4 +5,4 @@ pub mod encryption;
 pub mod secrets;
 
 pub use encryption::{Encryptor, FilePermissionManager, SensitiveDataDetector};
-pub use secrets::{SimpleSecretManager, SecretType, SecretEntry, SecretStatus};
+pub use secrets::{SecretEntry, SecretStatus, SecretType, SimpleSecretManager};

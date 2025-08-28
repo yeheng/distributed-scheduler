@@ -1,5 +1,5 @@
 //! # 通用工具函数
-//! 
+//!
 //! 包含系统中常用的辅助函数
 
 use chrono::{DateTime, Utc};
@@ -24,7 +24,7 @@ pub mod time {
         let duration = system_time
             .duration_since(UNIX_EPOCH)
             .map_err(|e| SchedulerError::Internal(format!("Invalid system time: {}", e)))?;
-        
+
         let timestamp = duration.as_secs() as i64;
         DateTime::from_timestamp(timestamp, 0)
             .ok_or_else(|| SchedulerError::Internal("Failed to convert timestamp".to_string()))
@@ -39,7 +39,9 @@ pub mod time {
     pub fn parse_timestamp(s: &str) -> SchedulerResult<Timestamp> {
         DateTime::parse_from_rfc3339(s)
             .map(|dt| dt.with_timezone(&Utc))
-            .map_err(|e| SchedulerError::ValidationError(format!("Invalid timestamp format: {}", e)))
+            .map_err(|e| {
+                SchedulerError::ValidationError(format!("Invalid timestamp format: {}", e))
+            })
     }
 
     /// 计算两个时间之间的持续时间（秒）
@@ -64,7 +66,7 @@ pub mod string {
                                 abcdefghijklmnopqrstuvwxyz\
                                 0123456789";
         let mut rng = rand::rng();
-        
+
         (0..length)
             .map(|_| {
                 let idx = rng.random_range(0..CHARSET.len());
@@ -101,7 +103,7 @@ pub mod string {
     pub fn to_snake_case(s: &str) -> String {
         let mut result = String::new();
         let mut prev_char_was_uppercase = false;
-        
+
         for (i, c) in s.chars().enumerate() {
             if c.is_uppercase() {
                 if i > 0 && !prev_char_was_uppercase {
@@ -114,7 +116,7 @@ pub mod string {
                 prev_char_was_uppercase = false;
             }
         }
-        
+
         result
     }
 }
@@ -137,8 +139,9 @@ pub mod json {
 
     /// 安全地反序列化JSON字符串
     pub fn safe_deserialize<T: for<'de> Deserialize<'de>>(s: &str) -> SchedulerResult<T> {
-        serde_json::from_str(s)
-            .map_err(|e| SchedulerError::ValidationError(format!("JSON deserialization failed: {}", e)))
+        serde_json::from_str(s).map_err(|e| {
+            SchedulerError::ValidationError(format!("JSON deserialization failed: {}", e))
+        })
     }
 
     /// 合并两个JSON对象
@@ -165,14 +168,12 @@ pub mod env {
 
     /// 获取环境变量，支持默认值
     pub fn get_env_var(key: &str, default: Option<&str>) -> String {
-        std::env::var(key).unwrap_or_else(|_| {
-            default.unwrap_or_default().to_string()
-        })
+        std::env::var(key).unwrap_or_else(|_| default.unwrap_or_default().to_string())
     }
 
     /// 获取环境变量并解析为指定类型
-    pub fn get_env_var_as<T: std::str::FromStr>(key: &str, default: T) -> T 
-    where 
+    pub fn get_env_var_as<T: std::str::FromStr>(key: &str, default: T) -> T
+    where
         T::Err: std::fmt::Debug,
     {
         std::env::var(key)
@@ -211,13 +212,15 @@ pub mod network {
     pub fn get_local_ip() -> SchedulerResult<String> {
         let socket = std::net::UdpSocket::bind("0.0.0.0:0")
             .map_err(|e| SchedulerError::Internal(format!("Failed to create socket: {}", e)))?;
-        
-        socket.connect("8.8.8.8:80")
+
+        socket
+            .connect("8.8.8.8:80")
             .map_err(|e| SchedulerError::Internal(format!("Failed to connect: {}", e)))?;
-        
-        let local_addr = socket.local_addr()
+
+        let local_addr = socket
+            .local_addr()
             .map_err(|e| SchedulerError::Internal(format!("Failed to get local address: {}", e)))?;
-        
+
         Ok(local_addr.ip().to_string())
     }
 
@@ -238,9 +241,11 @@ pub mod validation {
     /// 验证任务名称
     pub fn validate_task_name(name: &str) -> SchedulerResult<()> {
         if name.is_empty() {
-            return Err(SchedulerError::ValidationError("Task name cannot be empty".to_string()));
+            return Err(SchedulerError::ValidationError(
+                "Task name cannot be empty".to_string(),
+            ));
         }
-        
+
         if name.len() > crate::constants::MAX_TASK_NAME_LENGTH {
             return Err(SchedulerError::ValidationError(format!(
                 "Task name too long: {} > {}",
@@ -248,23 +253,29 @@ pub mod validation {
                 crate::constants::MAX_TASK_NAME_LENGTH
             )));
         }
-        
+
         // 检查是否包含有效字符
-        if !name.chars().all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.') {
+        if !name
+            .chars()
+            .all(|c| c.is_alphanumeric() || c == '_' || c == '-' || c == '.')
+        {
             return Err(SchedulerError::ValidationError(
-                "Task name can only contain alphanumeric characters, underscore, hyphen, and dot".to_string()
+                "Task name can only contain alphanumeric characters, underscore, hyphen, and dot"
+                    .to_string(),
             ));
         }
-        
+
         Ok(())
     }
 
     /// 验证Worker ID
     pub fn validate_worker_id(worker_id: &str) -> SchedulerResult<()> {
         if worker_id.is_empty() {
-            return Err(SchedulerError::ValidationError("Worker ID cannot be empty".to_string()));
+            return Err(SchedulerError::ValidationError(
+                "Worker ID cannot be empty".to_string(),
+            ));
         }
-        
+
         if worker_id.len() > crate::constants::MAX_WORKER_ID_LENGTH {
             return Err(SchedulerError::ValidationError(format!(
                 "Worker ID too long: {} > {}",
@@ -272,14 +283,14 @@ pub mod validation {
                 crate::constants::MAX_WORKER_ID_LENGTH
             )));
         }
-        
+
         Ok(())
     }
 
     /// 验证Cron表达式格式
     pub fn validate_cron_expression(expr: &str) -> SchedulerResult<()> {
         let fields: Vec<&str> = expr.split_whitespace().collect();
-        
+
         if fields.len() != crate::constants::CRON_FIELDS_COUNT {
             return Err(SchedulerError::ValidationError(format!(
                 "Cron expression must have {} fields, got {}",
@@ -287,10 +298,10 @@ pub mod validation {
                 fields.len()
             )));
         }
-        
+
         // 这里可以添加更详细的Cron表达式验证
         // 目前只做基本的字段数量检查
-        
+
         Ok(())
     }
 }
@@ -316,7 +327,7 @@ mod tests {
         let now = time::now_utc();
         let formatted = time::format_timestamp(&now);
         assert!(!formatted.is_empty());
-        
+
         let parsed = time::parse_timestamp(&now.to_rfc3339()).unwrap();
         assert_eq!(now.timestamp(), parsed.timestamp());
     }
@@ -325,10 +336,10 @@ mod tests {
     fn test_string_utils() {
         let random = string::generate_random_string(10);
         assert_eq!(random.len(), 10);
-        
+
         let uuid = string::generate_uuid();
         assert!(string::is_valid_uuid(&uuid));
-        
+
         assert_eq!(string::to_snake_case("CamelCase"), "camel_case");
         assert_eq!(string::truncate_string("hello world", 5), "he...");
     }
@@ -344,7 +355,13 @@ mod tests {
     #[test]
     fn test_env_utils() {
         let env = env::detect_environment();
-        assert!(matches!(env, Environment::Development | Environment::Testing | Environment::Staging | Environment::Production));
+        assert!(matches!(
+            env,
+            Environment::Development
+                | Environment::Testing
+                | Environment::Staging
+                | Environment::Production
+        ));
     }
 
     #[test]

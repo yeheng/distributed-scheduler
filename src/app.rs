@@ -3,9 +3,9 @@ use std::sync::Arc;
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
 use scheduler_application::{
-    ExecutorRegistry, 
     scheduler::{StateListenerService, WorkerService},
-    task_services::{TaskControlService, TaskSchedulerService}
+    task_services::{TaskControlService, TaskSchedulerService},
+    ExecutorRegistry,
 };
 use scheduler_config::AppConfig;
 use scheduler_core::ServiceLocator;

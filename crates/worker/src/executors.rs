@@ -5,8 +5,8 @@ use std::time::{Duration, Instant};
 
 use async_trait::async_trait;
 use chrono::Utc;
-use scheduler_application::{ExecutorStatus, TaskExecutor};
 use scheduler_application::TaskExecutionContext;
+use scheduler_application::{ExecutorStatus, TaskExecutor};
 use scheduler_domain::entities::TaskResult;
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use serde::{Deserialize, Serialize};

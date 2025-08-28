@@ -1,7 +1,7 @@
 //! # scheduler-common
-//! 
+//!
 //! 分布式任务调度系统的共享工具和常量模块
-//! 
+//!
 //! 本模块提供：
 //! - 系统常量定义
 //! - 通用工具函数
@@ -9,14 +9,14 @@
 //! - 通用trait定义
 
 pub mod constants;
-pub mod utils;
-pub mod types;
 pub mod traits;
+pub mod types;
+pub mod utils;
 
 // Re-export commonly used items
 pub use constants::*;
-pub use types::*;
 pub use traits::*;
+pub use types::*;
 pub use utils::*;
 
 // Re-export error types

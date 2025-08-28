@@ -56,10 +56,10 @@ impl BasicConfigValidator {
 
         // 验证必需字段
         self.validate_required_fields(config, &mut errors);
-        
+
         // 验证安全设置
         self.validate_security_settings(config, &mut errors, &mut warnings);
-        
+
         // 验证环境特定设置
         self.validate_environment_settings(config, &mut errors, &mut warnings);
 
@@ -92,10 +92,9 @@ impl BasicConfigValidator {
     /// 获取环境所需的必需字段
     fn get_required_fields(&self) -> Vec<String> {
         match self.environment {
-            Environment::Development => vec![
-                "database.url".to_string(),
-                "api.bind_address".to_string(),
-            ],
+            Environment::Development => {
+                vec!["database.url".to_string(), "api.bind_address".to_string()]
+            }
             Environment::Testing => vec![
                 "database.url".to_string(),
                 "api.bind_address".to_string(),
@@ -118,7 +117,10 @@ impl BasicConfigValidator {
         warnings: &mut Vec<ValidationWarning>,
     ) {
         // 生产环境必须启用认证
-        if matches!(self.environment, Environment::Production | Environment::Staging) {
+        if matches!(
+            self.environment,
+            Environment::Production | Environment::Staging
+        ) {
             if let Some(auth_enabled) = self.get_nested_value(config, "api.auth.enabled") {
                 if !auth_enabled.as_bool().unwrap_or(false) {
                     errors.push(ValidationError {
@@ -140,12 +142,16 @@ impl BasicConfigValidator {
                         severity: ValidationSeverity::Error,
                     });
                 }
-                
+
                 if secret_str.contains("dev") || secret_str.contains("test") {
-                    if matches!(self.environment, Environment::Production | Environment::Staging) {
+                    if matches!(
+                        self.environment,
+                        Environment::Production | Environment::Staging
+                    ) {
                         errors.push(ValidationError {
                             field_path: "api.auth.jwt_secret".to_string(),
-                            message: "Development/test secrets cannot be used in production".to_string(),
+                            message: "Development/test secrets cannot be used in production"
+                                .to_string(),
                             severity: ValidationSeverity::Critical,
                         });
                     } else {
@@ -167,7 +173,9 @@ impl BasicConfigValidator {
                             if origin_str == "*" {
                                 errors.push(ValidationError {
                                     field_path: "api.cors_origins".to_string(),
-                                    message: "Wildcard CORS origin '*' is not allowed in production".to_string(),
+                                    message:
+                                        "Wildcard CORS origin '*' is not allowed in production"
+                                            .to_string(),
                                     severity: ValidationSeverity::Critical,
                                 });
                             }
@@ -193,7 +201,8 @@ impl BasicConfigValidator {
                         if addr_str.starts_with("0.0.0.0") {
                             warnings.push(ValidationWarning {
                                 field_path: "api.bind_address".to_string(),
-                                message: "Binding to 0.0.0.0 in development may be insecure".to_string(),
+                                message: "Binding to 0.0.0.0 in development may be insecure"
+                                    .to_string(),
                             });
                         }
                     }
@@ -201,7 +210,9 @@ impl BasicConfigValidator {
                         if !addr_str.starts_with("0.0.0.0") {
                             warnings.push(ValidationWarning {
                                 field_path: "api.bind_address".to_string(),
-                                message: "Consider binding to 0.0.0.0 for external access in production".to_string(),
+                                message:
+                                    "Consider binding to 0.0.0.0 for external access in production"
+                                        .to_string(),
                             });
                         }
                     }
@@ -230,7 +241,9 @@ impl BasicConfigValidator {
                         if max_val < 20 {
                             warnings.push(ValidationWarning {
                                 field_path: "database.max_connections".to_string(),
-                                message: "Low connection pool size may limit performance in production".to_string(),
+                                message:
+                                    "Low connection pool size may limit performance in production"
+                                        .to_string(),
                             });
                         }
                     }
@@ -238,7 +251,9 @@ impl BasicConfigValidator {
                         if max_val > 10 {
                             warnings.push(ValidationWarning {
                                 field_path: "database.max_connections".to_string(),
-                                message: "High connection pool size may be unnecessary in development".to_string(),
+                                message:
+                                    "High connection pool size may be unnecessary in development"
+                                        .to_string(),
                             });
                         }
                     }
@@ -254,7 +269,11 @@ impl BasicConfigValidator {
     }
 
     /// 获取嵌套值
-    fn get_nested_value<'a>(&self, config: &'a HashMap<String, serde_json::Value>, path: &str) -> Option<&'a serde_json::Value> {
+    fn get_nested_value<'a>(
+        &self,
+        config: &'a HashMap<String, serde_json::Value>,
+        path: &str,
+    ) -> Option<&'a serde_json::Value> {
         let parts: Vec<&str> = path.split('.').collect();
         let mut current = config.get(parts[0])?;
 
@@ -316,13 +335,13 @@ impl ValidationUtils {
     /// 验证URL格式
     pub fn validate_url(url: &str, field_name: &str) -> ConfigResult<()> {
         Self::validate_not_empty(url, field_name)?;
-        
+
         if !url.contains("://") {
             return Err(ConfigError::Validation(format!(
                 "{field_name} must be a valid URL with protocol"
             )));
         }
-        
+
         Ok(())
     }
 
@@ -351,12 +370,18 @@ mod tests {
     fn test_basic_validation() {
         let validator = BasicConfigValidator::new(Environment::Development);
         let config = HashMap::from([
-            ("database".to_string(), json!({
-                "url": "postgresql://localhost/test"
-            })),
-            ("api".to_string(), json!({
-                "bind_address": "127.0.0.1:8080"
-            })),
+            (
+                "database".to_string(),
+                json!({
+                    "url": "postgresql://localhost/test"
+                }),
+            ),
+            (
+                "api".to_string(),
+                json!({
+                    "bind_address": "127.0.0.1:8080"
+                }),
+            ),
         ]);
 
         let result = validator.validate(&config);
@@ -370,11 +395,12 @@ mod tests {
     #[test]
     fn test_missing_required_field() {
         let validator = BasicConfigValidator::new(Environment::Production);
-        let config = HashMap::from([
-            ("database".to_string(), json!({
+        let config = HashMap::from([(
+            "database".to_string(),
+            json!({
                 "url": "postgresql://localhost/test"
-            })),
-        ]);
+            }),
+        )]);
 
         let result = validator.validate(&config);
         assert!(!result.is_valid);
@@ -385,10 +411,10 @@ mod tests {
     fn test_validation_utils() {
         assert!(ValidationUtils::validate_not_empty("test", "field").is_ok());
         assert!(ValidationUtils::validate_not_empty("", "field").is_err());
-        
+
         assert!(ValidationUtils::validate_port(8080).is_ok());
         assert!(ValidationUtils::validate_port(0).is_err());
-        
+
         assert!(ValidationUtils::validate_timeout(30, "timeout").is_ok());
         assert!(ValidationUtils::validate_timeout(0, "timeout").is_err());
         assert!(ValidationUtils::validate_timeout(3601, "timeout").is_err());

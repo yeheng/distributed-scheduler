@@ -1,9 +1,9 @@
 // 新的模块结构（推荐使用）
 pub mod core;
-pub mod defaults;  // 新增defaults模块
+pub mod defaults; // 新增defaults模块
 pub mod security;
-pub mod validation_new;
 pub mod tests;
+pub mod validation_new;
 
 // 现有模块（保持向后兼容）
 pub mod circuit_breaker;
@@ -12,8 +12,8 @@ pub mod models;
 
 // 新的简化API（推荐使用）
 pub use core::constants;
-pub use security::{Encryptor, SimpleSecretManager, SecretType, SecretEntry, SecretStatus};
-pub use validation_new::{BasicConfigValidator, ValidationUtils, ConfigValidator};
+pub use security::{Encryptor, SecretEntry, SecretStatus, SecretType, SimpleSecretManager};
+pub use validation_new::{BasicConfigValidator, ConfigValidator, ValidationUtils};
 
 // 现有API（保持向后兼容）
 pub use circuit_breaker::{CircuitBreakerConfig, CircuitState};

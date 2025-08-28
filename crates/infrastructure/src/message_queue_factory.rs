@@ -72,7 +72,8 @@ impl MessageQueueFactory {
         } else {
             0
         };
-        let password = url.password()
+        let password = url
+            .password()
             .filter(|pwd| !pwd.is_empty())
             .map(|pwd| pwd.to_string());
 

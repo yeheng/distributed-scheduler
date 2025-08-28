@@ -4,6 +4,6 @@
 pub mod basic;
 
 pub use basic::{
-    BasicConfigValidator, ValidationResult, ValidationError, ValidationWarning,
-    ValidationSeverity, ValidationUtils, ConfigValidator,
+    BasicConfigValidator, ConfigValidator, ValidationError, ValidationResult, ValidationSeverity,
+    ValidationUtils, ValidationWarning,
 };

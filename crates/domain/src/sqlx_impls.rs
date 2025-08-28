@@ -1,10 +1,10 @@
 //! # SQLx 数据库类型转换实现
-//! 
+//!
 //! 本模块仅在启用 `sqlx-support` feature 时编译
 //! 提供领域类型到数据库类型的转换支持
 
 #[cfg(feature = "sqlx-support")]
-use crate::entities::{TaskStatus, TaskRunStatus, WorkerStatus};
+use crate::entities::{TaskRunStatus, TaskStatus, WorkerStatus};
 
 // TaskStatus SQLx 实现
 #[cfg(feature = "sqlx-support")]

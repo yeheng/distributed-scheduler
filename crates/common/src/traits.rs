@@ -1,5 +1,5 @@
 //! # 共享Trait定义
-//! 
+//!
 //! 包含系统中常用的trait定义
 
 use async_trait::async_trait;
@@ -10,10 +10,16 @@ use std::fmt::Debug;
 use crate::types::{HealthStatus, ResourceUsage, Timestamp, VersionInfo};
 
 /// 可序列化的trait，组合了常用的序列化trait
-pub trait Serializable: Debug + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync {}
+pub trait Serializable:
+    Debug + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
+{
+}
 
 /// 为所有满足条件的类型自动实现Serializable
-impl<T> Serializable for T where T: Debug + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync {}
+impl<T> Serializable for T where
+    T: Debug + Clone + Serialize + for<'de> Deserialize<'de> + Send + Sync
+{
+}
 
 /// 健康检查trait
 #[async_trait]
@@ -57,7 +63,10 @@ pub trait ResourceMonitor: Send + Sync {
     async fn get_resource_usage(&self) -> SchedulerResult<ResourceUsage>;
 
     /// 获取资源使用历史
-    async fn get_resource_history(&self, duration_seconds: u64) -> SchedulerResult<Vec<ResourceUsage>>;
+    async fn get_resource_history(
+        &self,
+        duration_seconds: u64,
+    ) -> SchedulerResult<Vec<ResourceUsage>>;
 }
 
 /// 可配置trait
@@ -79,13 +88,17 @@ pub trait Observable: Send + Sync {
     async fn get_metrics(&self) -> SchedulerResult<serde_json::Value>;
 
     /// 记录事件
-    async fn record_event(&self, event: &str, metadata: Option<serde_json::Value>) -> SchedulerResult<()>;
+    async fn record_event(
+        &self,
+        event: &str,
+        metadata: Option<serde_json::Value>,
+    ) -> SchedulerResult<()>;
 }
 
 /// 可缓存trait
 #[async_trait]
-pub trait Cacheable<K, V>: Send + Sync 
-where 
+pub trait Cacheable<K, V>: Send + Sync
+where
     K: Send + Sync + Clone + std::hash::Hash + Eq,
     V: Send + Sync + Clone,
 {
@@ -127,19 +140,20 @@ pub trait Retryable: Send + Sync {
     /// 带重试的执行
     async fn execute_with_retry(&self, input: Self::Input) -> Result<Self::Output, Self::Error> {
         let mut last_error = None;
-        
+
         for attempt in 0..=self.max_retries() {
             match self.execute(input.clone()).await {
                 Ok(result) => return Ok(result),
                 Err(error) => {
                     last_error = Some(error);
-                    
+
                     if attempt < self.max_retries() {
                         let should_retry = self.should_retry(last_error.as_ref().unwrap(), attempt);
                         if should_retry {
                             tokio::time::sleep(tokio::time::Duration::from_millis(
-                                self.retry_interval_ms()
-                            )).await;
+                                self.retry_interval_ms(),
+                            ))
+                            .await;
                             continue;
                         }
                     }
@@ -214,7 +228,7 @@ mod tests {
         let provider = SystemTimeProvider::default();
         let now1 = provider.now();
         let now2 = provider.now();
-        
+
         // 时间应该是递增的（虽然可能相等）
         assert!(now2 >= now1);
     }

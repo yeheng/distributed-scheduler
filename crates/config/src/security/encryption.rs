@@ -7,10 +7,10 @@ use crate::{ConfigError, ConfigResult};
 pub trait Encryptor {
     /// 加密字符串值
     fn encrypt(&self, plaintext: &str) -> ConfigResult<String>;
-    
+
     /// 解密字符串值
     fn decrypt(&self, ciphertext: &str) -> ConfigResult<String>;
-    
+
     /// 验证加密密钥是否有效
     fn validate_key(&self) -> ConfigResult<()>;
 }
@@ -19,7 +19,7 @@ pub trait Encryptor {
 pub trait FilePermissionManager {
     /// 设置安全文件权限
     fn set_secure_permissions(&self, file_path: &std::path::Path) -> ConfigResult<()>;
-    
+
     /// 验证文件权限
     fn validate_permissions(&self, file_path: &std::path::Path) -> ConfigResult<()>;
 }
@@ -28,7 +28,7 @@ pub trait FilePermissionManager {
 pub trait SensitiveDataDetector {
     /// 检测字符串是否包含敏感信息
     fn is_sensitive(&self, text: &str) -> bool;
-    
+
     /// 获取敏感字段模式列表
     fn get_sensitive_patterns(&self) -> Vec<String>;
 }
@@ -53,16 +53,16 @@ pub mod aes {
         fn load_encryption_key() -> ConfigResult<Vec<u8>> {
             // 优先从环境变量加载
             if let Ok(key_str) = env::var("CONFIG_ENCRYPTION_KEY") {
-                let decoded = general_purpose::STANDARD
-                    .decode(&key_str)
-                    .map_err(|e| ConfigError::Security(format!("Invalid encryption key format: {e}")))?;
-                
+                let decoded = general_purpose::STANDARD.decode(&key_str).map_err(|e| {
+                    ConfigError::Security(format!("Invalid encryption key format: {e}"))
+                })?;
+
                 if decoded.len() != 32 {
                     return Err(ConfigError::Security(
-                        "Encryption key must be exactly 32 bytes (256 bits)".to_string()
+                        "Encryption key must be exactly 32 bytes (256 bits)".to_string(),
                     ));
                 }
-                
+
                 return Ok(decoded);
             }
 
@@ -75,7 +75,7 @@ pub mod aes {
 
             #[cfg(not(debug_assertions))]
             Err(ConfigError::Security(
-                "CONFIG_ENCRYPTION_KEY environment variable must be set in production".to_string()
+                "CONFIG_ENCRYPTION_KEY environment variable must be set in production".to_string(),
             ))
         }
     }
@@ -92,11 +92,14 @@ pub mod aes {
                 let decoded = general_purpose::STANDARD
                     .decode(encoded)
                     .map_err(|e| ConfigError::Security(format!("Decryption failed: {e}")))?;
-                
-                String::from_utf8(decoded)
-                    .map_err(|e| ConfigError::Security(format!("Invalid UTF-8 in decrypted data: {e}")))
+
+                String::from_utf8(decoded).map_err(|e| {
+                    ConfigError::Security(format!("Invalid UTF-8 in decrypted data: {e}"))
+                })
             } else {
-                Err(ConfigError::Security("Invalid ciphertext format".to_string()))
+                Err(ConfigError::Security(
+                    "Invalid ciphertext format".to_string(),
+                ))
             }
         }
 
@@ -119,14 +122,14 @@ impl FilePermissionManager for DefaultFilePermissionManager {
             use std::os::unix::fs::PermissionsExt;
             let metadata = std::fs::metadata(file_path)
                 .map_err(|e| ConfigError::File(format!("Failed to get file metadata: {e}")))?;
-            
+
             let mut permissions = metadata.permissions();
             permissions.set_mode(0o600); // 仅所有者可读写
-            
+
             std::fs::set_permissions(file_path, permissions)
                 .map_err(|e| ConfigError::File(format!("Failed to set file permissions: {e}")))?;
         }
-        
+
         Ok(())
     }
 
@@ -136,15 +139,16 @@ impl FilePermissionManager for DefaultFilePermissionManager {
             use std::os::unix::fs::PermissionsExt;
             let metadata = std::fs::metadata(file_path)
                 .map_err(|e| ConfigError::File(format!("Failed to get file metadata: {e}")))?;
-            
+
             let mode = metadata.permissions().mode() & 0o777;
             if mode != 0o600 {
                 return Err(ConfigError::Security(format!(
-                    "Insecure file permissions: {:o}, expected 600", mode
+                    "Insecure file permissions: {:o}, expected 600",
+                    mode
                 )));
             }
         }
-        
+
         Ok(())
     }
 }
@@ -163,7 +167,7 @@ impl DefaultSensitiveDataDetector {
             r"(?i)token",
             r"(?i)credential",
             r"(?i)auth",
-            r"\b[A-Za-z0-9]{32,}\b", // 长的十六进制字符串
+            r"\b[A-Za-z0-9]{32,}\b",     // 长的十六进制字符串
             r"[A-Za-z0-9+/]{40,}={0,2}", // Base64编码的密钥
         ];
 

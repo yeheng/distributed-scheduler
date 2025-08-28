@@ -1,5 +1,5 @@
 //! # 共享类型定义
-//! 
+//!
 //! 包含系统中常用的类型别名和基础枚举类型
 
 use chrono::{DateTime, Utc};
@@ -73,9 +73,10 @@ impl std::str::FromStr for Environment {
             "testing" | "test" => Ok(Self::Testing),
             "staging" | "stage" => Ok(Self::Staging),
             "production" | "prod" => Ok(Self::Production),
-            _ => Err(scheduler_errors::SchedulerError::Configuration(
-                format!("Invalid environment: {}", s)
-            )),
+            _ => Err(scheduler_errors::SchedulerError::Configuration(format!(
+                "Invalid environment: {}",
+                s
+            ))),
         }
     }
 }

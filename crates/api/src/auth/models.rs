@@ -137,13 +137,9 @@ impl UserService {
         }
     }
 
-    pub async fn authenticate_user(
-        &self,
-        username: &str,
-        password: &str,
-    ) -> Result<User, String> {
+    pub async fn authenticate_user(&self, username: &str, password: &str) -> Result<User, String> {
         let users = self.users.read().map_err(|e| format!("Lock error: {e}"))?;
-        
+
         // Find user by username
         let user = users
             .values()
@@ -161,15 +157,18 @@ impl UserService {
 
     pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<User, String> {
         let mut users = self.users.write().map_err(|e| format!("Lock error: {e}"))?;
-        
+
         // Check if user already exists
-        if users.values().any(|u| u.username == request.username || u.email == request.email) {
+        if users
+            .values()
+            .any(|u| u.username == request.username || u.email == request.email)
+        {
             return Err("User already exists".to_string());
         }
 
         let user_id = Uuid::new_v4();
         let now = chrono::Utc::now();
-        
+
         let user = User {
             id: user_id,
             username: request.username,
@@ -195,7 +194,7 @@ impl UserService {
         // For demo purposes, just use a simple hash
         use std::collections::hash_map::DefaultHasher;
         use std::hash::{Hash, Hasher};
-        
+
         let mut hasher = DefaultHasher::new();
         password.hash(&mut hasher);
         Ok(format!("hash_{}", hasher.finish()))
@@ -332,8 +331,6 @@ mod tests {
         let user_response: UserResponse = user.into();
         assert_eq!(user_response.role, UserRole::Operator);
     }
-
-
 
     #[test]
     fn test_user_response_from_user() {

@@ -51,7 +51,10 @@ pub fn init_logging(log_level: &str, log_format: &str) -> Result<()> {
 pub fn load_config(startup_config: &StartupConfig) -> Result<AppConfig> {
     // 验证配置文件路径
     if !std::path::Path::new(&startup_config.config_path).exists() {
-        return Err(anyhow::anyhow!("配置文件不存在: {}", startup_config.config_path));
+        return Err(anyhow::anyhow!(
+            "配置文件不存在: {}",
+            startup_config.config_path
+        ));
     }
 
     // 加载配置

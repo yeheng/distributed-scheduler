@@ -41,12 +41,20 @@ pub trait UserRepository: Send + Sync {
     async fn get_by_email(&self, email: &str) -> SchedulerResult<Option<User>>;
     async fn update(&self, user: &User) -> SchedulerResult<()>;
     async fn delete(&self, user_id: Uuid) -> SchedulerResult<()>;
-    async fn list_users(&self, limit: Option<i64>, offset: Option<i64>) -> SchedulerResult<Vec<User>>;
+    async fn list_users(
+        &self,
+        limit: Option<i64>,
+        offset: Option<i64>,
+    ) -> SchedulerResult<Vec<User>>;
     async fn update_password(&self, user_id: Uuid, password_hash: &str) -> SchedulerResult<()>;
     async fn update_role(&self, user_id: Uuid, role: UserRole) -> SchedulerResult<()>;
     async fn activate_user(&self, user_id: Uuid) -> SchedulerResult<()>;
     async fn deactivate_user(&self, user_id: Uuid) -> SchedulerResult<()>;
-    async fn authenticate_user(&self, username: &str, password: &str) -> SchedulerResult<Option<User>>;
+    async fn authenticate_user(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> SchedulerResult<Option<User>>;
 }
 
 #[async_trait]

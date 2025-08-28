@@ -5,7 +5,7 @@ use async_trait::async_trait;
 use scheduler_application::scheduler::StateListenerService;
 use tracing::{debug, error, info, warn};
 
-use scheduler_application::{MessageQueue};
+use scheduler_application::MessageQueue;
 use scheduler_domain::entities::{
     Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus,
 };
@@ -330,18 +330,18 @@ impl StateListenerService for StateListener {
             let mut running = self.running.write().await;
             *running = true;
         }
-        
+
         // Clone Arc's once for all uses
         let task_run_repo = Arc::clone(&self.task_run_repo);
         let worker_repo = Arc::clone(&self.worker_repo);
         let message_queue = Arc::clone(&self.message_queue);
         let running = Arc::clone(&self.running);
         let retry_service = self.retry_service.as_ref().map(Arc::clone);
-        
+
         // Use references to avoid string cloning
         let status_queue_name = &self.status_queue_name;
         let heartbeat_queue_name = &self.heartbeat_queue_name;
-        
+
         let status_state_listener = StateListener {
             task_run_repo: Arc::clone(&task_run_repo),
             worker_repo: Arc::clone(&worker_repo),

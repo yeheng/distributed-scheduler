@@ -2,9 +2,9 @@
 // 统一管理JWT密钥和其他敏感配置，消除重复代码
 
 use crate::{ConfigError, ConfigResult, Environment};
+use base64::{engine::general_purpose, Engine as _};
 use chrono::{DateTime, Duration, Utc};
 use ring::rand::{SecureRandom, SystemRandom};
-use base64::{engine::general_purpose, Engine as _};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -79,7 +79,8 @@ impl SimpleSecretManager {
                 if let Some(expires_at) = entry.expires_at {
                     if Utc::now() > expires_at {
                         return Err(ConfigError::Security(format!(
-                            "Secret {:?} has expired", secret_type
+                            "Secret {:?} has expired",
+                            secret_type
                         )));
                     }
                 }
@@ -101,12 +102,13 @@ impl SimpleSecretManager {
 
         // 存储生成的密钥
         let expires_days = match secret_type {
-            SecretType::JwtSecret => Some(90), // JWT密钥90天过期
+            SecretType::JwtSecret => Some(90),      // JWT密钥90天过期
             SecretType::EncryptionKey => Some(365), // 加密密钥1年过期
-            _ => None, // 其他密钥不自动过期
+            _ => None,                              // 其他密钥不自动过期
         };
 
-        self.store_secret(secret_type, new_value.clone(), expires_days).await?;
+        self.store_secret(secret_type, new_value.clone(), expires_days)
+            .await?;
 
         Ok(new_value)
     }
@@ -126,7 +128,7 @@ impl SimpleSecretManager {
             entry.value = new_value.clone();
             entry.created_at = Utc::now();
             entry.version += 1;
-            
+
             // 重新设置过期时间
             match secret_type {
                 SecretType::JwtSecret => {
@@ -139,7 +141,8 @@ impl SimpleSecretManager {
             }
         } else {
             return Err(ConfigError::Security(format!(
-                "Secret {:?} not found for rotation", secret_type
+                "Secret {:?} not found for rotation",
+                secret_type
             )));
         }
 
@@ -155,9 +158,12 @@ impl SimpleSecretManager {
                         "JWT secret must be at least 32 characters long".to_string(),
                     ));
                 }
-                
+
                 // 生产环境不允许明显的测试密钥
-                if matches!(self.environment, Environment::Production | Environment::Staging) {
+                if matches!(
+                    self.environment,
+                    Environment::Production | Environment::Staging
+                ) {
                     let test_patterns = ["test", "dev", "demo", "example", "password", "secret"];
                     let lower_value = value.to_lowercase();
                     for pattern in &test_patterns {
@@ -209,7 +215,7 @@ impl SimpleSecretManager {
         SystemRandom::new()
             .fill(&mut key)
             .map_err(|_| ConfigError::Security("Failed to generate random key".to_string()))?;
-        
+
         Ok(general_purpose::STANDARD.encode(key))
     }
 
@@ -219,7 +225,7 @@ impl SimpleSecretManager {
                                 abcdefghijklmnopqrstuvwxyz\
                                 0123456789\
                                 !@#$%^&*";
-        
+
         let mut password = vec![0u8; length];
         SystemRandom::new()
             .fill(&mut password)
@@ -239,7 +245,7 @@ impl SimpleSecretManager {
         SystemRandom::new()
             .fill(&mut key)
             .map_err(|_| ConfigError::Security("Failed to generate random API key".to_string()))?;
-        
+
         Ok(format!("ak_{}", general_purpose::STANDARD.encode(key)))
     }
 
@@ -249,7 +255,7 @@ impl SimpleSecretManager {
         SystemRandom::new()
             .fill(&mut key)
             .map_err(|_| ConfigError::Security("Failed to generate encryption key".to_string()))?;
-        
+
         Ok(general_purpose::STANDARD.encode(key))
     }
 
@@ -257,7 +263,7 @@ impl SimpleSecretManager {
     pub async fn check_expiring_secrets(&self, days_before_expiry: i64) -> Vec<SecretType> {
         let secrets = self.secrets.read().await;
         let threshold = Utc::now() + Duration::days(days_before_expiry);
-        
+
         secrets
             .iter()
             .filter_map(|(secret_type, entry)| {
@@ -278,7 +284,7 @@ impl SimpleSecretManager {
     pub async fn get_secrets_status(&self) -> HashMap<SecretType, SecretStatus> {
         let secrets = self.secrets.read().await;
         let now = Utc::now();
-        
+
         secrets
             .iter()
             .map(|(secret_type, entry)| {
@@ -293,7 +299,7 @@ impl SimpleSecretManager {
                 } else {
                     SecretStatus::Valid
                 };
-                
+
                 (secret_type.clone(), status)
             })
             .collect()
@@ -315,15 +321,18 @@ mod tests {
     #[tokio::test]
     async fn test_secret_management() {
         let manager = SimpleSecretManager::new(Environment::Development);
-        
+
         // 生成JWT密钥
-        let jwt_secret = manager.generate_secret(SecretType::JwtSecret).await.unwrap();
+        let jwt_secret = manager
+            .generate_secret(SecretType::JwtSecret)
+            .await
+            .unwrap();
         assert!(jwt_secret.len() > 32);
-        
+
         // 获取密钥
         let retrieved = manager.get_secret(&SecretType::JwtSecret).await.unwrap();
         assert_eq!(retrieved.unwrap(), jwt_secret);
-        
+
         // 轮换密钥
         let new_secret = manager.rotate_secret(&SecretType::JwtSecret).await.unwrap();
         assert_ne!(new_secret, jwt_secret);
@@ -332,21 +341,21 @@ mod tests {
     #[tokio::test]
     async fn test_secret_validation() {
         let manager = SimpleSecretManager::new(Environment::Production);
-        
+
         // 测试无效的JWT密钥
-        let result = manager.store_secret(
-            SecretType::JwtSecret,
-            "test".to_string(),
-            None,
-        ).await;
+        let result = manager
+            .store_secret(SecretType::JwtSecret, "test".to_string(), None)
+            .await;
         assert!(result.is_err());
-        
+
         // 测试包含测试模式的密钥
-        let result = manager.store_secret(
-            SecretType::JwtSecret,
-            "this_is_a_test_secret_key_that_should_not_be_used".to_string(),
-            None,
-        ).await;
+        let result = manager
+            .store_secret(
+                SecretType::JwtSecret,
+                "this_is_a_test_secret_key_that_should_not_be_used".to_string(),
+                None,
+            )
+            .await;
         assert!(result.is_err());
     }
 }

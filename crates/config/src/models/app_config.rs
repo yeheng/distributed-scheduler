@@ -1,7 +1,7 @@
 use anyhow::{Context, Result};
 use figment::{
     providers::{Env, Format, Json, Toml},
-    Figment
+    Figment,
 };
 use serde::{Deserialize, Serialize};
 use std::path::Path;
@@ -83,7 +83,7 @@ impl Default for AppConfig {
 
 impl AppConfig {
     /// 加载配置文件，支持多层配置合并
-    /// 
+    ///
     /// 配置合并顺序（后面的覆盖前面的）：
     /// 1. 默认配置
     /// 2. 环境特定配置（通过环境变量SCHEDULER_ENV指定）
@@ -92,33 +92,29 @@ impl AppConfig {
     /// 5. 环境变量（前缀 SCHEDULER_）
     pub fn load(config_path: Option<&str>) -> Result<Self> {
         use figment::providers::Serialized;
-        
+
         let mut figment = Figment::new();
-        
+
         // 1. 加载默认配置
         figment = figment.merge(Serialized::defaults(AppConfig::default()));
-        
+
         // 2. 根据环境变量加载环境特定配置
         if let Ok(env) = std::env::var("SCHEDULER_ENV") {
             if let Some(env_overrides) = environment_overrides(&env) {
                 figment = figment.merge(("", env_overrides));
             }
         }
-        
+
         // 3. 尝试加载基础配置文件
-        let base_config_paths = [
-            "config/base.toml",
-            "base.toml",
-            "/etc/scheduler/base.toml",
-        ];
-        
+        let base_config_paths = ["config/base.toml", "base.toml", "/etc/scheduler/base.toml"];
+
         for path in &base_config_paths {
             if Path::new(path).exists() {
                 figment = figment.merge(Toml::file(path));
                 break;
             }
         }
-        
+
         // 4. 加载指定的配置文件或默认配置文件
         if let Some(path) = config_path {
             if Path::new(path).exists() {
@@ -152,13 +148,11 @@ impl AppConfig {
         figment = figment.merge(
             Env::prefixed("SCHEDULER_")
                 .split("__")
-                .ignore(&["SCHEDULER_ENV"]) // 忽略环境标识变量
+                .ignore(&["SCHEDULER_ENV"]), // 忽略环境标识变量
         );
 
         // 提取并验证配置
-        let config: AppConfig = figment
-            .extract()
-            .context("配置提取失败")?;
+        let config: AppConfig = figment.extract().context("配置提取失败")?;
 
         config.validate()?;
 
@@ -169,50 +163,48 @@ impl AppConfig {
     pub fn from_env(env: Option<&str>) -> Result<Self> {
         let env_name = env.unwrap_or("development");
         std::env::set_var("SCHEDULER_ENV", env_name);
-        
+
         Self::load(None)
     }
-    
+
     /// 从指定文件加载配置
     pub fn from_file<P: AsRef<Path>>(path: P) -> Result<Self> {
         Self::load(Some(path.as_ref().to_str().unwrap()))
     }
-    
+
     /// 加载默认配置（不加载任何文件，仅使用默认值和环境变量）
     pub fn default_with_env() -> Result<Self> {
         use figment::providers::Serialized;
-        
+
         let figment = Figment::new()
             .merge(Serialized::defaults(AppConfig::default()))
             .merge(
                 Env::prefixed("SCHEDULER_")
                     .split("__")
-                    .ignore(&["SCHEDULER_ENV"])
+                    .ignore(&["SCHEDULER_ENV"]),
             );
 
-        let config: AppConfig = figment
-            .extract()
-            .context("配置提取失败")?;
+        let config: AppConfig = figment.extract().context("配置提取失败")?;
 
         config.validate()?;
         Ok(config)
     }
-    
+
     /// 获取当前配置的环境名称
     pub fn environment(&self) -> String {
         std::env::var("SCHEDULER_ENV").unwrap_or_else(|_| "development".to_string())
     }
-    
+
     /// 检查是否为生产环境
     pub fn is_production(&self) -> bool {
         self.environment() == "production"
     }
-    
+
     /// 检查是否为开发环境
     pub fn is_development(&self) -> bool {
         matches!(self.environment().as_str(), "development" | "dev")
     }
-    
+
     /// 检查是否为测试环境
     pub fn is_test(&self) -> bool {
         matches!(self.environment().as_str(), "test" | "testing")
