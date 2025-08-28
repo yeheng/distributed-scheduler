@@ -10,7 +10,7 @@ use chrono::{DateTime, Utc};
 use futures::stream::{self, StreamExt};
 use tracing::{debug, error, info, warn};
 
-use scheduler_application::{SchedulerStats, TaskSchedulerService, MessageQueue};
+use scheduler_application::{task_services::TaskSchedulerService, MessageQueue, SchedulerStats};
 use scheduler_domain::entities::{Message, Task, TaskRun, TaskRunStatus};
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
 use scheduler_errors::{SchedulerError, SchedulerResult};
@@ -18,7 +18,7 @@ use scheduler_infrastructure::TimeoutUtils;
 use scheduler_observability::{MetricsCollector, StructuredLogger, TaskTracer};
 use tracing_opentelemetry::OpenTelemetrySpanExt;
 
-use scheduler_application::use_cases::{CronScheduler, DependencyCheckService, DependencyCheckServiceTrait, DependencyCheckResult};
+use scheduler_application::use_cases::{CronScheduler, DependencyCheckService, DependencyCheckServiceTrait};
 
 pub struct TaskScheduler {
     pub task_repo: Arc<dyn TaskRepository>,

@@ -2,9 +2,10 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
+use scheduler_application::scheduler::StateListenerService;
 use tracing::{debug, error, info, warn};
 
-use scheduler_application::{MessageQueue, StateListenerService};
+use scheduler_application::{MessageQueue};
 use scheduler_domain::entities::{
     Message, MessageType, StatusUpdateMessage, TaskRunStatus, WorkerStatus,
 };

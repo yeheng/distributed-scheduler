@@ -2,9 +2,10 @@ use std::sync::Arc;
 
 use anyhow::{Context, Result};
 use scheduler_api::create_app;
-use scheduler_application::interfaces::TaskSchedulerService;
-use scheduler_application::ports::{
-    ExecutorRegistry, StateListenerService, TaskControlService, WorkerService,
+use scheduler_application::{
+    ExecutorRegistry, 
+    scheduler::{StateListenerService, WorkerService},
+    task_services::{TaskControlService, TaskSchedulerService}
 };
 use scheduler_config::AppConfig;
 use scheduler_core::ServiceLocator;

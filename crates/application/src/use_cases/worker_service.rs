@@ -1,6 +1,6 @@
 // Worker service implementation placeholder
 use crate::ports::service_interfaces::MessageQueue;
-use crate::ports::WorkerService;
+use crate::scheduler::WorkerService;
 use chrono::Utc;
 use scheduler_domain::entities::{
     TaskRun, TaskRunStatus, WorkerHeartbeat, WorkerInfo, WorkerStatus,

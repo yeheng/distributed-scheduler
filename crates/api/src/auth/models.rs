@@ -124,6 +124,95 @@ impl From<AuthenticatedUser> for UserResponse {
     }
 }
 
+pub struct UserService {
+    // In-memory storage for demo purposes - in production this would use a database
+    users: std::sync::Arc<std::sync::RwLock<std::collections::HashMap<Uuid, User>>>,
+}
+
+impl UserService {
+    pub fn new() -> Self {
+        let users = std::collections::HashMap::new();
+        Self {
+            users: std::sync::Arc::new(std::sync::RwLock::new(users)),
+        }
+    }
+
+    pub async fn authenticate_user(
+        &self,
+        username: &str,
+        password: &str,
+    ) -> Result<User, String> {
+        let users = self.users.read().map_err(|e| format!("Lock error: {e}"))?;
+        
+        // Find user by username
+        let user = users
+            .values()
+            .find(|u| u.username == username && u.is_active)
+            .ok_or("Invalid username or password")?;
+
+        // In production, you would use proper password hashing verification
+        // For now, just check if the provided password matches a simple hash
+        if self.verify_password(password, &user.password_hash)? {
+            Ok(user.clone())
+        } else {
+            Err("Invalid username or password".to_string())
+        }
+    }
+
+    pub async fn create_user(&mut self, request: CreateUserRequest) -> Result<User, String> {
+        let mut users = self.users.write().map_err(|e| format!("Lock error: {e}"))?;
+        
+        // Check if user already exists
+        if users.values().any(|u| u.username == request.username || u.email == request.email) {
+            return Err("User already exists".to_string());
+        }
+
+        let user_id = Uuid::new_v4();
+        let now = chrono::Utc::now();
+        
+        let user = User {
+            id: user_id,
+            username: request.username,
+            email: request.email,
+            password_hash: self.hash_password(&request.password)?,
+            role: request.role,
+            is_active: true,
+            created_at: now,
+            updated_at: now,
+        };
+
+        users.insert(user_id, user.clone());
+        Ok(user)
+    }
+
+    pub async fn get_user_by_id(&self, user_id: Uuid) -> Option<User> {
+        let users = self.users.read().ok()?;
+        users.get(&user_id).cloned()
+    }
+
+    fn hash_password(&self, password: &str) -> Result<String, String> {
+        // In production, use proper password hashing like bcrypt, argon2, etc.
+        // For demo purposes, just use a simple hash
+        use std::collections::hash_map::DefaultHasher;
+        use std::hash::{Hash, Hasher};
+        
+        let mut hasher = DefaultHasher::new();
+        password.hash(&mut hasher);
+        Ok(format!("hash_{}", hasher.finish()))
+    }
+
+    fn verify_password(&self, password: &str, hash: &str) -> Result<bool, String> {
+        let expected_hash = self.hash_password(password)?;
+        Ok(expected_hash == hash)
+    }
+}
+
+impl Default for UserService {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

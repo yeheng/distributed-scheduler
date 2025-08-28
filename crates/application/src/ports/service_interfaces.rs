@@ -356,24 +356,8 @@ pub enum ExportFormat {
     Pdf,
 }
 
-#[async_trait]
-pub trait MessageQueue: Send + Sync {
-    async fn publish_message(
-        &self,
-        queue: &str,
-        message: &scheduler_domain::entities::Message,
-    ) -> SchedulerResult<()>;
-    async fn consume_messages(
-        &self,
-        queue: &str,
-    ) -> SchedulerResult<Vec<scheduler_domain::entities::Message>>;
-    async fn ack_message(&self, message_id: &str) -> SchedulerResult<()>;
-    async fn nack_message(&self, message_id: &str, requeue: bool) -> SchedulerResult<()>;
-    async fn create_queue(&self, queue: &str, durable: bool) -> SchedulerResult<()>;
-    async fn delete_queue(&self, queue: &str) -> SchedulerResult<()>;
-    async fn get_queue_size(&self, queue: &str) -> SchedulerResult<u32>;
-    async fn purge_queue(&self, queue: &str) -> SchedulerResult<()>;
-}
+// Re-export MessageQueue from domain to avoid trait conflicts
+pub use scheduler_domain::ports::messaging::MessageQueue;
 
 #[async_trait]
 pub trait ConfigWatcher: Send + Sync {

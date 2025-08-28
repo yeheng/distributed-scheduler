@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use scheduler_application::{ExecutorRegistry, WorkerService};
+use scheduler_application::{scheduler::WorkerService, ExecutorRegistry};
 use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::TaskRun;
 use scheduler_domain::events::TaskStatusUpdate;

@@ -23,6 +23,5 @@ pub mod strategy;
 
 // Re-export all ports for convenience
 pub use executor::*;
-pub use scheduler::*;
 pub use service_interfaces::*;
 pub use strategy::*;
