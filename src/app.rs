@@ -176,7 +176,7 @@ impl Application {
             self.config.message_queue.status_queue.clone(),
         )
         .with_executor_registry(executor_registry)
-        .max_concurrent_tasks(self.config.worker.max_concurrent_tasks as usize)
+        .max_concurrent_tasks(self.config.worker.max_concurrent_tasks)
         .heartbeat_interval_seconds(self.config.worker.heartbeat_interval_seconds)
         .hostname(self.config.worker.hostname.clone())
         .ip_address(self.config.worker.ip_address.clone())

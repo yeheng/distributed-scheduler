@@ -208,7 +208,7 @@ impl CacheConfigValidator {
         self.validate_performance_requirements(config, &mut report);
 
         // Security validation
-        self.validate_security_requirements(config, &mut report);
+        self.validate_security_requirements(config, &env_rules, &mut report);
 
         // Operational validation
         self.validate_operational_requirements(config, &mut report);
@@ -442,6 +442,7 @@ impl CacheConfigValidator {
     fn validate_security_requirements(
         &self,
         config: &CacheConfig,
+        env_rules: &EnvironmentRules,
         report: &mut CacheValidationReport,
     ) {
         if !config.enabled {
@@ -449,7 +450,9 @@ impl CacheConfigValidator {
         }
 
         // Check SSL requirement
-        if self.security_requirements.ssl_required && !config.redis_url.starts_with("rediss://") {
+        if (self.security_requirements.ssl_required && env_rules.ssl_required)
+            && !config.redis_url.starts_with("rediss://")
+        {
             report
                 .errors
                 .push("SSL encryption is required for secure cache communication".to_string());

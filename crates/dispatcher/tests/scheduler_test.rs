@@ -1,7 +1,7 @@
 #[cfg(test)]
 mod tests {
     use chrono::{Timelike, Utc};
-    use scheduler_application::interfaces::scheduler::TaskSchedulerService;
+    use scheduler_application::scheduler::TaskSchedulerService;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
     use scheduler_domain::{TaskRunStatus, TaskStatus};
     use serde_json::json;

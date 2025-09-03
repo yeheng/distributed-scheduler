@@ -15,31 +15,31 @@ futures = { workspace = true }
 
 # Serialization
 serde = { workspace = true, features = ["derive"] }
-serde_json.workspace = true
+serde_json = { workspace = true }
 
 # Date/time handling
-chrono = { workspace = true, features = ["serde"] }
+chrono = { workspace = true }
 
 # Error handling
-anyhow.workspace = true
-thiserror.workspace = true
+anyhow = { workspace = true }
+thiserror = { workspace = true }
 scheduler-errors = { path = "../errors" }
 
 # Tracing and logging
-tracing.workspace = true
+tracing = { workspace = true }
 
 # Utilities
 uuid = { workspace = true, features = ["v4", "serde"] }
 parking_lot = { workspace = true }
-bcrypt = "0.17"
+bcrypt = { workspace = true }
 
 # Cron scheduling
-cron = "0.15"
+cron = { workspace = true }
 
 # Additional dependencies
-tracing-opentelemetry = "0.31"
+tracing-opentelemetry = { workspace = true }
 
 [dev-dependencies]
-tokio-test = "0.4.4"
-mockall.workspace = true
-criterion.workspace = true
+tokio-test = { workspace = true }
+mockall = { workspace = true }
+criterion = { workspace = true }
