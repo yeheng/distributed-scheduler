@@ -186,3 +186,7 @@ criterion = { version = "0.7", features = ["html_reports"] }
 [[bench]]
 name = "parallel_scan_benchmarks"
 harness = false
+
+[[example]]
+name = "memory_calculation_demo"
+path = "examples/memory_calculation_demo.rs"
