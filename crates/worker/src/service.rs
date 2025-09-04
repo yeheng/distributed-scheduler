@@ -4,6 +4,7 @@ use scheduler_application::{scheduler::WorkerService, ExecutorRegistry};
 use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::TaskRun;
 use scheduler_domain::events::TaskStatusUpdate;
+use scheduler_domain::TaskType;
 use scheduler_errors::SchedulerResult;
 
 use crate::components::{
@@ -175,8 +176,8 @@ impl WorkerService for WorkerServiceImpl {
         self.task_execution_manager.get_current_task_count().await
     }
 
-    async fn can_accept_task(&self, task_type: &str) -> bool {
-        self.task_execution_manager.can_accept_task(task_type).await
+    async fn can_accept_task(&self, task_type: &TaskType) -> bool {
+        self.task_execution_manager.can_accept_task(task_type.as_str()).await
     }
 
     async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {

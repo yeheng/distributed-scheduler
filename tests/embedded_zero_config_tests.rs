@@ -1,6 +1,7 @@
 use anyhow::Result;
 use scheduler::embedded::EmbeddedApplication;
 use scheduler_config::{AppConfig, MessageQueueType};
+use scheduler_common::TaskType;
 use std::env;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -111,7 +112,7 @@ async fn verify_basic_functionality(app_handle: &scheduler::embedded::EmbeddedAp
     let task = scheduler_domain::entities::Task {
         id: 0,
         name: "zero_config_test_task".to_string(),
-        task_type: scheduler_domain::entities::TaskType::Shell,
+        task_type: TaskType::Shell,
         schedule: "0 0 * * *".to_string(),
         parameters: serde_json::json!({"command": "echo 'zero config test'"}),
         timeout_seconds: 300,
@@ -280,7 +281,7 @@ async fn test_memory_usage_optimization() -> Result<()> {
         let task = scheduler_domain::entities::Task {
             id: 0,
             name: format!("memory_test_task_{}", i),
-            task_type: scheduler_domain::entities::TaskType::Shell,
+            task_type: TaskType::Shell,
             schedule: "0 0 * * *".to_string(),
             parameters: serde_json::json!({"command": format!("echo 'memory test {}'", i)}),
             timeout_seconds: 300,
@@ -402,7 +403,7 @@ async fn test_resource_cleanup_and_restart() -> Result<()> {
         let task = scheduler_domain::entities::Task {
             id: 0,
             name: "cleanup_test_task".to_string(),
-            task_type: scheduler_domain::entities::TaskType::Shell,
+            task_type: TaskType::Shell,
             schedule: "0 0 * * *".to_string(),
             parameters: serde_json::json!({"command": "echo 'cleanup test'"}),
             timeout_seconds: 300,

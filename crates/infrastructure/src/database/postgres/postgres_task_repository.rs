@@ -72,6 +72,7 @@ impl PostgresTaskRepository {
                 }
                 TaskQueryParam::Int64(value) => query.bind(*value),
                 TaskQueryParam::Int32(value) => query.bind(*value),
+                TaskQueryParam::TaskType(value) => query.bind(value.as_str()),
             };
         }
         query

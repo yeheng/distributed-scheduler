@@ -20,6 +20,7 @@ thiserror = { workspace = true }
 async-trait = { workspace = true }
 tracing = { workspace = true }
 scheduler-errors = { path = "../errors" }
+scheduler-common = { path = "../common" }
 
 # 可选的数据库支持
 sqlx = { workspace = true, optional = true }

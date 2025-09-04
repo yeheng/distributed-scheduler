@@ -18,6 +18,14 @@ pub type WorkerId = String;
 /// 任务类型名称
 pub type TaskType = String;
 
+/// 任务类型常量
+pub mod task_types {
+    /// Shell 任务类型
+    pub const SHELL: &str = "shell";
+    /// HTTP 任务类型
+    pub const HTTP: &str = "http";
+}
+
 /// 任务参数类型
 pub type TaskParams = serde_json::Value;
 

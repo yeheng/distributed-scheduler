@@ -18,3 +18,6 @@ pub use repositories::*;
 pub use scheduler_errors::{SchedulerError, SchedulerResult};
 pub use services::*;
 pub use value_objects::*;
+
+// Re-export TaskType from common for backward compatibility
+pub use scheduler_common::TaskType;

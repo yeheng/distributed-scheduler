@@ -136,7 +136,7 @@ mod tests {
             worker_id: "worker-1".to_string(),
             hostname: "test-host".to_string(),
             ip_address: "127.0.0.1".to_string(),
-            supported_task_types: vec!["test_type".to_string()],
+            supported_task_types: vec![scheduler_common::task_types::SHELL.to_string()],
             max_concurrent_tasks: 5,
         };
 
@@ -147,8 +147,8 @@ mod tests {
         assert_eq!(worker.max_concurrent_tasks, 5);
         assert_eq!(worker.current_task_count, 0);
         assert!(worker.is_alive());
-        assert!(worker.can_accept_task("test_type"));
-        assert!(!worker.can_accept_task("unsupported_type"));
+        assert!(worker.can_accept_task(scheduler_common::task_types::SHELL));
+        assert!(!worker.can_accept_task(scheduler_common::task_types::HTTP));
         assert_eq!(worker.load_percentage(), 0.0);
     }
 
@@ -158,7 +158,7 @@ mod tests {
             worker_id: "worker-1".to_string(),
             hostname: "test-host".to_string(),
             ip_address: "127.0.0.1".to_string(),
-            supported_task_types: vec!["test_type".to_string()],
+            supported_task_types: vec![scheduler_common::task_types::SHELL.to_string()],
             max_concurrent_tasks: 5,
         };
 
@@ -166,11 +166,11 @@ mod tests {
         worker.current_task_count = 2;
 
         assert_eq!(worker.load_percentage(), 40.0);
-        assert!(worker.can_accept_task("test_type"));
+        assert!(worker.can_accept_task(scheduler_common::task_types::SHELL));
 
         worker.current_task_count = 5;
         assert_eq!(worker.load_percentage(), 100.0);
-        assert!(!worker.can_accept_task("test_type"));
+        assert!(!worker.can_accept_task(scheduler_common::task_types::SHELL));
     }
 
     #[test]

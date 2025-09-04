@@ -3,6 +3,7 @@ use chrono::{DateTime, Utc};
 use std::collections::HashMap;
 
 use scheduler_domain::entities::{Task, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
+use scheduler_domain::TaskType;
 use scheduler_domain::events::TaskStatusUpdate;
 use scheduler_errors::SchedulerResult;
 
@@ -84,7 +85,7 @@ pub trait WorkerService: Send + Sync {
     async fn poll_and_execute_tasks(&self) -> SchedulerResult<()>;
     async fn send_status_update(&self, update: TaskStatusUpdate) -> SchedulerResult<()>;
     async fn get_current_task_count(&self) -> i32;
-    async fn can_accept_task(&self, task_type: &str) -> bool;
+    async fn can_accept_task(&self, task_type: &TaskType) -> bool;
     async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()>;
     async fn get_running_tasks(&self) -> Vec<TaskRun>;
     async fn is_task_running(&self, task_run_id: i64) -> bool;

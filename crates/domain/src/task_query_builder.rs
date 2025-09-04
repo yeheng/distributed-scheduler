@@ -19,7 +19,7 @@ impl TaskQueryBuilder {
         if let Some(task_type) = &filter.task_type {
             query.push_str(" AND task_type = $");
             query.push_str(&(params.len() + 1).to_string());
-            params.push(TaskQueryParam::String(task_type.clone()));
+            params.push(TaskQueryParam::TaskType(task_type.clone()));
         }
 
         if let Some(name_pattern) = &filter.name_pattern {
@@ -62,6 +62,7 @@ impl TaskQueryBuilder {
 pub enum TaskQueryParam {
     String(String),
     Status(TaskStatus),
+    TaskType(String),
     Int64(i64),
     Int32(i32),
 }
@@ -72,6 +73,7 @@ impl TaskQueryParam {
         match self {
             TaskQueryParam::String(_) => "TEXT",
             TaskQueryParam::Status(_) => "TEXT",
+            TaskQueryParam::TaskType(_) => "TEXT",
             TaskQueryParam::Int64(_) => "BIGINT",
             TaskQueryParam::Int32(_) => "INTEGER",
         }
@@ -85,6 +87,7 @@ impl TaskQueryParam {
                 TaskStatus::Active => "ACTIVE".to_string(),
                 TaskStatus::Inactive => "INACTIVE".to_string(),
             },
+            TaskQueryParam::TaskType(task_type) => task_type.to_string(),
             TaskQueryParam::Int64(i) => i.to_string(),
             TaskQueryParam::Int32(i) => i.to_string(),
         }
@@ -126,7 +129,7 @@ mod tests {
     fn test_build_select_query_with_multiple_filters() {
         let filter = TaskFilter {
             status: Some(TaskStatus::Active),
-            task_type: Some("test_type".to_string()),
+            task_type: Some("shell".to_string()),
             limit: Some(10),
             ..Default::default()
         };

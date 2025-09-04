@@ -1,7 +1,8 @@
 use anyhow::Result;
 use scheduler::embedded::EmbeddedApplication;
 use scheduler_config::AppConfig;
-use scheduler_domain::entities::{Task, TaskStatus, TaskType, TaskRun, TaskRunStatus};
+use scheduler_domain::entities::{Task, TaskStatus, TaskRun, TaskRunStatus};
+use scheduler_common::TaskType;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
@@ -147,19 +148,19 @@ async fn test_complete_task_lifecycle(app_handle: &scheduler::embedded::Embedded
 
     // 4. 模拟任务完成
     let mut completed_task_run = running_task_run.clone();
-    completed_task_run.status = TaskRunStatus::Success;
+    completed_task_run.status = TaskRunStatus::Completed;
     completed_task_run.completed_at = Some(chrono::Utc::now());
     completed_task_run.result = Some(serde_json::json!({"output": "Hello World"}));
 
     let final_task_run = task_run_repo.update(completed_task_run).await?;
-    assert_eq!(final_task_run.status, TaskRunStatus::Success);
+    assert_eq!(final_task_run.status, TaskRunStatus::Completed);
     assert!(final_task_run.completed_at.is_some());
     assert!(final_task_run.result.is_some());
 
     // 5. 验证任务历史记录
     let task_runs = task_run_repo.find_by_task_id(created_task.id).await?;
     assert_eq!(task_runs.len(), 1);
-    assert_eq!(task_runs[0].status, TaskRunStatus::Success);
+    assert_eq!(task_runs[0].status, TaskRunStatus::Completed);
 
     // 6. 验证任务查询
     let found_task = task_repo.find_by_id(created_task.id).await?;

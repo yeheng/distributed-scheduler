@@ -8,6 +8,8 @@ use scheduler_domain::entities::{
     Message, MessageType, ShardConfig, Task, TaskExecutionMessage, TaskRun, TaskRunStatus,
     TaskStatus, WorkerInfo, WorkerStatus,
 };
+use scheduler_domain::TaskType;
+use scheduler_common::task_types;
 
 /// Builder for creating test Task entities
 pub struct TaskBuilder {
@@ -20,7 +22,7 @@ impl TaskBuilder {
             task: Task {
                 id: 1,
                 name: "test_task".to_string(),
-                task_type: "shell".to_string(),
+                task_type: task_types::SHELL.to_string(),
                 schedule: "0 0 * * *".to_string(),
                 parameters: serde_json::json!({}),
                 timeout_seconds: 300,
@@ -44,8 +46,8 @@ impl TaskBuilder {
         self
     }
 
-    pub fn with_task_type(mut self, task_type: &str) -> Self {
-        self.task.task_type = task_type.to_string();
+    pub fn with_task_type(mut self, task_type: TaskType) -> Self {
+        self.task.task_type = task_type;
         self
     }
 
@@ -233,7 +235,7 @@ impl WorkerInfoBuilder {
                 id: "test-worker-1".to_string(),
                 hostname: "test-host".to_string(),
                 ip_address: "127.0.0.1".to_string(),
-                supported_task_types: vec!["shell".to_string()],
+                supported_task_types: vec![task_types::SHELL.to_string()],
                 max_concurrent_tasks: 5,
                 current_task_count: 0,
                 status: WorkerStatus::Alive,
@@ -258,8 +260,8 @@ impl WorkerInfoBuilder {
         self
     }
 
-    pub fn with_supported_task_types(mut self, task_types: Vec<&str>) -> Self {
-        self.worker.supported_task_types = task_types.into_iter().map(String::from).collect();
+    pub fn with_supported_task_types(mut self, task_types: Vec<TaskType>) -> Self {
+        self.worker.supported_task_types = task_types;
         self
     }
 
@@ -319,7 +321,7 @@ impl MessageBuilder {
                     task_run_id: 1,
                     task_id: 1,
                     task_name: "test_task".to_string(),
-                    task_type: "shell".to_string(),
+                    task_type: task_types::SHELL.to_string(),
                     parameters: serde_json::json!({}),
                     timeout_seconds: 300,
                     retry_count: 0,
@@ -372,7 +374,7 @@ impl MessageBuilder {
             task_run_id,
             task_id,
             task_name: task_name.to_string(),
-            task_type: "shell".to_string(),
+            task_type: task_types::SHELL.to_string(),
             parameters: serde_json::json!({}),
             timeout_seconds: 300,
             retry_count: 0,

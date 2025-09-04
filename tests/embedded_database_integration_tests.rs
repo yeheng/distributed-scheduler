@@ -211,7 +211,7 @@ async fn test_task_runs_table_operations(service_locator: &scheduler_core::Servi
 
     // 完成任务执行
     let mut completed_run = updated_run.clone();
-    completed_run.status = TaskRunStatus::Success;
+    completed_run.status = TaskRunStatus::Completed;
     completed_run.completed_at = Some(chrono::Utc::now());
     completed_run.result = Some(serde_json::json!({
         "output": "run test completed",
@@ -219,19 +219,19 @@ async fn test_task_runs_table_operations(service_locator: &scheduler_core::Servi
     }));
 
     let final_run = task_run_repo.update(completed_run).await?;
-    assert_eq!(final_run.status, TaskRunStatus::Success);
+    assert_eq!(final_run.status, TaskRunStatus::Completed);
     assert!(final_run.completed_at.is_some());
     assert!(final_run.result.is_some());
 
     // 查询任务执行记录
     let found_run = task_run_repo.find_by_id(created_run.id).await?;
     assert!(found_run.is_some());
-    assert_eq!(found_run.unwrap().status, TaskRunStatus::Success);
+    assert_eq!(found_run.unwrap().status, TaskRunStatus::Completed);
 
     // 按任务ID查询执行记录
     let task_runs = task_run_repo.find_by_task_id(created_task.id).await?;
     assert_eq!(task_runs.len(), 1);
-    assert_eq!(task_runs[0].status, TaskRunStatus::Success);
+    assert_eq!(task_runs[0].status, TaskRunStatus::Completed);
 
     Ok(())
 }
