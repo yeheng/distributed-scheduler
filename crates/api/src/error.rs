@@ -132,7 +132,7 @@ impl IntoResponse for ApiError {
             ApiError::ValidationError(error) => {
                 (
                     StatusCode::BAD_REQUEST,
-                    format!("参数验证失败: {}", error.message.as_ref().unwrap_or(&std::borrow::Cow::Borrowed("验证失败"))),
+                    format!("参数验证失败: {}", error.code),
                     "VALIDATION_ERROR".to_string(),
                     vec![
                         "请检查请求参数格式".to_string(),

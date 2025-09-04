@@ -74,9 +74,7 @@ pub fn validate_cron_expression(cron_expr: &str) -> Result<(), ValidationError> 
     // 使用cron crate验证CRON表达式
     match cron::Schedule::from_str(cron_expr) {
         Ok(_) => Ok(()),
-        Err(e) => Err(ValidationError::new(&*Box::leak(
-            format!("无效的CRON表达式: {e}").into_boxed_str(),
-        ))),
+        Err(_) => Err(ValidationError::new("无效的CRON表达式")),
     }
 }
 
@@ -396,9 +394,7 @@ fn is_cron_too_frequent(cron_expr: &str) -> Result<bool, ValidationError> {
 
             Ok(false)
         }
-        Err(e) => Err(ValidationError::new(&*Box::leak(
-            format!("CRON表达式解析失败: {e}").into_boxed_str(),
-        ))),
+        Err(_) => Err(ValidationError::new("无效的CRON表达式")),
     }
 }
 
@@ -524,10 +520,29 @@ mod tests {
 
     #[test]
     fn test_validate_cron_expression_invalid() {
-        assert!(validate_cron_expression("").is_err());
-        assert!(validate_cron_expression("invalid").is_err());
-        assert!(validate_cron_expression("* * * *").is_err()); // Missing field
-        assert!(validate_cron_expression("61 * * * *").is_err()); // Invalid minute
+        // Test empty CRON expression
+        let result = validate_cron_expression("");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, "CRON表达式不能为空");
+        
+        // Test invalid CRON expression
+        let result = validate_cron_expression("invalid");
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, "无效的CRON表达式");
+        
+        // Test CRON expression with missing field
+        let result = validate_cron_expression("* * * *"); // Missing field
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, "无效的CRON表达式");
+        
+        // Test CRON expression with invalid minute
+        let result = validate_cron_expression("61 * * * *"); // Invalid minute
+        assert!(result.is_err());
+        let error = result.unwrap_err();
+        assert_eq!(error.code, "无效的CRON表达式");
     }
 
     #[test]
