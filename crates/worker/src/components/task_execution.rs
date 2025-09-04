@@ -180,7 +180,7 @@ impl TaskExecutionManager {
             running_tasks.get(&task_run_id).map(|(task_run, task_type)| (task_run.clone(), task_type.clone()))
         };
 
-        let (task_run, task_type) = match task_info {
+        let (_task_run, task_type) = match task_info {
             Some((task_run, task_type)) => (task_run, task_type),
             None => {
                 warn!("任务取消失败：任务 {} 不在运行中", task_run_id);

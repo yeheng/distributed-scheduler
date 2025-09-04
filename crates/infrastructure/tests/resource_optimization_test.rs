@@ -13,7 +13,7 @@ async fn test_memory_queue_backpressure_control() {
     // 创建一个小容量的队列来测试背压控制
     let config = InMemoryQueueConfig {
         max_queue_size: 10,
-        backpressure_threshold: 5,
+        backpressure_threshold_ratio: 0.5, // 50%容量时触发警告
         backpressure_timeout_ms: 100,
         ..Default::default()
     };

@@ -214,7 +214,7 @@ impl ExecutorRegistry for MockExecutorRegistry {
 }
 
 // 创建测试TaskRun
-fn create_test_task_run(id: i64, task_id: i64, _task_type: String) -> TaskRun {
+fn _create_test_task_run(id: i64, task_id: i64, _task_type: String) -> TaskRun {
     TaskRun {
         id,
         task_id,
