@@ -277,7 +277,7 @@ impl Clone for EmbeddedShutdownManager {
 mod tests {
     use super::*;
     use std::time::Duration;
-    use tokio::time::timeout;
+    use tokio::time::{sleep, timeout};
 
     #[tokio::test]
     async fn test_shutdown_manager_basic() {

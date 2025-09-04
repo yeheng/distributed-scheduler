@@ -85,6 +85,10 @@ hostname = { workspace = true }
 tempfile = { workspace = true }
 criterion = { workspace = true }
 
+[dev-dependencies]
+# 测试相关依赖
+tracing-test = "0.2"
+
 [workspace]
 resolver = "2"
 members = [
