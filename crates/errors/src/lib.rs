@@ -50,6 +50,8 @@ pub enum SchedulerError {
     Permission(String),
     #[error("缓存错误: {0}")]
     CacheError(String),
+    #[error("System health is critical: {0}")]
+    NotHealthy(String),
 }
 
 pub type SchedulerResult<T> = Result<T, SchedulerError>;

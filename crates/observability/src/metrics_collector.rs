@@ -501,6 +501,121 @@ impl MetricsCollector {
             latest.network_io_mb
         ))
     }
+
+    /// 收集系统资源指标
+    pub async fn collect_system_metrics(&self) -> Result<PerformanceMetrics> {
+        let metrics = PerformanceMetrics {
+            cpu_usage_percent: self.get_cpu_usage().await.unwrap_or(0.0),
+            memory_usage_mb: self.get_memory_usage().await.unwrap_or(0.0),
+            disk_usage_mb: self.get_disk_usage().await.unwrap_or(0.0),
+            network_io_mb: self.get_network_io().await.unwrap_or(0.0),
+            timestamp: std::time::SystemTime::now(),
+        };
+
+        self.update_system_metrics(metrics.clone()).await;
+        Ok(metrics)
+    }
+
+    /// 获取CPU使用率
+    async fn get_cpu_usage(&self) -> Result<f64> {
+        // 简化实现，实际应该使用系统API
+        // TODO: 在生产环境中可以使用 sysinfo crate
+        Ok(0.0)
+    }
+
+    /// 获取内存使用情况
+    async fn get_memory_usage(&self) -> Result<f64> {
+        // 简化实现，实际应该使用系统API
+        // TODO: 在生产环境中可以使用 sysinfo crate
+        Ok(0.0)
+    }
+
+    /// 获取磁盘使用情况
+    async fn get_disk_usage(&self) -> Result<f64> {
+        // TODO: 简化实现，实际应该使用系统API
+        Ok(0.0)
+    }
+
+    /// 获取网络I/O
+    async fn get_network_io(&self) -> Result<f64> {
+        // TODO: 简化实现，实际应该使用系统API
+        Ok(0.0)
+    }
+
+    /// 记录嵌入式应用特定的指标
+    pub fn record_embedded_metrics(&self, 
+        active_tasks: u64,
+        queue_size: u64,
+        database_connections: u64,
+        memory_queue_size: u64,
+    ) {
+        gauge!("scheduler_embedded_active_tasks").set(active_tasks as f64);
+        gauge!("scheduler_embedded_queue_size").set(queue_size as f64);
+        gauge!("scheduler_embedded_db_connections").set(database_connections as f64);
+        gauge!("scheduler_embedded_memory_queue_size").set(memory_queue_size as f64);
+
+        info!(
+            embedded.active_tasks = active_tasks,
+            embedded.queue_size = queue_size,
+            embedded.db_connections = database_connections,
+            embedded.memory_queue_size = memory_queue_size,
+            "Embedded scheduler metrics recorded"
+        );
+    }
+
+    /// 记录日志轮转指标
+    pub fn record_log_rotation_metrics(&self, 
+        current_log_size: u64,
+        rotated_files: u32,
+        total_log_size: u64,
+    ) {
+        gauge!("scheduler_log_current_size_bytes").set(current_log_size as f64);
+        gauge!("scheduler_log_rotated_files_count").set(rotated_files as f64);
+        gauge!("scheduler_log_total_size_bytes").set(total_log_size as f64);
+
+        info!(
+            log.current_size_bytes = current_log_size,
+            log.rotated_files = rotated_files,
+            log.total_size_bytes = total_log_size,
+            "Log rotation metrics recorded"
+        );
+    }
+
+    /// 获取健康状态
+    pub async fn get_health_status(&self) -> HealthStatus {
+        let history = self.performance_history.read().await;
+        
+        if history.is_empty() {
+            return HealthStatus::Unknown;
+        }
+
+        let latest = &history[history.len() - 1];
+        
+        // 检查CPU使用率
+        if latest.cpu_usage_percent > 90.0 {
+            return HealthStatus::Critical;
+        } else if latest.cpu_usage_percent > 70.0 {
+            return HealthStatus::Warning;
+        }
+
+        // 检查内存使用率
+        if latest.memory_usage_mb > 8192.0 { // 8GB
+            return HealthStatus::Critical;
+        } else if latest.memory_usage_mb > 4096.0 { // 4GB
+            return HealthStatus::Warning;
+        }
+
+        HealthStatus::Healthy
+    }
+}
+
+/// 健康状态枚举
+#[derive(Debug, Clone, PartialEq)]
+pub enum HealthStatus {
+    Healthy,
+    Warning,
+    Critical,
+    Unknown,
 }
 
 #[cfg(test)]

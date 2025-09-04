@@ -1,4 +1,6 @@
 pub mod cross_component_tracer;
+pub mod embedded_monitoring;
+pub mod log_rotation;
 pub mod message_tracing;
 pub mod metrics_collector;
 pub mod structured_logger;
@@ -6,8 +8,12 @@ pub mod task_tracer;
 pub mod telemetry_setup;
 
 pub use cross_component_tracer::CrossComponentTracer;
+pub use embedded_monitoring::{
+    EmbeddedMonitoringConfig, EmbeddedMonitoringService, MonitoringStats, PerformanceThresholds,
+};
+pub use log_rotation::{LogRotationConfig, LogRotationManager, LogRotationStats};
 pub use message_tracing::MessageTracingExt;
-pub use metrics_collector::{MetricsCollector, PerformanceMetrics};
+pub use metrics_collector::{HealthStatus, MetricsCollector, PerformanceMetrics};
 pub use structured_logger::{LoggingConfig, StructuredLogger};
 pub use task_tracer::TaskTracer;
 pub use telemetry_setup::{

@@ -55,6 +55,73 @@ impl StructuredLogger {
             "Task scheduled for execution"
         );
     }
+
+    /// 记录任务执行的详细信息，包括参数和环境
+    pub fn log_task_execution_detailed(
+        task_run_id: i64,
+        task_id: i64,
+        task_name: &str,
+        task_type: &str,
+        worker_id: &str,
+        parameters: Option<&str>,
+        timeout_seconds: u32,
+        retry_count: u32,
+        max_retries: u32,
+    ) {
+        info!(
+            event = "task_execution_detailed",
+            task_run.id = task_run_id,
+            task.id = task_id,
+            task.name = task_name,
+            task.type = task_type,
+            worker.id = worker_id,
+            task.parameters = parameters.unwrap_or("{}"),
+            task.timeout_seconds = timeout_seconds,
+            task.retry_count = retry_count,
+            task.max_retries = max_retries,
+            "Detailed task execution information"
+        );
+    }
+
+    /// 记录任务执行过程中的步骤
+    pub fn log_task_execution_step(
+        task_run_id: i64,
+        task_name: &str,
+        step: &str,
+        step_data: Option<&str>,
+        duration_ms: Option<u64>,
+    ) {
+        info!(
+            event = "task_execution_step",
+            task_run.id = task_run_id,
+            task.name = task_name,
+            task.step = step,
+            task.step_data = step_data.unwrap_or(""),
+            task.step_duration_ms = duration_ms,
+            "Task execution step completed"
+        );
+    }
+
+    /// 记录任务执行的资源使用情况
+    pub fn log_task_resource_usage(
+        task_run_id: i64,
+        task_name: &str,
+        memory_usage_mb: Option<f64>,
+        cpu_usage_percent: Option<f64>,
+        disk_io_mb: Option<f64>,
+        network_io_mb: Option<f64>,
+    ) {
+        info!(
+            event = "task_resource_usage",
+            task_run.id = task_run_id,
+            task.name = task_name,
+            resource.memory_mb = memory_usage_mb,
+            resource.cpu_percent = cpu_usage_percent,
+            resource.disk_io_mb = disk_io_mb,
+            resource.network_io_mb = network_io_mb,
+            "Task resource usage recorded"
+        );
+    }
     pub fn log_task_execution_start(
         task_run_id: i64,
         task_id: i64,
@@ -214,6 +281,87 @@ impl StructuredLogger {
             error.message = %error,
             error.type = std::any::type_name_of_val(error),
             "System error occurred"
+        );
+    }
+
+    /// 记录带有堆栈跟踪的系统错误
+    pub fn log_system_error_with_stack(
+        component: &str,
+        operation: &str,
+        error: &dyn std::error::Error,
+        stack_trace: Option<&str>,
+    ) {
+        let mut chain = Vec::new();
+        let mut current_error: &dyn std::error::Error = error;
+        
+        // 收集错误链
+        loop {
+            chain.push(current_error.to_string());
+            match current_error.source() {
+                Some(source) => current_error = source,
+                None => break,
+            }
+        }
+
+        error!(
+            event = "system_error_detailed",
+            error.component = component,
+            error.operation = operation,
+            error.message = %error,
+            error.type = std::any::type_name_of_val(error),
+            error.chain = ?chain,
+            error.stack_trace = stack_trace.unwrap_or(""),
+            "Detailed system error with stack trace"
+        );
+    }
+
+    /// 记录任务执行失败的详细信息
+    pub fn log_task_execution_failure_detailed(
+        task_run_id: i64,
+        task_name: &str,
+        task_type: &str,
+        worker_id: &str,
+        error_type: &str,
+        error_message: &str,
+        duration_ms: u64,
+        retry_count: u32,
+        will_retry: bool,
+        stack_trace: Option<&str>,
+    ) {
+        error!(
+            event = "task_execution_failure_detailed",
+            task_run.id = task_run_id,
+            task.name = task_name,
+            task.type = task_type,
+            worker.id = worker_id,
+            task.error_type = error_type,
+            task.error_message = error_message,
+            task.duration_ms = duration_ms,
+            task.retry_count = retry_count,
+            task.will_retry = will_retry,
+            task.stack_trace = stack_trace.unwrap_or(""),
+            "Detailed task execution failure"
+        );
+    }
+
+    /// 记录性能警告
+    pub fn log_performance_warning(
+        component: &str,
+        operation: &str,
+        metric_name: &str,
+        current_value: f64,
+        threshold_value: f64,
+        unit: &str,
+    ) {
+        warn!(
+            event = "performance_warning",
+            perf.component = component,
+            perf.operation = operation,
+            perf.metric_name = metric_name,
+            perf.current_value = current_value,
+            perf.threshold_value = threshold_value,
+            perf.unit = unit,
+            "Performance threshold exceeded"
         );
     }
     pub fn log_config_change(component: &str, setting: &str, old_value: &str, new_value: &str) {

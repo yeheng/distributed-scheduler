@@ -26,6 +26,8 @@ tracing-subscriber = { workspace = true }
 metrics = { workspace = true }
 metrics-exporter-prometheus = { workspace = true }
 prometheus = { workspace = true }
+flate2 = "1.0"
+tempfile = "3.0"
 
 [dev-dependencies]
 scheduler-testing-utils = { path = "../testing-utils" }

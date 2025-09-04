@@ -6,7 +6,9 @@ use scheduler_infrastructure::{
     database::sqlite::{SqliteTaskRepository, SqliteTaskRunRepository, SqliteWorkerRepository},
     in_memory_queue::InMemoryMessageQueue,
 };
-use scheduler_observability::MetricsCollector;
+use scheduler_observability::{
+    EmbeddedMonitoringConfig, EmbeddedMonitoringService, MetricsCollector, MonitoringStats,
+};
 use scheduler_worker::WorkerServiceImpl;
 use scheduler_application::{ExecutorRegistry, scheduler::WorkerService};
 use std::sync::Arc;
@@ -22,6 +24,7 @@ pub struct EmbeddedApplication {
     config: AppConfig,
     service_locator: Option<Arc<ServiceLocator>>,
     metrics: Option<Arc<MetricsCollector>>,
+    monitoring_service: Option<Arc<EmbeddedMonitoringService>>,
 }
 
 /// 嵌入式应用程序句柄
@@ -32,6 +35,7 @@ pub struct EmbeddedApplicationHandle {
     worker_service: Option<Arc<WorkerServiceImpl>>,
     running_tasks: Arc<RwLock<HashMap<i64, scheduler_domain::entities::TaskRun>>>,
     database_pool: sqlx::SqlitePool,
+    monitoring_service: Option<Arc<EmbeddedMonitoringService>>,
 }
 
 impl EmbeddedApplication {
@@ -43,6 +47,7 @@ impl EmbeddedApplication {
             config,
             service_locator: None,
             metrics: None,
+            monitoring_service: None,
         })
     }
 
@@ -228,22 +233,37 @@ impl EmbeddedApplication {
         // 4. 创建指标收集器
         let metrics = Arc::new(MetricsCollector::new().context("创建指标收集器失败")?);
 
-        self.metrics = Some(metrics.clone());
+        // 5. 创建监控服务
+        let monitoring_config = EmbeddedMonitoringConfig::default();
+        let monitoring_service = Arc::new(
+            EmbeddedMonitoringService::new(monitoring_config, metrics.clone())
+                .await
+                .context("创建监控服务失败")?,
+        );
 
-        // 5. 启动各个组件
+        // 启动监控服务
+        monitoring_service
+            .start()
+            .await
+            .context("启动监控服务失败")?;
+
+        self.metrics = Some(metrics.clone());
+        self.monitoring_service = Some(monitoring_service.clone());
+
+        // 6. 启动各个组件
         self.start_components(&service_locator, &metrics).await
             .context("启动应用组件失败")?;
 
-        // 6. 创建嵌入式关闭管理器
+        // 7. 创建嵌入式关闭管理器
         let shutdown_manager = EmbeddedShutdownManager::with_timeouts(
             30, // 30秒等待任务完成
             60, // 60秒强制关闭超时
         );
 
-        // 7. 创建运行任务跟踪器
+        // 8. 创建运行任务跟踪器
         let running_tasks = Arc::new(RwLock::new(HashMap::new()));
 
-        // 8. 启动Worker服务（如果启用）
+        // 9. 启动Worker服务（如果启用）
         let worker_service = if self.config.worker.enabled {
             info!("启动Worker服务");
             let worker_service = self.start_worker_service(&service_locator, &running_tasks).await
@@ -262,6 +282,7 @@ impl EmbeddedApplication {
             worker_service,
             running_tasks,
             database_pool: pool,
+            monitoring_service: self.monitoring_service.clone(),
         })
     }
 
@@ -401,9 +422,41 @@ impl EmbeddedApplicationHandle {
         &self.api_address
     }
 
+    /// 获取监控统计信息
+    pub async fn get_monitoring_stats(&self) -> Result<Option<MonitoringStats>> {
+        if let Some(ref monitoring_service) = self.monitoring_service {
+            Ok(Some(monitoring_service.get_monitoring_stats().await?))
+        } else {
+            Ok(None)
+        }
+    }
+
+    /// 记录嵌入式应用指标
+    pub fn record_embedded_metrics(&self, active_tasks: u64, queue_size: u64) {
+        if let Some(ref monitoring_service) = self.monitoring_service {
+            // 获取数据库连接数（简化实现）
+            let database_connections = 5; // 从配置中获取最大连接数
+            let memory_queue_size = queue_size; // 内存队列大小
+
+            monitoring_service.record_embedded_metrics(
+                active_tasks,
+                queue_size,
+                database_connections,
+                memory_queue_size,
+            );
+        }
+    }
+
     /// 优雅关闭应用
     pub async fn shutdown(self) -> Result<()> {
         info!("开始优雅关闭嵌入式应用...");
+
+        // 停止监控服务
+        if let Some(ref monitoring_service) = self.monitoring_service {
+            if let Err(e) = monitoring_service.stop().await {
+                warn!("停止监控服务时发生错误: {}", e);
+            }
+        }
 
         let wait_for_tasks = self.wait_for_running_tasks();
         let persist_state = self.persist_system_state();

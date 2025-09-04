@@ -232,15 +232,15 @@ impl CacheMetrics {
         let mut metrics = CachePerformanceMetrics::default();
 
         for mf in metric_families {
-            match mf.get_name() {
+            match mf.name() {
                 "cache_hits_total" => {
                     if let Some(metric) = mf.get_metric().first() {
-                        metrics.total_hits = metric.get_counter().get_value() as u64;
+                        metrics.total_hits = metric.get_counter().value() as u64;
                     }
                 }
                 "cache_misses_total" => {
                     if let Some(metric) = mf.get_metric().first() {
-                        metrics.total_misses = metric.get_counter().get_value() as u64;
+                        metrics.total_misses = metric.get_counter().value() as u64;
                     }
                 }
                 "cache_operation_duration_seconds" => {
@@ -273,16 +273,16 @@ impl CacheMetrics {
         let mut cumulative_count = 0;
 
         for bucket in histogram.get_bucket() {
-            cumulative_count += bucket.get_cumulative_count();
+            cumulative_count += bucket.cumulative_count();
             if cumulative_count >= target_count {
-                return bucket.get_upper_bound();
+                return bucket.upper_bound();
             }
         }
 
         histogram
             .get_bucket()
             .last()
-            .map_or(0.0, |b| b.get_upper_bound())
+            .map_or(0.0, |b| b.upper_bound())
     }
 }
 
