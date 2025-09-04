@@ -12,7 +12,7 @@ pub struct TaskExecutionManager {
     worker_id: String,
     executor_registry: Arc<dyn ExecutorRegistry>,
     max_concurrent_tasks: usize,
-    running_tasks: Arc<RwLock<HashMap<i64, TaskRun>>>,
+    running_tasks: Arc<RwLock<HashMap<i64, (TaskRun, String)>>>,
 }
 
 impl TaskExecutionManager {
@@ -130,7 +130,7 @@ impl TaskExecutionManager {
         };
         {
             let mut running_tasks = self.running_tasks.write().await;
-            running_tasks.insert(task_run_id, task_run);
+            running_tasks.insert(task_run_id, (task_run, task_type.clone()));
         }
         status_callback(task_run_id, TaskRunStatus::Running, None, None).await?;
         let executor_clone = Arc::clone(&executor);
@@ -174,14 +174,43 @@ impl TaskExecutionManager {
         Ok(())
     }
     pub async fn cancel_task(&self, task_run_id: i64) -> SchedulerResult<()> {
-        let mut running_tasks = self.running_tasks.write().await;
-        if let Some(_task) = running_tasks.remove(&task_run_id) {
-            info!("Task {} cancelled", task_run_id);
-            Ok(())
+        // 首先从运行任务列表中获取任务信息
+        let task_info = {
+            let running_tasks = self.running_tasks.read().await;
+            running_tasks.get(&task_run_id).map(|(task_run, task_type)| (task_run.clone(), task_type.clone()))
+        };
+
+        let (task_run, task_type) = match task_info {
+            Some((task_run, task_type)) => (task_run, task_type),
+            None => {
+                warn!("任务取消失败：任务 {} 不在运行中", task_run_id);
+                return Err(SchedulerError::Internal(format!(
+                    "任务 {task_run_id} 未找到或未在运行中"
+                )));
+            }
+        };
+
+        // 获取对应的执行器进行优雅取消
+        if let Some(executor) = self.executor_registry.get(&task_type).await {
+            match executor.cancel(task_run_id).await {
+                Ok(()) => {
+                    info!("任务 {} 已通过执行器优雅取消", task_run_id);
+                }
+                Err(e) => {
+                    warn!("执行器取消任务 {} 失败: {}, 继续强制清理", task_run_id, e);
+                }
+            }
         } else {
-            Err(SchedulerError::Internal(format!(
-                "Task {task_run_id} not found in running tasks"
-            )))
+            warn!("找不到任务类型 '{}' 对应的执行器，只能强制清理", task_type);
         }
+
+        // 无论执行器取消是否成功，都要从运行列表中移除任务
+        {
+            let mut running_tasks = self.running_tasks.write().await;
+            running_tasks.remove(&task_run_id);
+        }
+
+        info!("任务 {} 已从运行列表中移除", task_run_id);
+        Ok(())
     }
 }

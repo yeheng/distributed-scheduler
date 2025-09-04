@@ -214,73 +214,136 @@ impl TaskExecutor for ShellExecutor {
 
     async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut processes = self.running_processes.write().await;
-        if let Some(pid) = processes.remove(&task_run_id) {
+        if let Some(pid) = processes.get(&task_run_id).copied() {
+            info!(
+                "开始优雅取消Shell任务: task_run_id={}, pid={}",
+                task_run_id, pid
+            );
+
             #[cfg(unix)]
             {
-                use std::process::Command;
-                match Command::new("kill").arg(pid.to_string()).output() {
-                    Ok(output) => {
-                        if output.status.success() {
-                            info!(
-                                "成功取消Shell任务: task_run_id={}, pid={}",
-                                task_run_id, pid
-                            );
-                            Ok(())
-                        } else {
-                            let error_msg = String::from_utf8_lossy(&output.stderr);
-                            error!(
-                                "取消Shell任务失败: task_run_id={}, pid={}, error={}",
-                                task_run_id, pid, error_msg
-                            );
-                            Err(SchedulerError::TaskExecution(format!(
-                                "取消任务失败: {error_msg}"
-                            )))
+                // 第一步：发送SIGTERM请求优雅退出
+                match std::process::Command::new("kill")
+                    .arg("-TERM")
+                    .arg(pid.to_string())
+                    .output()
+                {
+                    Ok(output) if output.status.success() => {
+                        info!("已向进程 {} 发送SIGTERM信号", pid);
+                        
+                        // 等待进程优雅退出，设置宽限期
+                        let timeout_duration = Duration::from_millis(self.cleanup_timeout_ms);
+                        let start_time = Instant::now();
+                        let mut process_terminated = false;
+
+                        while start_time.elapsed() < timeout_duration {
+                            // 检查进程是否仍在运行（发送信号0）
+                            let check_result = std::process::Command::new("kill")
+                                .arg("-0")
+                                .arg(pid.to_string())
+                                .output();
+
+                            if check_result.is_err() || !check_result.unwrap().status.success() {
+                                process_terminated = true;
+                                info!("进程 {} 已优雅退出", pid);
+                                break;
+                            }
+
+                            // 短暂等待再次检查
+                            tokio::time::sleep(Duration::from_millis(100)).await;
                         }
+
+                        // 第二步：如果超时，发送SIGKILL强制终止
+                        if !process_terminated {
+                            warn!(
+                                "进程 {} 在 {}ms 内未响应SIGTERM，发送SIGKILL强制终止",
+                                pid, self.cleanup_timeout_ms
+                            );
+                            match std::process::Command::new("kill")
+                                .arg("-KILL")
+                                .arg(pid.to_string())
+                                .output()
+                            {
+                                Ok(output) if output.status.success() => {
+                                    info!("进程 {} 已被强制终止", pid);
+                                }
+                                Ok(output) => {
+                                    let error_msg = String::from_utf8_lossy(&output.stderr);
+                                    error!("SIGKILL失败: {}", error_msg);
+                                    return Err(SchedulerError::TaskExecution(format!(
+                                        "强制终止进程失败: {error_msg}"
+                                    )));
+                                }
+                                Err(e) => {
+                                    error!("执行kill -KILL失败: {}", e);
+                                    return Err(SchedulerError::TaskExecution(format!(
+                                        "强制终止进程失败: {e}"
+                                    )));
+                                }
+                            }
+                        }
+
+                        // 从追踪列表中移除
+                        processes.remove(&task_run_id);
+                        info!("任务 {} 取消完成", task_run_id);
+                        Ok(())
+                    }
+                    Ok(output) => {
+                        let error_msg = String::from_utf8_lossy(&output.stderr);
+                        error!(
+                            "SIGTERM失败: task_run_id={}, pid={}, error={}",
+                            task_run_id, pid, error_msg
+                        );
+                        // 如果SIGTERM失败，直接尝试SIGKILL
+                        let _ = std::process::Command::new("kill")
+                            .arg("-KILL")
+                            .arg(pid.to_string())
+                            .output();
+                        processes.remove(&task_run_id);
+                        Err(SchedulerError::TaskExecution(format!(
+                            "取消任务失败: {error_msg}"
+                        )))
                     }
                     Err(e) => {
                         error!(
                             "执行kill命令失败: task_run_id={}, pid={}, error={}",
                             task_run_id, pid, e
                         );
+                        processes.remove(&task_run_id);
                         Err(SchedulerError::TaskExecution(format!("取消任务失败: {e}")))
                     }
                 }
             }
             #[cfg(windows)]
             {
-                use std::process::Command;
-                match Command::new("taskkill")
+                // Windows平台直接使用taskkill强制终止
+                match std::process::Command::new("taskkill")
                     .args(&["/PID", &pid.to_string(), "/F"])
                     .output()
                 {
+                    Ok(output) if output.status.success() => {
+                        info!("成功取消Shell任务: task_run_id={}, pid={}", task_run_id, pid);
+                        processes.remove(&task_run_id);
+                        Ok(())
+                    }
                     Ok(output) => {
-                        if output.status.success() {
-                            info!(
-                                "成功取消Shell任务: task_run_id={}, pid={}",
-                                task_run_id, pid
-                            );
-                            Ok(())
-                        } else {
-                            let error_msg = String::from_utf8_lossy(&output.stderr);
-                            error!(
-                                "取消Shell任务失败: task_run_id={}, pid={}, error={}",
-                                task_run_id, pid, error_msg
-                            );
-                            Err(SchedulerError::TaskExecution(format!(
-                                "取消任务失败: {}",
-                                error_msg
-                            )))
-                        }
+                        let error_msg = String::from_utf8_lossy(&output.stderr);
+                        error!(
+                            "取消Shell任务失败: task_run_id={}, pid={}, error={}",
+                            task_run_id, pid, error_msg
+                        );
+                        processes.remove(&task_run_id);
+                        Err(SchedulerError::TaskExecution(format!(
+                            "取消任务失败: {error_msg}"
+                        )))
                     }
                     Err(e) => {
                         error!(
                             "执行taskkill命令失败: task_run_id={}, pid={}, error={}",
                             task_run_id, pid, e
                         );
-                        Err(SchedulerError::TaskExecution(format!(
-                            "取消任务失败: {}",
-                            e
-                        )))
+                        processes.remove(&task_run_id);
+                        Err(SchedulerError::TaskExecution(format!("取消任务失败: {e}")))
                     }
                 }
             }
