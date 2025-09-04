@@ -129,14 +129,13 @@ pub struct QueueInfo {
     pub processing_rate_per_minute: f64,
 }
 
-impl From<HealthStatus> for String {
-    fn from(status: HealthStatus) -> Self {
-        match status {
-            HealthStatus::Healthy => "healthy".to_string(),
-            HealthStatus::Warning => "warning".to_string(),
-            HealthStatus::Critical => "critical".to_string(),
-            HealthStatus::Unknown => "unknown".to_string(),
-        }
+/// 将 HealthStatus 转换为字符串
+fn health_status_to_string(status: HealthStatus) -> String {
+    match status {
+        HealthStatus::Healthy => "healthy".to_string(),
+        HealthStatus::Warning => "warning".to_string(),
+        HealthStatus::Critical => "critical".to_string(),
+        HealthStatus::Unknown => "unknown".to_string(),
     }
 }
 
@@ -170,7 +169,7 @@ impl From<MonitoringStats> for MonitoringResponse {
     fn from(stats: MonitoringStats) -> Self {
         Self {
             uptime_seconds: stats.uptime_seconds,
-            health_status: stats.health_status.into(),
+            health_status: health_status_to_string(stats.health_status),
             performance_summary: stats.performance_summary,
             log_rotation: stats.log_rotation_stats.map(|s| s.into()),
             is_monitoring_active: stats.is_running,
@@ -185,10 +184,10 @@ mod tests {
 
     #[test]
     fn test_health_status_conversion() {
-        assert_eq!(String::from(HealthStatus::Healthy), "healthy");
-        assert_eq!(String::from(HealthStatus::Warning), "warning");
-        assert_eq!(String::from(HealthStatus::Critical), "critical");
-        assert_eq!(String::from(HealthStatus::Unknown), "unknown");
+        assert_eq!(health_status_to_string(HealthStatus::Healthy), "healthy");
+        assert_eq!(health_status_to_string(HealthStatus::Warning), "warning");
+        assert_eq!(health_status_to_string(HealthStatus::Critical), "critical");
+        assert_eq!(health_status_to_string(HealthStatus::Unknown), "unknown");
     }
 
     #[test]
