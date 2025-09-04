@@ -1,12 +1,13 @@
 use anyhow::Result;
-use scheduler::embedded::EmbeddedApplication;
 use scheduler_config::{AppConfig, MessageQueueType};
-use scheduler_common::TaskType;
+use scheduler_core::task_types::SHELL;
 use std::env;
 use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
 use tracing_test::traced_test;
+
+use crate::embedded::{EmbeddedApplication, EmbeddedApplicationHandle};
 
 /// 测试完全零配置启动
 #[tokio::test]
@@ -97,22 +98,22 @@ fn verify_zero_config_defaults(config: &AppConfig) {
 }
 
 /// 验证基本功能可用性
-async fn verify_basic_functionality(app_handle: &scheduler::embedded::EmbeddedApplicationHandle) -> Result<()> {
+async fn verify_basic_functionality(app_handle: &EmbeddedApplicationHandle) -> Result<()> {
     let service_locator = app_handle.service_locator();
 
     // 验证数据库仓库可用
     let task_repo = service_locator.task_repository().await?;
-    let task_run_repo = service_locator.task_run_repository().await?;
-    let worker_repo = service_locator.worker_repository().await?;
+    let _task_run_repo = service_locator.task_run_repository().await?;
+    let _worker_repo = service_locator.worker_repository().await?;
 
     // 验证消息队列可用
-    let message_queue = service_locator.message_queue().await?;
+    let _message_queue = service_locator.message_queue().await?;
 
     // 创建测试任务验证数据库功能
     let task = scheduler_domain::entities::Task {
         id: 0,
         name: "zero_config_test_task".to_string(),
-        task_type: TaskType::Shell,
+        task_type: SHELL.to_string(),
         schedule: "0 0 * * *".to_string(),
         parameters: serde_json::json!({"command": "echo 'zero config test'"}),
         timeout_seconds: 300,
@@ -124,11 +125,11 @@ async fn verify_basic_functionality(app_handle: &scheduler::embedded::EmbeddedAp
         updated_at: chrono::Utc::now(),
     };
 
-    let created_task = task_repo.create(task).await?;
+    let created_task = task_repo.create(&task).await?;
     assert!(created_task.id > 0);
 
     // 验证任务查询功能
-    let found_task = task_repo.find_by_id(created_task.id).await?;
+    let found_task = task_repo.get_by_id(created_task.id).await?;
     assert!(found_task.is_some());
 
     Ok(())
@@ -281,7 +282,7 @@ async fn test_memory_usage_optimization() -> Result<()> {
         let task = scheduler_domain::entities::Task {
             id: 0,
             name: format!("memory_test_task_{}", i),
-            task_type: TaskType::Shell,
+            task_type: SHELL.to_string(),
             schedule: "0 0 * * *".to_string(),
             parameters: serde_json::json!({"command": format!("echo 'memory test {}'", i)}),
             timeout_seconds: 300,
@@ -293,7 +294,7 @@ async fn test_memory_usage_optimization() -> Result<()> {
             updated_at: chrono::Utc::now(),
         };
 
-        let created_task = task_repo.create(task).await?;
+        let created_task = task_repo.create(&task).await?;
         assert!(created_task.id > 0);
     }
 
@@ -403,7 +404,7 @@ async fn test_resource_cleanup_and_restart() -> Result<()> {
         let task = scheduler_domain::entities::Task {
             id: 0,
             name: "cleanup_test_task".to_string(),
-            task_type: TaskType::Shell,
+            task_type: SHELL.to_string(),
             schedule: "0 0 * * *".to_string(),
             parameters: serde_json::json!({"command": "echo 'cleanup test'"}),
             timeout_seconds: 300,
@@ -415,7 +416,7 @@ async fn test_resource_cleanup_and_restart() -> Result<()> {
             updated_at: chrono::Utc::now(),
         };
 
-        let created_task = task_repo.create(task).await?;
+        let created_task = task_repo.create(&task).await?;
         assert!(created_task.id > 0);
 
         // 正常关闭
@@ -438,7 +439,7 @@ async fn test_resource_cleanup_and_restart() -> Result<()> {
         let service_locator = app_handle.service_locator();
         let task_repo = service_locator.task_repository().await?;
 
-        let found_task = task_repo.find_by_name("cleanup_test_task").await?;
+        let found_task = task_repo.get_by_name("cleanup_test_task").await?;
         assert!(found_task.is_some());
         assert_eq!(found_task.unwrap().name, "cleanup_test_task");
 

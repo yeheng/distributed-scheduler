@@ -20,7 +20,7 @@ async fn test_postgres_task_repository_crud() -> Result<()> {
     let repo = PostgresTaskRepository::new(container.pool.clone());
     let task = TaskBuilder::new()
         .with_name("integration_test_task")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_schedule("0 0 * * *")
         .with_parameters(serde_json::json!({"command": "echo 'hello'"}))
         .with_timeout(300)
@@ -143,7 +143,7 @@ async fn test_postgres_worker_repository_crud() -> Result<()> {
         .with_id("integration_test_worker")
         .with_hostname("test-host")
         .with_ip_address("192.168.1.100")
-        .with_supported_task_types(vec!["shell", "http"])
+        .with_supported_task_types(vec!["shell".to_string(), "http".to_string()])
         .with_max_concurrent_tasks(10)
         .with_current_task_count(0)
         .with_status(WorkerStatus::Alive)
@@ -191,7 +191,7 @@ async fn test_repository_performance() -> Result<()> {
         .map(|i| {
             TaskBuilder::new()
                 .with_name(&format!("perf_test_task_{}", i))
-                .with_task_type("shell")
+                .with_task_type("shell".to_string())
                 .with_schedule("0 0 * * *")
                 .with_parameters(serde_json::json!({"command": format!("echo 'task {}'", i)}))
                 .with_timeout(300)

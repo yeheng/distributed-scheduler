@@ -694,8 +694,7 @@ impl EmbeddedApplicationHandle {
         Ok(())
     }
 
-    /// 获取服务定位器（用于测试）
-    #[cfg(test)]
+    /// 获取服务定位器
     pub fn service_locator(&self) -> &Arc<ServiceLocator> {
         &self._service_locator
     }

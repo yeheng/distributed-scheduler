@@ -129,7 +129,7 @@ impl E2ETestSetup {
     pub async fn create_test_worker(&self, worker_id: &str, task_types: Vec<String>) -> WorkerInfo {
         let worker = WorkerInfoBuilder::new()
             .with_id(worker_id)
-            .with_supported_task_types(task_types.iter().map(|s| s.as_str()).collect())
+            .with_supported_task_types(task_types)
             .build();
 
         self.worker_repo.register(&worker).await.unwrap();
@@ -143,7 +143,7 @@ impl E2ETestSetup {
     ) -> Task {
         let task = TaskBuilder::new()
             .with_name(name)
-            .with_task_type(task_type)
+            .with_task_type(task_type.to_string())
             .with_dependencies(dependencies)
             .with_parameters(serde_json::json!({
                 "command": format!("echo 'Executing {}'", name),
@@ -236,7 +236,7 @@ impl E2ETestSetup {
             |(id, task_types)| async move {
                 let worker = WorkerInfoBuilder::new()
                     .with_id(&id)
-                    .with_supported_task_types(task_types.iter().map(|s| s.as_str()).collect())
+                    .with_supported_task_types(task_types)
                     .build();
                 worker_repo.register(&worker).await?;
                 Ok::<WorkerInfo, Box<dyn std::error::Error>>(worker)
@@ -259,15 +259,15 @@ impl E2ETestSetup {
         let task_repo = &self.task_repo;
         let tasks = futures::future::try_join_all(task_configs.into_iter().map(
             |(name, task_type, dependencies)| async move {
-                let task = TaskBuilder::new()
-                    .with_name(&name)
-                    .with_task_type(task_type)
-                    .with_dependencies(dependencies)
-                    .with_parameters(serde_json::json!({
-                        "command": format!("echo 'Executing {}'", name),
-                        "timeout": 30
-                    }))
-                    .build();
+        let task = TaskBuilder::new()
+            .with_name(&name)
+            .with_task_type(task_type.to_string())
+            .with_dependencies(dependencies)
+            .with_parameters(serde_json::json!({
+                "command": format!("echo 'Executing {}'", name),
+                "timeout": 30
+            }))
+            .build();
                 let created_task = task_repo.create(&task).await?;
                 assert!(
                     created_task.id > 0,
@@ -503,7 +503,7 @@ async fn test_task_retry_mechanism_e2e() {
         .await;
     let task = TaskBuilder::new()
         .with_name("retry_task")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(2)
         .with_timeout(10)
         .build();
@@ -721,7 +721,7 @@ async fn test_task_timeout_handling_e2e() {
         .await;
     let task = TaskBuilder::new()
         .with_name("timeout_task")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_timeout(1) // 1秒超时
         .build();
 

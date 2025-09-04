@@ -77,6 +77,9 @@ pub trait TaskRepository: Send + Sync {
         task_ids: &[i64],
         status: crate::entities::TaskStatus,
     ) -> SchedulerResult<()>;
+    async fn find_all(&self) -> SchedulerResult<Vec<Task>> {
+        self.list(&TaskFilter::default()).await
+    }
 }
 
 #[async_trait]
@@ -118,6 +121,11 @@ pub trait TaskRunRepository: Send + Sync + std::any::Any {
     
     /// 获取Any引用，用于向下转型
     fn as_any(&self) -> &dyn std::any::Any;
+    async fn find_all(&self) -> SchedulerResult<Vec<TaskRun>> {
+        // This is a default implementation that should be overridden by concrete implementations
+        // For now, return an empty vector as a fallback
+        Ok(vec![])
+    }
 }
 
 #[async_trait]
@@ -144,6 +152,7 @@ pub trait WorkerRepository: Send + Sync {
         worker_ids: &[String],
         status: WorkerStatus,
     ) -> SchedulerResult<()>;
+    
 }
 
 #[derive(Debug, Clone, serde::Serialize, serde::Deserialize)]
