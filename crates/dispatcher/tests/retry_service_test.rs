@@ -20,7 +20,7 @@ async fn test_handle_failed_task_with_retries_available() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(3)
         .with_status(TaskStatus::Active)
         .build();
@@ -63,7 +63,7 @@ async fn test_handle_failed_task_max_retries_exceeded() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(2)
         .with_status(TaskStatus::Active)
         .build();
@@ -104,7 +104,7 @@ async fn test_handle_failed_task_inactive_task() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(3)
         .inactive() // Task is inactive
         .build();
@@ -145,7 +145,7 @@ async fn test_handle_timeout_task() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(3)
         .with_status(TaskStatus::Active)
         .build();
@@ -188,7 +188,7 @@ async fn test_handle_worker_failure() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(3)
         .with_status(TaskStatus::Active)
         .build();
@@ -243,7 +243,7 @@ async fn test_scan_retry_tasks() {
     let task = TaskBuilder::new()
         .with_id(1)
         .with_name("test_task_1")
-        .with_task_type("shell")
+        .with_task_type("shell".to_string())
         .with_max_retries(3)
         .with_status(TaskStatus::Active)
         .build();

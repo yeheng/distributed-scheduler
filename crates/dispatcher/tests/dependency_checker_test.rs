@@ -28,7 +28,7 @@ mod dependency_checker_tests {
         let task = TaskBuilder::new()
             .with_id(1)
             .with_name("no_deps_task")
-            .with_task_type("shell")
+            .with_task_type("shell".to_string())
             .with_schedule("0 0 0 * * *")
             .with_parameters(json!({}))
             .with_dependencies(vec![])
@@ -61,7 +61,7 @@ mod dependency_checker_tests {
         let task = TaskBuilder::new()
             .with_id(2)
             .with_name("main_task")
-            .with_task_type("shell")
+            .with_task_type("shell".to_string())
             .with_dependencies(vec![1])
             .build();
 
@@ -92,7 +92,7 @@ mod dependency_checker_tests {
         let task = TaskBuilder::new()
             .with_id(2)
             .with_name("main_task")
-            .with_task_type("shell")
+            .with_task_type("shell".to_string())
             .with_dependencies(vec![1])
             .build();
 
