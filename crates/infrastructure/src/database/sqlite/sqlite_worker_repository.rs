@@ -19,6 +19,11 @@ impl SqliteWorkerRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+
+    /// 创建嵌入式SQLite Worker仓库，复用已有的数据库连接池
+    pub fn new_embedded(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
     fn row_to_worker_info(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<WorkerInfo> {
         let supported_task_types =
             MappingHelpers::parse_supported_task_types_sqlite(row, "supported_task_types")?;

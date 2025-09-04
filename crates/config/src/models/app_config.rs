@@ -219,6 +219,92 @@ impl AppConfig {
     pub fn to_toml(&self) -> Result<String> {
         toml::to_string_pretty(self).context("序列化配置为TOML失败")
     }
+
+    /// 创建嵌入式默认配置
+    /// 
+    /// 该配置针对嵌入式部署进行了优化：
+    /// - 使用SQLite数据库
+    /// - 使用内存消息队列
+    /// - 启用所有组件（API、调度器、Worker）
+    /// - 关闭认证和限流
+    /// - 优化资源使用
+    pub fn embedded_default() -> Self {
+        Self {
+            database: DatabaseConfig {
+                url: "sqlite:scheduler.db".to_string(),
+                max_connections: 5,
+                min_connections: 1,
+                connection_timeout_seconds: 30,
+                idle_timeout_seconds: 600,
+            },
+            message_queue: MessageQueueConfig::in_memory_default(),
+            dispatcher: DispatcherConfig {
+                enabled: true,
+                schedule_interval_seconds: 10,
+                max_concurrent_dispatches: 50, // 减少并发数
+                worker_timeout_seconds: 90,
+                dispatch_strategy: "round_robin".to_string(),
+            },
+            worker: WorkerConfig {
+                enabled: true, // 嵌入式模式启用Worker
+                worker_id: "embedded-worker".to_string(),
+                hostname: "localhost".to_string(),
+                ip_address: "127.0.0.1".to_string(),
+                max_concurrent_tasks: 10, // 增加并发任务数
+                supported_task_types: vec!["shell".to_string(), "http".to_string()],
+                heartbeat_interval_seconds: 30,
+                task_poll_interval_seconds: 5,
+            },
+            api: ApiConfig {
+                enabled: true,
+                bind_address: "127.0.0.1:8080".to_string(), // 只绑定本地地址
+                cors_enabled: true,
+                cors_origins: vec!["*".to_string()],
+                request_timeout_seconds: 30,
+                max_request_size_mb: 10,
+                auth: super::api_observability::AuthConfig {
+                    enabled: false, // 嵌入式模式默认关闭认证
+                    jwt_secret: "embedded-secret".to_string(),
+                    jwt_expiration_hours: 24,
+                    api_keys: std::collections::HashMap::new(),
+                },
+                rate_limiting: super::api_observability::RateLimitingConfig {
+                    enabled: false, // 嵌入式模式默认关闭限流
+                    max_requests_per_minute: 100,
+                    refill_rate_per_second: 1.0,
+                    burst_size: 10,
+                    endpoint_limits: std::collections::HashMap::new(),
+                },
+            },
+            observability: ObservabilityConfig {
+                tracing_enabled: true,
+                metrics_enabled: true,
+                metrics_endpoint: "/metrics".to_string(),
+                log_level: "info".to_string(),
+                jaeger_endpoint: None, // 嵌入式模式不使用外部追踪
+            },
+            executor: ExecutorConfig::default(),
+            resilience: ResilienceConfig::default(),
+        }
+    }
+
+    /// 从嵌入式默认配置加载，支持环境变量覆盖
+    pub fn embedded_with_env() -> Result<Self> {
+        use figment::providers::Serialized;
+
+        let figment = Figment::new()
+            .merge(Serialized::defaults(AppConfig::embedded_default()))
+            .merge(
+                Env::prefixed("SCHEDULER_")
+                    .split("__")
+                    .ignore(&["SCHEDULER_ENV"]),
+            );
+
+        let config: AppConfig = figment.extract().context("嵌入式配置提取失败")?;
+
+        config.validate()?;
+        Ok(config)
+    }
 }
 
 impl ConfigValidator for AppConfig {
@@ -269,6 +355,44 @@ mod tests {
             config.dispatcher.schedule_interval_seconds,
             deserialized.dispatcher.schedule_interval_seconds
         );
+    }
+
+    #[test]
+    fn test_app_config_embedded_default() {
+        let config = AppConfig::embedded_default();
+        
+        // 验证数据库配置
+        assert!(config.database.url.starts_with("sqlite:"));
+        assert_eq!(config.database.max_connections, 5);
+        
+        // 验证消息队列配置
+        assert_eq!(config.message_queue.r#type, crate::models::message_queue::MessageQueueType::InMemory);
+        
+        // 验证组件启用状态
+        assert!(config.dispatcher.enabled);
+        assert!(config.worker.enabled);
+        assert!(config.api.enabled);
+        
+        // 验证认证和限流关闭
+        assert!(!config.api.auth.enabled);
+        assert!(!config.api.rate_limiting.enabled);
+        
+        // 验证Worker配置
+        assert_eq!(config.worker.worker_id, "embedded-worker");
+        assert_eq!(config.worker.max_concurrent_tasks, 10);
+        
+        // 验证配置有效性
+        assert!(config.validate().is_ok());
+    }
+
+    #[test]
+    fn test_app_config_embedded_with_env() {
+        let config = AppConfig::embedded_with_env().expect("Failed to load embedded config with env");
+        
+        // 基本验证
+        assert!(config.database.url.starts_with("sqlite:"));
+        assert_eq!(config.message_queue.r#type, crate::models::message_queue::MessageQueueType::InMemory);
+        assert!(config.validate().is_ok());
     }
 
     #[test]

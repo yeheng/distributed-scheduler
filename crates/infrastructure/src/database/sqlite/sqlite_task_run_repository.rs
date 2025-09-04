@@ -22,6 +22,11 @@ impl SqliteTaskRunRepository {
     pub fn new(pool: SqlitePool) -> Self {
         Self { pool }
     }
+
+    /// 创建嵌入式SQLite任务运行仓库，复用已有的数据库连接池
+    pub fn new_embedded(pool: SqlitePool) -> Self {
+        Self { pool }
+    }
     fn row_to_task_run(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<TaskRun> {
         Ok(TaskRun {
             id: row.try_get("id")?,

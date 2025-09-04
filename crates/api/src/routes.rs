@@ -9,7 +9,9 @@ use crate::{
     auth::{auth_middleware, optional_auth_middleware, AuthConfig},
     handlers::{
         auth::{create_api_key, login, logout, refresh_token, validate_token},
-        health::health_check,
+        health::{health_check, detailed_health_check},
+        metrics::get_metrics,
+        root::{root_handler, api_docs_handler},
         system::{get_system_health, get_system_stats},
         tasks::{
             create_task, delete_task, get_task, get_task_execution_stats, get_task_run,
@@ -31,8 +33,14 @@ pub struct AppState {
 
 pub fn create_routes(state: AppState) -> Router {
     let mut router = Router::new()
-        // Health check - no authentication required
+        // Root and documentation endpoints - no authentication required
+        .route("/", get(root_handler))
+        .route("/api/docs", get(api_docs_handler))
+        // Health check endpoints - no authentication required
         .route("/health", get(health_check))
+        .route("/api/health", get(detailed_health_check))
+        // Metrics endpoint - no authentication required for embedded mode
+        .route("/api/metrics", get(get_metrics))
         // Authentication endpoints - no authentication required
         .route("/api/auth/login", post(login))
         .route("/api/auth/refresh", post(refresh_token))

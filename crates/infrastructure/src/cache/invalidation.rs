@@ -661,7 +661,7 @@ mod tests {
             use tokio::sync::Notify;
 
             struct MockCacheService {
-                notify: Arc<Notify>,
+                _notify: Arc<Notify>,
             }
 
             #[async_trait]
@@ -701,7 +701,7 @@ mod tests {
             }
 
             Arc::new(MockCacheService {
-                notify: Arc::new(Notify::new()),
+                _notify: Arc::new(Notify::new()),
             }) as Arc<dyn CacheService>
         };
 
@@ -719,7 +719,7 @@ mod tests {
         use tokio::sync::Notify;
 
         struct MockCacheService {
-            notify: Arc<Notify>,
+            _notify: Arc<Notify>,
         }
 
         #[async_trait]
@@ -761,7 +761,7 @@ mod tests {
         }
 
         let cache_service = Arc::new(MockCacheService {
-            notify: Arc::new(Notify::new()),
+            _notify: Arc::new(Notify::new()),
         });
 
         debug!(
@@ -791,7 +791,7 @@ mod tests {
         use tokio::sync::Notify;
 
         struct MockCacheService {
-            notify: Arc<Notify>,
+            _notify: Arc<Notify>,
         }
 
         #[async_trait]
@@ -833,7 +833,7 @@ mod tests {
         }
 
         let cache_service = Arc::new(MockCacheService {
-            notify: Arc::new(Notify::new()),
+            _notify: Arc::new(Notify::new()),
         });
 
         debug!(

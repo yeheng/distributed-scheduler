@@ -7,7 +7,7 @@ use scheduler_domain::ports::messaging::MessageQueue;
 use scheduler_errors::SchedulerError;
 use scheduler_errors::SchedulerResult;
 
-use crate::{redis_stream::RedisStreamConfig, RabbitMQMessageQueue, RedisStreamMessageQueue};
+use crate::{redis_stream::RedisStreamConfig, InMemoryMessageQueue, RabbitMQMessageQueue, RedisStreamMessageQueue};
 
 pub struct MessageQueueFactory;
 
@@ -28,6 +28,11 @@ impl MessageQueueFactory {
                 let redis_config = Self::build_redis_config(config)?;
                 let redis_stream = RedisStreamMessageQueue::new(redis_config).await?;
                 Ok(Arc::new(redis_stream))
+            }
+            MessageQueueType::InMemory => {
+                info!("Initializing In-Memory message queue");
+                let in_memory = InMemoryMessageQueue::new();
+                Ok(Arc::new(in_memory))
             }
         }
     }
@@ -117,6 +122,9 @@ impl MessageQueueFactory {
                     ));
                 }
             }
+            MessageQueueType::InMemory => {
+                // 内存队列不需要额外的配置验证
+            }
         }
         Ok(())
     }
@@ -124,14 +132,16 @@ impl MessageQueueFactory {
         match queue_type {
             MessageQueueType::Rabbitmq => "rabbitmq",
             MessageQueueType::RedisStream => "redis_stream",
+            MessageQueueType::InMemory => "in_memory",
         }
     }
     pub fn parse_type_string(type_str: &str) -> SchedulerResult<MessageQueueType> {
         match type_str.to_lowercase().as_str() {
             "rabbitmq" => Ok(MessageQueueType::Rabbitmq),
             "redis_stream" => Ok(MessageQueueType::RedisStream),
+            "in_memory" => Ok(MessageQueueType::InMemory),
             _ => Err(SchedulerError::Configuration(format!(
-                "不支持的消息队列类型: {type_str}，支持的类型: rabbitmq, redis_stream"
+                "不支持的消息队列类型: {type_str}，支持的类型: rabbitmq, redis_stream, in_memory"
             ))),
         }
     }
@@ -176,6 +186,10 @@ impl MessageQueueManager {
     }
     pub fn is_redis_stream(&self) -> bool {
         matches!(self.current_config.r#type, MessageQueueType::RedisStream)
+    }
+
+    pub fn is_in_memory(&self) -> bool {
+        matches!(self.current_config.r#type, MessageQueueType::InMemory)
     }
     pub fn get_current_type_string(&self) -> &'static str {
         MessageQueueFactory::get_type_string(&self.current_config.r#type)
@@ -330,8 +344,16 @@ mod tests {
             MessageQueueType::RedisStream
         );
         assert_eq!(
+            MessageQueueFactory::parse_type_string("in_memory").unwrap(),
+            MessageQueueType::InMemory
+        );
+        assert_eq!(
             MessageQueueFactory::parse_type_string("RABBITMQ").unwrap(),
             MessageQueueType::Rabbitmq
+        );
+        assert_eq!(
+            MessageQueueFactory::parse_type_string("IN_MEMORY").unwrap(),
+            MessageQueueType::InMemory
         );
         assert!(MessageQueueFactory::parse_type_string("invalid").is_err());
     }
@@ -346,6 +368,81 @@ mod tests {
             MessageQueueFactory::get_type_string(&MessageQueueType::RedisStream),
             "redis_stream"
         );
+        assert_eq!(
+            MessageQueueFactory::get_type_string(&MessageQueueType::InMemory),
+            "in_memory"
+        );
+    }
+
+    #[test]
+    fn test_validate_in_memory_config() {
+        let config = MessageQueueConfig {
+            r#type: MessageQueueType::InMemory,
+            url: "".to_string(), // InMemory doesn't need URL
+            redis: None,
+            task_queue: "tasks".to_string(),
+            status_queue: "status".to_string(),
+            heartbeat_queue: "heartbeat".to_string(),
+            control_queue: "control".to_string(),
+            max_retries: 3,
+            retry_delay_seconds: 60,
+            connection_timeout_seconds: 30,
+        };
+
+        assert!(MessageQueueFactory::validate_config(&config).is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_create_in_memory_queue() {
+        let config = MessageQueueConfig {
+            r#type: MessageQueueType::InMemory,
+            url: "".to_string(),
+            redis: None,
+            task_queue: "tasks".to_string(),
+            status_queue: "status".to_string(),
+            heartbeat_queue: "heartbeat".to_string(),
+            control_queue: "control".to_string(),
+            max_retries: 3,
+            retry_delay_seconds: 1,
+            connection_timeout_seconds: 1,
+        };
+
+        let queue = MessageQueueFactory::create(&config).await;
+        assert!(queue.is_ok());
+        
+        // Test that we can use the queue
+        let queue = queue.unwrap();
+        let result = queue.create_queue("test_queue", false).await;
+        assert!(result.is_ok());
+    }
+
+    #[tokio::test]
+    async fn test_message_queue_manager_with_in_memory() {
+        let config = MessageQueueConfig {
+            r#type: MessageQueueType::InMemory,
+            url: "".to_string(),
+            redis: None,
+            task_queue: "tasks".to_string(),
+            status_queue: "status".to_string(),
+            heartbeat_queue: "heartbeat".to_string(),
+            control_queue: "control".to_string(),
+            max_retries: 3,
+            retry_delay_seconds: 1,
+            connection_timeout_seconds: 1,
+        };
+
+        let manager = MessageQueueManager::new(config).await;
+        assert!(manager.is_ok());
+        
+        let manager = manager.unwrap();
+        assert!(manager.is_in_memory());
+        assert!(!manager.is_rabbitmq());
+        assert!(!manager.is_redis_stream());
+        assert_eq!(manager.get_current_type_string(), "in_memory");
+        
+        // Test that we can use the manager
+        let result = manager.create_queue("test_queue", false).await;
+        assert!(result.is_ok());
     }
 
     #[test]

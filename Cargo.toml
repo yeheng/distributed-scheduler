@@ -25,6 +25,10 @@ path = "src/bin/api.rs"
 name = "scheduler-cli"
 path = "src/bin/cli.rs"
 
+[[bin]]
+name = "scheduler-embedded"
+path = "src/bin/embedded.rs"
+
 [dependencies]
 # 工作区内部crates
 scheduler-core = { path = "crates/core" }

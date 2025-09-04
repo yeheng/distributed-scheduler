@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 pub enum MessageQueueType {
     Rabbitmq,
     RedisStream,
+    InMemory,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -80,6 +81,23 @@ impl Default for MessageQueueConfig {
     }
 }
 
+impl MessageQueueConfig {
+    pub fn in_memory_default() -> Self {
+        Self {
+            r#type: MessageQueueType::InMemory,
+            url: "".to_string(), // 内存队列不需要URL
+            redis: None,
+            task_queue: "tasks".to_string(),
+            status_queue: "status_updates".to_string(),
+            heartbeat_queue: "heartbeats".to_string(),
+            control_queue: "control".to_string(),
+            max_retries: 3,
+            retry_delay_seconds: 1, // 内存队列重试更快
+            connection_timeout_seconds: 1, // 内存队列不需要连接超时
+        }
+    }
+}
+
 impl ConfigValidator for MessageQueueConfig {
     fn validate(&self) -> crate::ConfigResult<()> {
         match self.r#type {
@@ -106,6 +124,9 @@ impl ConfigValidator for MessageQueueConfig {
                 if let Some(redis_config) = &self.redis {
                     redis_config.validate()?;
                 }
+            }
+            MessageQueueType::InMemory => {
+                // 内存队列不需要URL或其他外部配置验证
             }
         }
 
@@ -135,8 +156,9 @@ impl MessageQueueConfig {
         match type_str.to_lowercase().as_str() {
             "rabbitmq" => Ok(MessageQueueType::Rabbitmq),
             "redis_stream" => Ok(MessageQueueType::RedisStream),
+            "in_memory" => Ok(MessageQueueType::InMemory),
             _ => Err(crate::ConfigError::Validation(format!(
-                "Unsupported message queue type: {type_str}, supported types: rabbitmq, redis_stream"
+                "Unsupported message queue type: {type_str}, supported types: rabbitmq, redis_stream, in_memory"
             ))),
         }
     }
@@ -145,6 +167,7 @@ impl MessageQueueConfig {
         match self.r#type {
             MessageQueueType::Rabbitmq => "rabbitmq",
             MessageQueueType::RedisStream => "redis_stream",
+            MessageQueueType::InMemory => "in_memory",
         }
     }
 }
@@ -219,6 +242,28 @@ mod tests {
             MessageQueueConfig::parse_type_string("redis_stream").unwrap(),
             MessageQueueType::RedisStream
         );
+        assert_eq!(
+            MessageQueueConfig::parse_type_string("in_memory").unwrap(),
+            MessageQueueType::InMemory
+        );
         assert!(MessageQueueConfig::parse_type_string("invalid").is_err());
+    }
+
+    #[test]
+    fn test_in_memory_default_config() {
+        let config = MessageQueueConfig::in_memory_default();
+        assert_eq!(config.r#type, MessageQueueType::InMemory);
+        assert_eq!(config.url, "");
+        assert!(config.redis.is_none());
+        assert_eq!(config.task_queue, "tasks");
+        assert_eq!(config.status_queue, "status_updates");
+        assert_eq!(config.heartbeat_queue, "heartbeats");
+        assert_eq!(config.control_queue, "control");
+        assert_eq!(config.max_retries, 3);
+        assert_eq!(config.retry_delay_seconds, 1);
+        assert_eq!(config.connection_timeout_seconds, 1);
+        
+        // Validate that the in-memory config is valid
+        assert!(config.validate().is_ok());
     }
 }

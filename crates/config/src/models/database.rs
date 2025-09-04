@@ -14,9 +14,12 @@ impl ConfigValidator for DatabaseConfig {
     fn validate(&self) -> crate::ConfigResult<()> {
         ValidationUtils::validate_not_empty(&self.url, "database.url")?;
 
-        if !self.url.starts_with("postgresql://") && !self.url.starts_with("postgres://") {
+        // 支持PostgreSQL和SQLite数据库URL
+        if !self.url.starts_with("postgresql://") 
+            && !self.url.starts_with("postgres://") 
+            && !self.url.starts_with("sqlite:") {
             return Err(crate::ConfigError::Validation(
-                "database.url must start with postgresql:// or postgres://".to_string(),
+                "database.url must start with postgresql://, postgres://, or sqlite:".to_string(),
             ));
         }
 
@@ -61,9 +64,24 @@ mod tests {
 
         assert!(config.validate().is_ok());
 
+        // Test SQLite URL
+        let sqlite_config = DatabaseConfig {
+            url: "sqlite:test.db".to_string(),
+            max_connections: 5,
+            min_connections: 1,
+            connection_timeout_seconds: 30,
+            idle_timeout_seconds: 600,
+        };
+        assert!(sqlite_config.validate().is_ok());
+
         // Test invalid URL
         let mut invalid_config = config.clone();
         invalid_config.url = "".to_string();
+        assert!(invalid_config.validate().is_err());
+
+        // Test unsupported database URL
+        let mut invalid_config = config.clone();
+        invalid_config.url = "mysql://localhost/test".to_string();
         assert!(invalid_config.validate().is_err());
 
         // Test invalid max_connections

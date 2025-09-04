@@ -23,6 +23,138 @@ impl SqliteTaskRepository {
         Self { pool }
     }
 
+    /// 创建嵌入式SQLite任务仓库，自动初始化数据库
+    pub async fn new_embedded(database_path: &str) -> SchedulerResult<Self> {
+        use sqlx::sqlite::{SqliteConnectOptions, SqlitePoolOptions};
+        use std::str::FromStr;
+        
+        debug!("Creating embedded SQLite task repository at: {}", database_path);
+        
+        // 创建连接选项，启用外键约束和WAL模式
+        let connect_options = SqliteConnectOptions::from_str(database_path)?
+            .create_if_missing(true)
+            .foreign_keys(true)
+            .journal_mode(sqlx::sqlite::SqliteJournalMode::Wal);
+        
+        // 创建连接池
+        let pool = SqlitePoolOptions::new()
+            .max_connections(5)
+            .min_connections(1)
+            .connect_with(connect_options)
+            .await?;
+        
+        // 运行数据库迁移
+        Self::run_migrations(&pool).await?;
+        
+        debug!("Successfully created embedded SQLite task repository");
+        Ok(Self { pool })
+    }
+
+    /// 运行数据库迁移
+    async fn run_migrations(pool: &SqlitePool) -> SchedulerResult<()> {
+        debug!("Running SQLite database migrations");
+        
+        // 创建任务表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS tasks (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                name TEXT NOT NULL UNIQUE,
+                task_type TEXT NOT NULL,
+                schedule TEXT NOT NULL,
+                parameters TEXT NOT NULL DEFAULT '{}',
+                timeout_seconds INTEGER NOT NULL DEFAULT 300,
+                max_retries INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'ACTIVE',
+                dependencies TEXT DEFAULT '[]',
+                shard_config TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // 创建任务执行记录表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS task_runs (
+                id INTEGER PRIMARY KEY AUTOINCREMENT,
+                task_id INTEGER NOT NULL,
+                status TEXT NOT NULL DEFAULT 'PENDING',
+                worker_id TEXT,
+                retry_count INTEGER NOT NULL DEFAULT 0,
+                shard_index INTEGER,
+                shard_total INTEGER,
+                scheduled_at DATETIME NOT NULL,
+                started_at DATETIME,
+                completed_at DATETIME,
+                result TEXT,
+                error_message TEXT,
+                created_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                FOREIGN KEY (task_id) REFERENCES tasks(id) ON DELETE CASCADE
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // 创建Worker信息表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS workers (
+                id TEXT PRIMARY KEY,
+                hostname TEXT NOT NULL,
+                ip_address TEXT NOT NULL,
+                supported_task_types TEXT NOT NULL DEFAULT '[]',
+                max_concurrent_tasks INTEGER NOT NULL DEFAULT 5,
+                current_task_count INTEGER NOT NULL DEFAULT 0,
+                status TEXT NOT NULL DEFAULT 'ALIVE',
+                last_heartbeat DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP,
+                registered_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // 创建系统状态表
+        sqlx::query(
+            r#"
+            CREATE TABLE IF NOT EXISTS system_state (
+                key TEXT PRIMARY KEY,
+                value TEXT NOT NULL,
+                updated_at DATETIME NOT NULL DEFAULT CURRENT_TIMESTAMP
+            )
+            "#,
+        )
+        .execute(pool)
+        .await?;
+
+        // 创建索引
+        let indexes = vec![
+            "CREATE INDEX IF NOT EXISTS idx_tasks_status ON tasks(status)",
+            "CREATE INDEX IF NOT EXISTS idx_tasks_name ON tasks(name)",
+            "CREATE INDEX IF NOT EXISTS idx_tasks_task_type ON tasks(task_type)",
+            "CREATE INDEX IF NOT EXISTS idx_task_runs_task_id ON task_runs(task_id)",
+            "CREATE INDEX IF NOT EXISTS idx_task_runs_status ON task_runs(status)",
+            "CREATE INDEX IF NOT EXISTS idx_task_runs_scheduled_at ON task_runs(scheduled_at)",
+            "CREATE INDEX IF NOT EXISTS idx_task_runs_worker_id ON task_runs(worker_id)",
+            "CREATE INDEX IF NOT EXISTS idx_workers_status ON workers(status)",
+            "CREATE INDEX IF NOT EXISTS idx_workers_last_heartbeat ON workers(last_heartbeat)",
+        ];
+
+        for index_sql in indexes {
+            sqlx::query(index_sql)
+                .execute(pool)
+                .await?;
+        }
+
+        debug!("Successfully completed SQLite database migrations");
+        Ok(())
+    }
+
     fn row_to_task(row: &sqlx::sqlite::SqliteRow) -> SchedulerResult<Task> {
         use sqlx::Row;
 
