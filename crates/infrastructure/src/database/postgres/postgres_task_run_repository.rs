@@ -13,6 +13,8 @@ use crate::{
     task_run_context,
 };
 
+use super::query_builder::PostgresQueryBuilder;
+
 pub struct PostgresTaskRunRepository {
     pool: PgPool,
 }
@@ -272,17 +274,35 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             .with_status(TaskRunStatus::Pending)
             .with_additional_info(format!("限制数量: {limit:?}"));
 
-        let mut query = "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE status = $1 ORDER BY scheduled_at ASC".to_string();
-
-        if let Some(limit) = limit {
-            query.push_str(&format!(" LIMIT {limit}"));
+        // 使用安全的参数化查询，避免SQL注入
+        let rows = match limit {
+            Some(limit_value) => {
+                // 验证limit值的合理性，防止恶意输入
+                if limit_value <= 0 || limit_value > 10000 {
+                    return Err(RepositoryErrorHelpers::task_run_database_error(
+                        context,
+                        sqlx::Error::Protocol("Invalid limit value".to_string())
+                    ));
+                }
+                
+                sqlx::query(
+                    "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE status = $1 ORDER BY scheduled_at ASC LIMIT $2"
+                )
+                .bind(TaskRunStatus::Pending)
+                .bind(limit_value)
+                .fetch_all(&self.pool)
+                .await
+            }
+            None => {
+                sqlx::query(
+                    "SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at FROM task_runs WHERE status = $1 ORDER BY scheduled_at ASC"
+                )
+                .bind(TaskRunStatus::Pending)
+                .fetch_all(&self.pool)
+                .await
+            }
         }
-
-        let rows = sqlx::query(&query)
-            .bind(TaskRunStatus::Pending)
-            .fetch_all(&self.pool)
-            .await
-            .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
+        .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
 
         let task_runs: SchedulerResult<Vec<TaskRun>> =
             rows.iter().map(Self::row_to_task_run).collect();
@@ -301,16 +321,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             .with_status(TaskRunStatus::Running)
             .with_additional_info(format!("超时阈值: {timeout_seconds}秒"));
 
-        let rows = sqlx::query(
-            r#"
-            SELECT id, task_id, status, worker_id, retry_count, shard_index, shard_total, scheduled_at, started_at, completed_at, result, error_message, created_at 
-            FROM task_runs 
-            WHERE status = $1 
-            AND started_at IS NOT NULL 
-            AND EXTRACT(EPOCH FROM (NOW() - started_at)) > $2
-            ORDER BY started_at ASC
-            "#,
-        )
+        let query = PostgresQueryBuilder::build_timeout_runs_query();
+        let rows = sqlx::query(&query)
         .bind(TaskRunStatus::Running)
         .bind(timeout_seconds)
         .fetch_all(&self.pool)
@@ -339,50 +351,77 @@ impl TaskRunRepository for PostgresTaskRunRepository {
             .with_worker_id(worker_id.unwrap_or_default().to_string())
             .with_additional_info(format!("状态变更为 {status:?}"));
 
-        let mut query = "UPDATE task_runs SET status = $1".to_string();
-        let mut param_count = 1;
-
-        if worker_id.is_some() {
-            param_count += 1;
-            query.push_str(&format!(", worker_id = ${param_count}"));
-        }
-        match status {
-            TaskRunStatus::Running => {
-                param_count += 1;
-                query.push_str(&format!(", started_at = ${param_count}"));
+        // 使用预定义的安全查询，避免动态SQL构建
+        let result = match (worker_id, status) {
+            // 有worker_id且状态为Running
+            (Some(worker), TaskRunStatus::Running) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1, worker_id = $2, started_at = $3 WHERE id = $4"
+                )
+                .bind(status)
+                .bind(worker)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&self.pool)
+                .await
             }
-            TaskRunStatus::Completed | TaskRunStatus::Failed | TaskRunStatus::Timeout => {
-                param_count += 1;
-                query.push_str(&format!(", completed_at = ${param_count}"));
+            // 有worker_id且状态为完成状态
+            (Some(worker), TaskRunStatus::Completed | TaskRunStatus::Failed | TaskRunStatus::Timeout) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1, worker_id = $2, completed_at = $3 WHERE id = $4"
+                )
+                .bind(status)
+                .bind(worker)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&self.pool)
+                .await
             }
-            _ => {}
-        }
-
-        param_count += 1;
-        query.push_str(&format!(" WHERE id = ${param_count}"));
-
-        let mut sqlx_query = sqlx::query(&query).bind(status);
-
-        if let Some(worker_id) = worker_id {
-            sqlx_query = sqlx_query.bind(worker_id);
-        }
-
-        match status {
-            TaskRunStatus::Running => {
-                sqlx_query = sqlx_query.bind(Utc::now());
+            // 有worker_id但状态为其他
+            (Some(worker), _) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1, worker_id = $2 WHERE id = $3"
+                )
+                .bind(status)
+                .bind(worker)
+                .bind(id)
+                .execute(&self.pool)
+                .await
             }
-            TaskRunStatus::Completed | TaskRunStatus::Failed | TaskRunStatus::Timeout => {
-                sqlx_query = sqlx_query.bind(Utc::now());
+            // 无worker_id但状态为Running
+            (None, TaskRunStatus::Running) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1, started_at = $2 WHERE id = $3"
+                )
+                .bind(status)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&self.pool)
+                .await
             }
-            _ => {}
+            // 无worker_id且状态为完成状态
+            (None, TaskRunStatus::Completed | TaskRunStatus::Failed | TaskRunStatus::Timeout) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1, completed_at = $2 WHERE id = $3"
+                )
+                .bind(status)
+                .bind(Utc::now())
+                .bind(id)
+                .execute(&self.pool)
+                .await
+            }
+            // 无worker_id且状态为其他
+            (None, _) => {
+                sqlx::query(
+                    "UPDATE task_runs SET status = $1 WHERE id = $2"
+                )
+                .bind(status)
+                .bind(id)
+                .execute(&self.pool)
+                .await
+            }
         }
-
-        sqlx_query = sqlx_query.bind(id);
-
-        let result = sqlx_query
-            .execute(&self.pool)
-            .await
-            .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
+        .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
 
         if result.rows_affected() == 0 {
             return Err(RepositoryErrorHelpers::task_run_not_found(context));
@@ -452,22 +491,9 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         let context = task_run_context!(RepositoryOperation::Query, task_id = task_id)
             .with_additional_info(format!("查询任务执行统计，时间范围: {days}天"));
 
-        let row = sqlx::query(
-            r#"
-            SELECT 
-                COUNT(*) as total_runs,
-                COUNT(CASE WHEN status = 'COMPLETED' THEN 1 END) as successful_runs,
-                COUNT(CASE WHEN status = 'FAILED' THEN 1 END) as failed_runs,
-                COUNT(CASE WHEN status = 'TIMEOUT' THEN 1 END) as timeout_runs,
-                AVG(CASE WHEN completed_at IS NOT NULL AND started_at IS NOT NULL 
-                    THEN EXTRACT(EPOCH FROM (completed_at - started_at)) * 1000 END) as avg_execution_time_ms,
-                MAX(created_at) as last_execution
-            FROM task_runs 
-            WHERE task_id = $1 AND created_at >= NOW() - INTERVAL '%d days'
-            "#
-        )
+        let query = PostgresQueryBuilder::build_execution_stats_query(days);
+        let row = sqlx::query(&query)
         .bind(task_id)
-        .bind(days)
         .fetch_one(&self.pool)
         .await
         .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;
@@ -500,9 +526,8 @@ impl TaskRunRepository for PostgresTaskRunRepository {
         let context = task_run_context!(RepositoryOperation::Delete)
             .with_additional_info(format!("清理过期执行记录，天数: {days}"));
 
-        let result =
-            sqlx::query("DELETE FROM task_runs WHERE created_at < NOW() - INTERVAL '%d days'")
-                .bind(days)
+        let query = PostgresQueryBuilder::build_cleanup_old_runs_query(days);
+        let result = sqlx::query(&query)
                 .execute(&self.pool)
                 .await
                 .map_err(|e| RepositoryErrorHelpers::task_run_database_error(context.clone(), e))?;

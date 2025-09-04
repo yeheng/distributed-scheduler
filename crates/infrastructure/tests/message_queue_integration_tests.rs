@@ -431,6 +431,11 @@ mod tests {
         let setup = MessageQueueIntegrationTestSetup::new().await?;
         let rabbitmq_queue = setup.create_rabbitmq_queue().await?;
         let redis_queue = setup.create_redis_stream_queue().await?;
+        
+        // Create queues before publishing messages
+        rabbitmq_queue.create_queue("switch_test", true).await?;
+        redis_queue.create_queue("switch_test", true).await?;
+        
         let rabbitmq_msg = Message::task_execution(TaskExecutionMessage {
             task_run_id: 1,
             task_id: 1,
