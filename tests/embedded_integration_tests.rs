@@ -1,4 +1,5 @@
 use anyhow::Result;
+use scheduler::embedded::{EmbeddedApplication, EmbeddedApplicationHandle};
 use scheduler_config::AppConfig;
 use scheduler_core::task_types::{HTTP, SHELL};
 use scheduler_domain::{
@@ -9,8 +10,6 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::timeout;
 use tracing_test::traced_test;
-
-use crate::embedded::{EmbeddedApplication, EmbeddedApplicationHandle};
 
 /// 集成测试：嵌入式应用的端到端测试
 #[tokio::test]

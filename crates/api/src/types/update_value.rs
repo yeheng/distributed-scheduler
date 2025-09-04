@@ -214,14 +214,6 @@ where
     where
         D: serde::Deserializer<'de>,
     {
-        // Use a helper enum to handle the different cases
-        #[derive(Deserialize)]
-        #[serde(untagged)]
-        enum Helper<T> {
-            Value(T),
-            Null,
-        }
-
         // First deserialize as Option<T> to handle missing fields
         let opt_value = Option::<T>::deserialize(deserializer)?;
 

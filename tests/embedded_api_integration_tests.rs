@@ -1,13 +1,12 @@
 use anyhow::Result;
 use reqwest::Client;
+use scheduler::embedded::EmbeddedApplication;
 use scheduler_config::AppConfig;
 use serde_json::{json, Value};
 use tempfile::TempDir;
 use std::time::Duration;
 use tokio::time::{sleep, timeout};
 use tracing_test::traced_test;
-
-use crate::embedded::EmbeddedApplication;
 
 /// 测试嵌入式API的集成功能
 #[tokio::test]

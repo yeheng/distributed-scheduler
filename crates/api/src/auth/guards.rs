@@ -58,8 +58,6 @@ pub async fn optional_auth_middleware(req: Request, next: Next) -> Result<Respon
 
 #[cfg(test)]
 mod tests {
-    use super::*;
-    use crate::auth::{AuthType, AuthenticatedUser};
 
     // TODO: Fix middleware tests - Next struct usage has changed in newer Axum versions
     /*

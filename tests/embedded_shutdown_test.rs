@@ -1,10 +1,9 @@
 use anyhow::Result;
+use scheduler::shutdown::EmbeddedShutdownManager;
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::RwLock;
 use tokio::time::sleep;
-
-use crate::shutdown::EmbeddedShutdownManager;
 
 #[tokio::test]
 async fn test_embedded_shutdown_integration() -> Result<()> {

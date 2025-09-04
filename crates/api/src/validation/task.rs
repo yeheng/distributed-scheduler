@@ -525,19 +525,19 @@ mod tests {
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, "CRON表达式不能为空");
-        
+
         // Test invalid CRON expression
         let result = validate_cron_expression("invalid");
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, "无效的CRON表达式");
-        
+
         // Test CRON expression with missing field
         let result = validate_cron_expression("* * * *"); // Missing field
         assert!(result.is_err());
         let error = result.unwrap_err();
         assert_eq!(error.code, "无效的CRON表达式");
-        
+
         // Test CRON expression with invalid minute
         let result = validate_cron_expression("61 * * * *"); // Invalid minute
         assert!(result.is_err());
@@ -744,13 +744,14 @@ mod tests {
 
     fn create_mock_app_state() -> AppState {
         use crate::routes::AppState;
+        use scheduler_testing_utils::mocks::*;
         use std::sync::Arc;
 
         // Create a minimal mock state for testing
         AppState {
-            task_repo: Arc::new(MockTaskRepository),
-            task_run_repo: Arc::new(MockTaskRunRepository),
-            worker_repo: Arc::new(MockWorkerRepository),
+            task_repo: Arc::new(MockTaskRepository::new()),
+            task_run_repo: Arc::new(MockTaskRunRepository::new()),
+            worker_repo: Arc::new(MockWorkerRepository::new()),
             task_controller: Arc::new(MockTaskController),
             auth_config: Arc::new(crate::auth::AuthConfig {
                 enabled: false,
@@ -762,256 +763,9 @@ mod tests {
         }
     }
 
-    // Mock implementations for testing
-    struct MockTaskRepository;
-    struct MockTaskRunRepository;
-    struct MockWorkerRepository;
-    // Mock TaskController for testing
     #[derive(Clone)]
     struct MockTaskController;
 
-    #[async_trait::async_trait]
-    impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
-        async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<Task>> {
-            if id > 0 && id < 100 {
-                Ok(Some(Task {
-                    id,
-                    name: format!("task_{}", id),
-                    task_type: "shell".to_string(),
-                    schedule: "0 * * * * *".to_string(),
-                    parameters: json!({}),
-                    timeout_seconds: 30,
-                    max_retries: 3,
-                    status: TaskStatus::Active,
-                    dependencies: vec![],
-                    shard_config: None,
-                    created_at: chrono::Utc::now(),
-                    updated_at: chrono::Utc::now(),
-                }))
-            } else {
-                Ok(None)
-            }
-        }
-
-        // Implement other required methods with minimal implementations
-        async fn create(&self, _task: &Task) -> SchedulerResult<Task> {
-            unimplemented!()
-        }
-
-        async fn get_by_name(&self, _name: &str) -> SchedulerResult<Option<Task>> {
-            unimplemented!()
-        }
-
-        async fn update(&self, _task: &Task) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn delete(&self, _id: i64) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn list(&self, _filter: &TaskFilter) -> SchedulerResult<Vec<Task>> {
-            unimplemented!()
-        }
-
-        async fn get_active_tasks(&self) -> SchedulerResult<Vec<Task>> {
-            unimplemented!()
-        }
-
-        async fn get_schedulable_tasks(
-            &self,
-            _current_time: chrono::DateTime<chrono::Utc>,
-        ) -> SchedulerResult<Vec<Task>> {
-            unimplemented!()
-        }
-
-        async fn check_dependencies(&self, _task_id: i64) -> SchedulerResult<bool> {
-            unimplemented!()
-        }
-
-        async fn get_dependencies(&self, _task_id: i64) -> SchedulerResult<Vec<Task>> {
-            unimplemented!()
-        }
-
-        async fn batch_update_status(
-            &self,
-            _task_ids: &[i64],
-            _status: TaskStatus,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository {
-
-        fn as_any(&self) -> &dyn std::any::Any {
-            self
-        }
-        async fn create(&self, _task_run: &TaskRun) -> SchedulerResult<TaskRun> {
-            unimplemented!()
-        }
-
-        async fn get_by_id(&self, _id: i64) -> SchedulerResult<Option<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn update(&self, _task_run: &TaskRun) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn delete(&self, _id: i64) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn get_by_task_id(&self, _task_id: i64) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_by_worker_id(&self, _worker_id: &str) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_by_status(&self, _status: TaskRunStatus) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_pending_runs(&self, _limit: Option<i64>) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_running_runs(&self) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_timeout_runs(&self, _timeout_seconds: i64) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn update_status(
-            &self,
-            _id: i64,
-            _status: TaskRunStatus,
-            _worker_id: Option<&str>,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn update_result(
-            &self,
-            _id: i64,
-            _result: Option<&str>,
-            _error_message: Option<&str>,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn get_recent_runs(
-            &self,
-            _task_id: i64,
-            _limit: i64,
-        ) -> SchedulerResult<Vec<TaskRun>> {
-            unimplemented!()
-        }
-
-        async fn get_execution_stats(
-            &self,
-            _task_id: i64,
-            _days: i32,
-        ) -> SchedulerResult<scheduler_domain::repositories::TaskExecutionStats> {
-            unimplemented!()
-        }
-
-        async fn cleanup_old_runs(&self, _days: i32) -> SchedulerResult<u64> {
-            unimplemented!()
-        }
-
-        async fn batch_update_status(
-            &self,
-            _run_ids: &[i64],
-            _status: TaskRunStatus,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-    }
-
-    #[async_trait::async_trait]
-    impl scheduler_domain::repositories::WorkerRepository for MockWorkerRepository {
-        async fn register(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn unregister(&self, _worker_id: &str) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn get_by_id(&self, _worker_id: &str) -> SchedulerResult<Option<WorkerInfo>> {
-            unimplemented!()
-        }
-
-        async fn update(&self, _worker: &WorkerInfo) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn list(&self) -> SchedulerResult<Vec<WorkerInfo>> {
-            unimplemented!()
-        }
-
-        async fn get_alive_workers(&self) -> SchedulerResult<Vec<WorkerInfo>> {
-            unimplemented!()
-        }
-
-        async fn get_workers_by_task_type(
-            &self,
-            _task_type: &str,
-        ) -> SchedulerResult<Vec<WorkerInfo>> {
-            unimplemented!()
-        }
-
-        async fn update_heartbeat(
-            &self,
-            _worker_id: &str,
-            _heartbeat_time: chrono::DateTime<chrono::Utc>,
-            _current_task_count: i32,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn update_status(
-            &self,
-            _worker_id: &str,
-            _status: WorkerStatus,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-
-        async fn get_timeout_workers(
-            &self,
-            _timeout_seconds: i64,
-        ) -> SchedulerResult<Vec<WorkerInfo>> {
-            unimplemented!()
-        }
-
-        async fn cleanup_offline_workers(&self, _timeout_seconds: i64) -> SchedulerResult<u64> {
-            unimplemented!()
-        }
-
-        async fn get_worker_load_stats(
-            &self,
-        ) -> SchedulerResult<Vec<scheduler_domain::repositories::WorkerLoadStats>> {
-            unimplemented!()
-        }
-
-        async fn batch_update_status(
-            &self,
-            _worker_ids: &[String],
-            _status: WorkerStatus,
-        ) -> SchedulerResult<()> {
-            unimplemented!()
-        }
-    }
-
-    // Simple mock implementation for testing
     #[async_trait]
     impl TaskControlService for MockTaskController {
         async fn trigger_task(&self, _task_id: i64) -> SchedulerResult<TaskRun> {

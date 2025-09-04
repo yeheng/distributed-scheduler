@@ -1,4 +1,5 @@
 use anyhow::Result;
+use scheduler::embedded::{EmbeddedApplication, EmbeddedApplicationHandle};
 use scheduler_config::{AppConfig, MessageQueueType};
 use scheduler_core::task_types::SHELL;
 use std::env;
@@ -6,8 +7,6 @@ use std::time::Duration;
 use tempfile::TempDir;
 use tokio::time::{sleep, timeout};
 use tracing_test::traced_test;
-
-use crate::embedded::{EmbeddedApplication, EmbeddedApplicationHandle};
 
 /// 测试完全零配置启动
 #[tokio::test]
