@@ -1,6 +1,6 @@
 use async_trait::async_trait;
 use scheduler_domain::entities::Message;
-use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_domain::messaging::MessageQueue;
 use scheduler_errors::SchedulerResult;
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,7 +16,7 @@ pub struct InMemoryMessageQueue {
     /// 队列存储：队列名 -> (发送端, 接收端)
     queues: Arc<RwLock<HashMap<String, QueueChannels>>>,
     /// 队列配置
-    config: InMemoryQueueConfig,
+    _config: InMemoryQueueConfig,
 }
 
 #[derive(Debug)]
@@ -27,7 +27,7 @@ struct QueueChannels {
     /// 队列大小统计
     size: Arc<std::sync::atomic::AtomicU32>,
     /// 是否为持久化队列
-    durable: bool,
+    _durable: bool,
 }
 
 #[derive(Debug, Clone)]
@@ -61,7 +61,7 @@ impl InMemoryMessageQueue {
         info!("Creating in-memory message queue with config: {:?}", config);
         Self {
             queues: Arc::new(RwLock::new(HashMap::new())),
-            config,
+            _config: config,
         }
     }
 
@@ -79,7 +79,7 @@ impl InMemoryMessageQueue {
                 sender,
                 receiver: Arc::new(tokio::sync::Mutex::new(receiver)),
                 size: Arc::new(std::sync::atomic::AtomicU32::new(0)),
-                durable,
+                _durable: durable,
             };
 
             queues.insert(queue_name.to_string(), channels);
@@ -125,7 +125,7 @@ impl InMemoryMessageQueue {
     }
 
     /// 减少队列大小计数
-    async fn decrement_queue_size(&self, queue_name: &str) {
+    async fn _decrement_queue_size(&self, queue_name: &str) {
         if let Some(size_counter) = self.queues.read().await.get(queue_name).map(|q| q.size.clone()) {
             size_counter.fetch_sub(1, std::sync::atomic::Ordering::Relaxed);
         }

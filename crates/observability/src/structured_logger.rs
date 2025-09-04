@@ -389,7 +389,6 @@ mod tests {
 
     #[test]
     fn test_log_task_execution_with_error() {
-        let timestamp = Utc::now();
         let error_message = Some("Task execution failed due to timeout");
 
         // This should not panic and should handle the error message properly
@@ -406,7 +405,6 @@ mod tests {
 
     #[test]
     fn test_log_with_empty_options() {
-        let timestamp = Utc::now();
 
         // Test with empty optional parameters
         StructuredLogger::log_task_execution_complete(
@@ -427,7 +425,6 @@ mod tests {
 
     #[test]
     fn test_log_with_long_strings() {
-        let timestamp = Utc::now();
         let long_worker_id = "very-long-worker-id-with-many-characters-1234567890";
         let long_task_name =
             "very-long-task-name-with-many-characters-and-descriptive-text-1234567890";
@@ -464,7 +461,6 @@ mod tests {
 
     #[test]
     fn test_log_with_numeric_values() {
-        let timestamp = Utc::now();
 
         // Test with various numeric values including edge cases
         StructuredLogger::log_task_execution_complete(

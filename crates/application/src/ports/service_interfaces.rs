@@ -357,7 +357,7 @@ pub enum ExportFormat {
 }
 
 // Re-export MessageQueue from domain to avoid trait conflicts
-pub use scheduler_domain::ports::messaging::MessageQueue;
+pub use scheduler_domain::messaging::MessageQueue;
 
 #[async_trait]
 pub trait ConfigWatcher: Send + Sync {

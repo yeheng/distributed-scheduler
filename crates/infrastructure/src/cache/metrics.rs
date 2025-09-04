@@ -606,7 +606,7 @@ pub enum CacheHealthStatus {
 
 /// Cache health checker
 pub struct CacheHealthChecker {
-    metrics: CacheMetrics,
+    _metrics: CacheMetrics,
     health_thresholds: HealthThresholds,
 }
 
@@ -638,7 +638,7 @@ impl CacheHealthChecker {
     /// Create new cache health checker
     pub fn new(metrics: CacheMetrics) -> Self {
         Self {
-            metrics,
+            _metrics: metrics,
             health_thresholds: HealthThresholds::default(),
         }
     }

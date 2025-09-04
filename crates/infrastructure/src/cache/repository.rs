@@ -49,7 +49,7 @@ impl CachedTaskRepository {
     }
 
     /// Invalidate all task-related cache
-    async fn invalidate_all_task_cache(&self) -> SchedulerResult<()> {
+    async fn _invalidate_all_task_cache(&self) -> SchedulerResult<()> {
         self.cache.clear_prefix("task").await?;
         Ok(())
     }

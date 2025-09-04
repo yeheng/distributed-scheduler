@@ -142,7 +142,7 @@ pub struct CacheWarmingManager {
     /// Repository interfaces
     task_repository: Arc<dyn TaskRepository>,
     worker_repository: Arc<dyn WorkerRepository>,
-    task_run_repository: Arc<dyn TaskRunRepository>,
+    _task_run_repository: Arc<dyn TaskRunRepository>,
     /// Warming configuration
     config: WarmingConfig,
     /// Warming jobs
@@ -166,7 +166,7 @@ impl CacheWarmingManager {
             cache_service,
             task_repository,
             worker_repository,
-            task_run_repository,
+            _task_run_repository: task_run_repository,
             config,
             jobs: Vec::new(),
             stats: Arc::new(RwLock::new(WarmingStats::default())),
@@ -735,7 +735,7 @@ mod tests {
             use tokio::sync::Notify;
 
             struct MockCacheService {
-                notify: Arc<Notify>,
+                _notify: Arc<Notify>,
             }
 
             #[async_trait]
@@ -775,7 +775,7 @@ mod tests {
             }
 
             Arc::new(MockCacheService {
-                notify: Arc::new(Notify::new()),
+                _notify: Arc::new(Notify::new()),
             }) as Arc<dyn CacheService>
         };
 

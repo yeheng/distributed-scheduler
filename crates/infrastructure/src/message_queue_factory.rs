@@ -3,7 +3,7 @@ use std::sync::Arc;
 use tracing::{debug, info};
 
 use scheduler_config::models::{MessageQueueConfig, MessageQueueType};
-use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_domain::messaging::MessageQueue;
 use scheduler_errors::SchedulerError;
 use scheduler_errors::SchedulerResult;
 

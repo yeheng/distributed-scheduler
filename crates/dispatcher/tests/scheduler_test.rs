@@ -1,9 +1,9 @@
 #[cfg(test)]
 mod tests {
     use chrono::{Timelike, Utc};
-    use scheduler_application::scheduler::TaskSchedulerService;
+    use scheduler_application::task_services::TaskSchedulerService;
     use scheduler_domain::repositories::{TaskRepository, TaskRunRepository};
-    use scheduler_domain::{TaskRunStatus, TaskStatus};
+    use scheduler_domain::entities::{TaskRunStatus, TaskStatus};
     use serde_json::json;
     use std::sync::Arc;
 
@@ -41,7 +41,7 @@ mod tests {
 
         let scheduler = TaskScheduler::new(
             task_repo.clone(),
-            task_run_repo,
+            task_run_repo.clone(),
             message_queue,
             "test_queue".to_string(),
             create_test_metrics(),
@@ -51,12 +51,21 @@ mod tests {
             .with_id(1)
             .with_name("test_task")
             .with_task_type("shell")
-            .with_schedule("0 * * * * *")
+            .with_schedule("* * * * * *")
             .with_parameters(json!({}))
             .with_status(TaskStatus::Active)
             .build();
 
         task_repo.create(&task).await.unwrap();
+        
+        // Create a past task run to simulate that the task should be scheduled again
+        let past_run = TaskRunBuilder::new()
+            .with_task_id(1)
+            .with_scheduled_at(Utc::now() - chrono::Duration::minutes(2))
+            .completed()
+            .build();
+        task_run_repo.create(&past_run).await.unwrap();
+        
         let should_schedule = scheduler.should_schedule_task(&task).await.unwrap();
         assert!(should_schedule);
 
@@ -105,12 +114,15 @@ mod tests {
             .with_id(2)
             .with_name("with_deps_task")
             .with_task_type("shell")
-            .with_schedule("0 * * * * *")
+            .with_schedule("* * * * * *")
             .with_parameters(json!({}))
             .with_dependencies(vec![1])
             .with_status(TaskStatus::Active)
             .build();
 
+        // Create the dependency task first
+        task_repo.create(&task_no_deps).await.unwrap();
+        
         let deps_ok = scheduler.check_dependencies(&task_with_deps).await.unwrap();
         assert!(!deps_ok); // Dependency task has not run, should return false
 
@@ -218,12 +230,21 @@ mod tests {
             .with_id(1)
             .with_name("schedulable_task")
             .with_task_type("shell")
-            .with_schedule("0 * * * * *")
+            .with_schedule("* * * * * *")
             .with_parameters(json!({}))
             .with_status(TaskStatus::Active)
             .build();
 
         task_repo.create(&task).await.unwrap();
+        
+        // Create a past task run to simulate that the task should be scheduled again
+        let past_run = TaskRunBuilder::new()
+            .with_task_id(1)
+            .with_scheduled_at(Utc::now() - chrono::Duration::minutes(2))
+            .completed()
+            .build();
+        task_run_repo.create(&past_run).await.unwrap();
+        
         let scheduled_runs = scheduler.scan_and_schedule().await.unwrap();
         assert_eq!(scheduled_runs.len(), 1);
         assert_eq!(scheduled_runs[0].task_id, 1);
@@ -248,7 +269,7 @@ mod tests {
             .with_id(1)
             .with_name("overdue_task")
             .with_task_type("shell")
-            .with_schedule("0 * * * * *")
+            .with_schedule("* * * * * *")
             .with_parameters(json!({}))
             .with_status(TaskStatus::Active)
             .build();

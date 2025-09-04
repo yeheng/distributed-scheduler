@@ -1,6 +1,6 @@
 use std::sync::Arc;
 
-use scheduler_domain::ports::messaging::MessageQueue;
+use scheduler_domain::messaging::MessageQueue;
 use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 

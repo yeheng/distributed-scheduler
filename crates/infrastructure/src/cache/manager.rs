@@ -113,7 +113,7 @@ impl RedisCacheManager {
     }
 
     /// Get TTL for a specific key type
-    fn get_ttl_for_key(&self, key: &str) -> Duration {
+    fn _get_ttl_for_key(&self, key: &str) -> Duration {
         let ttl_config = &self.config.ttl;
 
         if key.starts_with("task:") {

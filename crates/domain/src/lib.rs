@@ -1,6 +1,6 @@
 pub mod entities;
 pub mod events;
-pub mod ports;
+pub mod messaging;
 pub mod repositories;
 pub mod services;
 pub mod task_dependency_service;
@@ -13,7 +13,7 @@ pub mod sqlx_impls;
 
 pub use entities::*;
 pub use events::*;
-pub use ports::*;
+pub use messaging::*;
 pub use repositories::*;
 pub use scheduler_errors::{SchedulerError, SchedulerResult};
 pub use services::*;
