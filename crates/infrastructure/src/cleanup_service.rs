@@ -39,7 +39,7 @@ impl Default for CleanupConfig {
 /// 
 /// 负责自动清理过期的任务运行记录，防止数据库无限增长
 pub struct CleanupService {
-    task_repository: Arc<dyn TaskRepository>,
+    _task_repository: Arc<dyn TaskRepository>,
     task_run_repository: Arc<dyn TaskRunRepository>,
     config: CleanupConfig,
     shutdown_tx: Option<tokio::sync::oneshot::Sender<()>>,
@@ -54,7 +54,7 @@ impl CleanupService {
         config: CleanupConfig,
     ) -> Self {
         Self {
-            task_repository,
+            _task_repository: task_repository,
             task_run_repository,
             config,
             shutdown_tx: None,

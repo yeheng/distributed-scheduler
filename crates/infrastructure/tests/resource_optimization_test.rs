@@ -121,7 +121,6 @@ async fn test_queue_statistics_and_gc() {
     
     // 执行强制垃圾回收
     let gc_stats = queue.force_gc().await;
-    assert!(gc_stats.duration.as_nanos() >= 0); // 允许0纳秒的持续时间
     
     println!("GC completed in {:?}", gc_stats.duration);
 }
@@ -145,8 +144,7 @@ async fn test_resource_monitor_creation() {
     tokio::time::sleep(Duration::from_millis(100)).await;
     
     // 获取当前统计信息
-    let stats = monitor.get_current_stats().await;
-    assert!(stats.memory_usage_mb >= 0); // 应该是非负值
+    let _ = monitor.get_current_stats().await;
     
     // 检查健康状态
     let health = monitor.check_resource_health().await;
