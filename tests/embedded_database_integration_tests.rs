@@ -1,7 +1,8 @@
 use anyhow::Result;
 use scheduler::embedded::EmbeddedApplication;
 use scheduler_config::AppConfig;
-use scheduler_domain::entities::{Task, TaskStatus, TaskType, TaskRun, TaskRunStatus, Worker, WorkerStatus};
+use scheduler_common::TaskType;
+use scheduler_domain::entities::{Task, TaskStatus, TaskRun, TaskRunStatus, WorkerInfo, WorkerStatus};
 use std::path::Path;
 use tempfile::TempDir;
 use tracing_test::traced_test;
@@ -38,7 +39,7 @@ async fn test_database_auto_initialization() -> Result<()> {
     let task = Task {
         id: 0,
         name: "init_test_task".to_string(),
-        task_type: TaskType::Shell,
+        task_type: "shell".to_string(),
         schedule: "0 0 * * *".to_string(),
         parameters: serde_json::json!({"command": "echo 'test'"}),
         timeout_seconds: 300,

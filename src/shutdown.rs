@@ -1,7 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::{broadcast, RwLock};
-use tokio::time::{sleep, timeout};
+use tokio::time::timeout;
 use tracing::{debug, info, warn, error};
 
 /// 优雅关闭管理器

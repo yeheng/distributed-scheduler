@@ -34,7 +34,7 @@ pub struct EmbeddedApplication {
 /// 嵌入式应用程序句柄
 pub struct EmbeddedApplicationHandle {
     api_address: String,
-    service_locator: Arc<ServiceLocator>,
+    _service_locator: Arc<ServiceLocator>,
     shutdown_manager: EmbeddedShutdownManager,
     worker_service: Option<Arc<WorkerServiceImpl>>,
     running_tasks: Arc<RwLock<HashMap<i64, scheduler_domain::entities::TaskRun>>>,
@@ -281,7 +281,7 @@ impl EmbeddedApplication {
 
         Ok(EmbeddedApplicationHandle {
             api_address: self.config.api.bind_address.clone(),
-            service_locator,
+            _service_locator: service_locator,
             shutdown_manager,
             worker_service,
             running_tasks,
@@ -697,7 +697,7 @@ impl EmbeddedApplicationHandle {
     /// 获取服务定位器（用于测试）
     #[cfg(test)]
     pub fn service_locator(&self) -> &Arc<ServiceLocator> {
-        &self.service_locator
+        &self._service_locator
     }
 }
 
