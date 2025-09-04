@@ -10,7 +10,11 @@ use scheduler_observability::{
     EmbeddedMonitoringConfig, EmbeddedMonitoringService, MetricsCollector, MonitoringStats,
 };
 use scheduler_worker::WorkerServiceImpl;
-use scheduler_application::{ExecutorRegistry, scheduler::WorkerService};
+use scheduler_application::{
+    ExecutorRegistry, 
+    scheduler::{WorkerService, StateListenerService},
+    task_services::TaskSchedulerService,
+};
 use std::sync::Arc;
 use std::collections::HashMap;
 use tokio::{time::{sleep, Duration}, sync::RwLock};
@@ -363,16 +367,93 @@ impl EmbeddedApplication {
     }
 
     /// 启动调度器
-    async fn start_dispatcher(&self, _service_locator: &Arc<ServiceLocator>, _metrics: &Arc<MetricsCollector>) -> Result<()> {
-        info!("调度器启动功能暂未实现");
-        // TODO: 实现调度器启动逻辑
+    async fn start_dispatcher(&self, service_locator: &Arc<ServiceLocator>, metrics: &Arc<MetricsCollector>) -> Result<()> {
+        info!("启动任务调度器");
+
+        // 创建任务调度器
+        let task_scheduler = Arc::new(scheduler_dispatcher::scheduler::TaskScheduler::new(
+            service_locator.task_repository().await
+                .context("获取任务仓库失败")?,
+            service_locator.task_run_repository().await
+                .context("获取任务执行仓库失败")?,
+            service_locator.message_queue().await
+                .context("获取消息队列失败")?,
+            self.config.message_queue.task_queue.clone(),
+            Arc::clone(metrics),
+        ));
+
+        // 创建状态监听器
+        let state_listener = Arc::new(scheduler_dispatcher::state_listener::StateListener::new(
+            service_locator.task_run_repository().await
+                .context("获取任务执行仓库失败")?,
+            service_locator.worker_repository().await
+                .context("获取Worker仓库失败")?,
+            service_locator.message_queue().await
+                .context("获取消息队列失败")?,
+            self.config.message_queue.status_queue.clone(),
+            self.config.message_queue.heartbeat_queue.clone(),
+        ));
+
+        // 启动调度器循环
+        let scheduler_clone = Arc::clone(&task_scheduler);
+        let interval = self.config.dispatcher.schedule_interval_seconds;
+        tokio::spawn(async move {
+            let mut interval = tokio::time::interval(std::time::Duration::from_secs(interval));
+            
+            loop {
+                interval.tick().await;
+                if let Err(e) = scheduler_clone.scan_and_schedule().await {
+                    error!("任务调度失败: {}", e);
+                }
+            }
+        });
+
+        // 启动状态监听器
+        let listener_clone = Arc::clone(&state_listener);
+        tokio::spawn(async move {
+            if let Err(e) = listener_clone.listen_for_updates().await {
+                error!("状态监听器失败: {}", e);
+            }
+        });
+
+        info!("✅ 任务调度器启动完成");
         Ok(())
     }
 
     /// 启动Worker
-    async fn start_worker(&self, _service_locator: &Arc<ServiceLocator>) -> Result<()> {
-        info!("Worker启动功能暂未实现");
-        // TODO: 实现Worker启动逻辑
+    async fn start_worker(&self, service_locator: &Arc<ServiceLocator>) -> Result<()> {
+        info!("启动任务执行器");
+
+        // 创建执行器工厂
+        let executor_factory = Arc::new(scheduler_worker::ExecutorFactory::new(
+            self.config.executor.clone(),
+        ));
+        executor_factory.initialize().await
+            .context("初始化执行器工厂失败")?;
+        
+        let executor_registry: Arc<dyn scheduler_application::ExecutorRegistry> = executor_factory;
+
+        // 创建Worker服务
+        let worker_service = scheduler_worker::WorkerServiceImpl::builder(
+            self.config.worker.worker_id.clone(),
+            Arc::clone(service_locator),
+            self.config.message_queue.task_queue.clone(),
+            self.config.message_queue.status_queue.clone(),
+        )
+        .with_executor_registry(executor_registry)
+        .max_concurrent_tasks(self.config.worker.max_concurrent_tasks)
+        .heartbeat_interval_seconds(self.config.worker.heartbeat_interval_seconds)
+        .hostname(self.config.worker.hostname.clone())
+        .ip_address(self.config.worker.ip_address.clone())
+        .build()
+        .await
+        .context("构建Worker服务失败")?;
+
+        // 启动Worker服务
+        worker_service.start().await
+            .context("启动Worker服务失败")?;
+
+        info!("✅ 任务执行器启动完成");
         Ok(())
     }
 
