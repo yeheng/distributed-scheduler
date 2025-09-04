@@ -1009,6 +1009,10 @@ mod tests {
             ) -> SchedulerResult<()> {
                 Ok(())
             }
+            
+            fn as_any(&self) -> &dyn std::any::Any {
+                self
+            }
         }
 
         let task_repo = Arc::new(MockRepository) as Arc<dyn TaskRepository>;

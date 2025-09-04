@@ -829,6 +829,10 @@ mod tests {
 
     #[async_trait::async_trait]
     impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository {
+
+        fn as_any(&self) -> &dyn std::any::Any {
+            self
+        }
         async fn create(&self, _task_run: &TaskRun) -> SchedulerResult<TaskRun> {
             unimplemented!()
         }

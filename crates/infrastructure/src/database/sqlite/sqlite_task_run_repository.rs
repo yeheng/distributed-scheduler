@@ -445,4 +445,137 @@ impl TaskRunRepository for SqliteTaskRunRepository {
         );
         Ok(())
     }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+}
+
+impl SqliteTaskRunRepository {
+    /// 根据状态和日期清理任务运行记录
+    pub async fn cleanup_runs_by_status_and_date(
+        &self,
+        status: &str,
+        cutoff_date: DateTime<Utc>,
+        limit: usize,
+    ) -> SchedulerResult<usize> {
+        let result = sqlx::query(
+            "DELETE FROM task_runs 
+             WHERE status = $1 AND completed_at < $2 
+             ORDER BY completed_at ASC 
+             LIMIT $3"
+        )
+        .bind(status)
+        .bind(cutoff_date)
+        .bind(limit as i64)
+        .execute(&self.pool)
+        .await
+        .map_err(SchedulerError::Database)?;
+
+        let deleted_count = result.rows_affected() as usize;
+        debug!("清理了 {} 条状态为 {} 的过期执行记录", deleted_count, status);
+        Ok(deleted_count)
+    }
+
+    /// 批量清理多种状态的任务运行记录
+    pub async fn cleanup_runs_by_statuses_and_date(
+        &self,
+        statuses: &[&str],
+        cutoff_date: DateTime<Utc>,
+        limit: usize,
+    ) -> SchedulerResult<usize> {
+        if statuses.is_empty() {
+            return Ok(0);
+        }
+
+        let placeholders: Vec<String> = (0..statuses.len())
+            .map(|i| format!("${}", i + 2))
+            .collect();
+        
+        let query = format!(
+            "DELETE FROM task_runs 
+             WHERE status IN ({}) AND completed_at < $1 
+             ORDER BY completed_at ASC 
+             LIMIT ${}",
+            placeholders.join(", "),
+            statuses.len() + 2
+        );
+
+        let mut sqlx_query = sqlx::query(&query).bind(cutoff_date);
+        for status in statuses {
+            sqlx_query = sqlx_query.bind(*status);
+        }
+        sqlx_query = sqlx_query.bind(limit as i64);
+
+        let result = sqlx_query
+            .execute(&self.pool)
+            .await
+            .map_err(SchedulerError::Database)?;
+
+        let deleted_count = result.rows_affected() as usize;
+        debug!("清理了 {} 条状态为 {:?} 的过期执行记录", deleted_count, statuses);
+        Ok(deleted_count)
+    }
+
+    /// 清理指定日期之前的所有任务运行记录
+    pub async fn cleanup_runs_before_date(
+        &self,
+        cutoff_date: DateTime<Utc>,
+        limit: usize,
+    ) -> SchedulerResult<usize> {
+        let result = sqlx::query(
+            "DELETE FROM task_runs 
+             WHERE created_at < $1 
+             ORDER BY created_at ASC 
+             LIMIT $2"
+        )
+        .bind(cutoff_date)
+        .bind(limit as i64)
+        .execute(&self.pool)
+        .await
+        .map_err(SchedulerError::Database)?;
+
+        let deleted_count = result.rows_affected() as usize;
+        debug!("清理了 {} 条创建于 {} 之前的执行记录", deleted_count, cutoff_date);
+        Ok(deleted_count)
+    }
+
+    /// 获取清理统计信息
+    pub async fn get_cleanup_stats(&self) -> SchedulerResult<CleanupStatsInfo> {
+        let row = sqlx::query(
+            r#"
+            SELECT 
+                COUNT(*) as total_runs,
+                COUNT(CASE WHEN status IN ('COMPLETED', 'SUCCESS') THEN 1 END) as completed_runs,
+                COUNT(CASE WHEN status IN ('FAILED', 'TIMEOUT', 'CANCELLED') THEN 1 END) as failed_runs,
+                COUNT(CASE WHEN created_at < datetime('now', '-30 days') THEN 1 END) as old_runs,
+                MIN(created_at) as oldest_run,
+                MAX(created_at) as newest_run
+            FROM task_runs
+            "#
+        )
+        .fetch_one(&self.pool)
+        .await
+        .map_err(SchedulerError::Database)?;
+
+        Ok(CleanupStatsInfo {
+            total_runs: row.try_get("total_runs")?,
+            completed_runs: row.try_get("completed_runs")?,
+            failed_runs: row.try_get("failed_runs")?,
+            old_runs: row.try_get("old_runs")?,
+            oldest_run: row.try_get("oldest_run")?,
+            newest_run: row.try_get("newest_run")?,
+        })
+    }
+}
+
+/// 清理统计信息
+#[derive(Debug)]
+pub struct CleanupStatsInfo {
+    pub total_runs: i64,
+    pub completed_runs: i64,
+    pub failed_runs: i64,
+    pub old_runs: i64,
+    pub oldest_run: Option<DateTime<Utc>>,
+    pub newest_run: Option<DateTime<Utc>>,
 }

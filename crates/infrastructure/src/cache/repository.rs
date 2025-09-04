@@ -829,4 +829,8 @@ impl TaskRunRepository for CachedTaskRunRepository {
 
         Ok(result)
     }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }

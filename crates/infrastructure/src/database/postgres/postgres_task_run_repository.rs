@@ -42,6 +42,11 @@ impl PostgresTaskRunRepository {
 
 #[async_trait]
 impl TaskRunRepository for PostgresTaskRunRepository {
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
+
     #[instrument(skip(self, task_run), fields(
         task_id = %task_run.task_id,
         run_status = ?task_run.status,

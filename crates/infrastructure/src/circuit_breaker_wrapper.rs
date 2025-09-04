@@ -191,6 +191,10 @@ impl CircuitBreakerTaskRunRepository {
 
 #[async_trait]
 impl TaskRunRepository for CircuitBreakerTaskRunRepository {
+
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun> {
         let inner = Arc::clone(&self.inner);
         let task_run = task_run.clone();

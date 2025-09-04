@@ -424,6 +424,10 @@ impl TaskRunRepository for MockTaskRunRepository {
         }
         Ok(())
     }
+    
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
 }
 
 /// Mock implementation of WorkerRepository for testing

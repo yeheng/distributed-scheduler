@@ -80,7 +80,7 @@ pub trait TaskRepository: Send + Sync {
 }
 
 #[async_trait]
-pub trait TaskRunRepository: Send + Sync {
+pub trait TaskRunRepository: Send + Sync + std::any::Any {
     async fn create(&self, task_run: &TaskRun) -> SchedulerResult<TaskRun>;
     async fn get_by_id(&self, id: i64) -> SchedulerResult<Option<TaskRun>>;
     async fn update(&self, task_run: &TaskRun) -> SchedulerResult<()>;
@@ -115,6 +115,9 @@ pub trait TaskRunRepository: Send + Sync {
         run_ids: &[i64],
         status: TaskRunStatus,
     ) -> SchedulerResult<()>;
+    
+    /// 获取Any引用，用于向下转型
+    fn as_any(&self) -> &dyn std::any::Any;
 }
 
 #[async_trait]

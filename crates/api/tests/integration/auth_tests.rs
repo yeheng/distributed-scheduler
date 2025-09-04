@@ -301,6 +301,9 @@ impl scheduler_domain::repositories::TaskRepository for MockTaskRepository {
 
 #[async_trait::async_trait]
 impl scheduler_domain::repositories::TaskRunRepository for MockTaskRunRepository {
+    fn as_any(&self) -> &dyn std::any::Any {
+        self
+    }
     async fn create(
         &self,
         _task_run: &scheduler_domain::entities::TaskRun,

@@ -28,3 +28,6 @@ Thumbs.db
 repomix.config.json
 repomix-output.md
 .kiro
+*.db
+*.db-shm
+*.db-wal
