@@ -42,7 +42,7 @@ pub struct SystemHealth {
 /// 简单的健康检查端点（向后兼容）
 pub async fn health_check() -> Json<Value> {
     Json(json!({
-        "status": "ok",
+        "status": "healthy",
         "timestamp": chrono::Utc::now().to_rfc3339(),
         "service": "embedded-task-scheduler",
         "version": env!("CARGO_PKG_VERSION"),
@@ -205,7 +205,7 @@ mod tests {
         let response = health_check().await;
         let health = response.0;
         
-        assert_eq!(health["status"], "ok");
+        assert_eq!(health["status"], "healthy");
         assert_eq!(health["service"], "embedded-task-scheduler");
         assert_eq!(health["version"], env!("CARGO_PKG_VERSION"));
         assert_eq!(health["mode"], "embedded");

@@ -92,7 +92,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     let create_task_payload = json!({
         "name": "api_test_task",
         "task_type": "Shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {
             "command": "echo 'API test'"
         },
@@ -102,24 +102,34 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
 
     let create_response = timeout(
         Duration::from_secs(5),
-        client.post(&format!("{}/api/v1/tasks", base_url))
+        client.post(&format!("{}/api/tasks", base_url))
             .json(&create_task_payload)
             .send()
     ).await??;
 
-    assert_eq!(create_response.status(), 201);
+    // Debug: 打印创建任务响应状态和内容
+    println!("Create task response status: {}", create_response.status());
+    let status_code = create_response.status().as_u16();
+    if create_response.status() != 201 {
+        let error_text = create_response.text().await?;
+        println!("Create task response error: {}", error_text);
+        panic!("Create task endpoint returned status {}", status_code);
+    }
 
     let created_task: Value = create_response.json().await?;
-    assert!(created_task.get("id").is_some());
-    assert_eq!(created_task["name"], "api_test_task");
-    assert_eq!(created_task["task_type"], "Shell");
+    println!("Created task response: {}", serde_json::to_string_pretty(&created_task)?);
+    
+    let task_data = &created_task["data"];
+    assert!(task_data.get("id").is_some());
+    assert_eq!(task_data["name"], "api_test_task");
+    assert_eq!(task_data["task_type"], "Shell");
 
-    let task_id = created_task["id"].as_i64().unwrap();
+    let task_id = task_data["id"].as_i64().unwrap();
 
     // 2. 获取任务列表
     let list_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks", base_url)).send()
+        client.get(&format!("{}/api/tasks", base_url)).send()
     ).await??;
 
     assert_eq!(list_response.status(), 200);
@@ -136,7 +146,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     // 3. 获取单个任务
     let get_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks/{}", base_url, task_id)).send()
+        client.get(&format!("{}/api/tasks/{}", base_url, task_id)).send()
     ).await??;
 
     assert_eq!(get_response.status(), 200);
@@ -160,7 +170,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
 
     let update_response = timeout(
         Duration::from_secs(5),
-        client.put(&format!("{}/api/v1/tasks/{}", base_url, task_id))
+        client.put(&format!("{}/api/tasks/{}", base_url, task_id))
             .json(&update_payload)
             .send()
     ).await??;
@@ -175,7 +185,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     // 5. 触发任务执行
     let trigger_response = timeout(
         Duration::from_secs(5),
-        client.post(&format!("{}/api/v1/tasks/{}/trigger", base_url, task_id)).send()
+        client.post(&format!("{}/api/tasks/{}/trigger", base_url, task_id)).send()
     ).await??;
 
     assert_eq!(trigger_response.status(), 200);
@@ -186,7 +196,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     // 6. 获取任务执行历史
     let runs_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks/{}/runs", base_url, task_id)).send()
+        client.get(&format!("{}/api/tasks/{}/runs", base_url, task_id)).send()
     ).await??;
 
     assert_eq!(runs_response.status(), 200);
@@ -199,7 +209,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     // 7. 删除任务
     let delete_response = timeout(
         Duration::from_secs(5),
-        client.delete(&format!("{}/api/v1/tasks/{}", base_url, task_id)).send()
+        client.delete(&format!("{}/api/tasks/{}", base_url, task_id)).send()
     ).await??;
 
     assert_eq!(delete_response.status(), 204);
@@ -207,7 +217,7 @@ async fn test_task_management_api(client: &Client, base_url: &str) -> Result<()>
     // 验证任务已删除
     let get_deleted_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks/{}", base_url, task_id)).send()
+        client.get(&format!("{}/api/tasks/{}", base_url, task_id)).send()
     ).await??;
 
     assert_eq!(get_deleted_response.status(), 404);
@@ -241,7 +251,7 @@ async fn test_api_error_handling(client: &Client, base_url: &str) -> Result<()> 
     // 1. 测试获取不存在的任务
     let not_found_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks/99999", base_url)).send()
+        client.get(&format!("{}/api/tasks/99999", base_url)).send()
     ).await??;
 
     assert_eq!(not_found_response.status(), 404);
@@ -258,7 +268,7 @@ async fn test_api_error_handling(client: &Client, base_url: &str) -> Result<()> 
 
     let invalid_response = timeout(
         Duration::from_secs(5),
-        client.post(&format!("{}/api/v1/tasks", base_url))
+        client.post(&format!("{}/api/tasks", base_url))
             .json(&invalid_payload)
             .send()
     ).await??;
@@ -272,7 +282,7 @@ async fn test_api_error_handling(client: &Client, base_url: &str) -> Result<()> 
     let task_payload = json!({
         "name": "duplicate_test_task",
         "task_type": "Shell",
-        "schedule": "0 0 * * *",
+        "schedule": "0 0 0 * * *",
         "parameters": {
             "command": "echo 'test'"
         }
@@ -281,7 +291,7 @@ async fn test_api_error_handling(client: &Client, base_url: &str) -> Result<()> 
     // 创建第一个任务
     let first_response = timeout(
         Duration::from_secs(5),
-        client.post(&format!("{}/api/v1/tasks", base_url))
+        client.post(&format!("{}/api/tasks", base_url))
             .json(&task_payload)
             .send()
     ).await??;
@@ -291,7 +301,7 @@ async fn test_api_error_handling(client: &Client, base_url: &str) -> Result<()> 
     // 尝试创建同名任务
     let duplicate_response = timeout(
         Duration::from_secs(5),
-        client.post(&format!("{}/api/v1/tasks", base_url))
+        client.post(&format!("{}/api/tasks", base_url))
             .json(&task_payload)
             .send()
     ).await??;
@@ -331,10 +341,17 @@ async fn test_worker_api_endpoints() -> Result<()> {
     // 测试Worker列表端点
     let workers_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/workers", base_url)).send()
+        client.get(&format!("{}/api/workers", base_url)).send()
     ).await??;
 
-    assert_eq!(workers_response.status(), 200);
+    // Debug: 打印响应状态和内容
+    println!("Workers response status: {}", workers_response.status());
+    let status_code = workers_response.status().as_u16();
+    if workers_response.status() != 200 {
+        let error_text = workers_response.text().await?;
+        println!("Workers response error: {}", error_text);
+        panic!("Workers endpoint returned status {}", status_code);
+    }
 
     let workers: Value = workers_response.json().await?;
     assert!(workers.is_array());
@@ -342,7 +359,7 @@ async fn test_worker_api_endpoints() -> Result<()> {
     // 测试系统状态端点
     let system_response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/system/status", base_url)).send()
+        client.get(&format!("{}/api/system/health", base_url)).send()
     ).await??;
 
     assert_eq!(system_response.status(), 200);
@@ -387,7 +404,7 @@ async fn test_api_authentication_disabled() -> Result<()> {
     // 测试无需认证即可访问API
     let response = timeout(
         Duration::from_secs(5),
-        client.get(&format!("{}/api/v1/tasks", base_url)).send()
+        client.get(&format!("{}/api/tasks", base_url)).send()
     ).await??;
 
     assert_eq!(response.status(), 200); // 应该成功，因为认证已关闭
@@ -429,7 +446,7 @@ async fn test_cors_configuration() -> Result<()> {
     // 测试CORS预检请求
     let preflight_response = timeout(
         Duration::from_secs(5),
-        client.request(reqwest::Method::OPTIONS, &format!("{}/api/v1/tasks", base_url))
+        client.request(reqwest::Method::OPTIONS, &format!("{}/api/tasks", base_url))
             .header("Origin", "http://localhost:3000")
             .header("Access-Control-Request-Method", "POST")
             .header("Access-Control-Request-Headers", "Content-Type")

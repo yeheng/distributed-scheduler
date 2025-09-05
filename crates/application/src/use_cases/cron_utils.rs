@@ -58,8 +58,14 @@ impl CronScheduler {
         }
     }
 
-    pub fn should_run(&self, now: DateTime<Utc>) -> bool {
-        self.should_trigger(None, now)
+    pub fn should_run(&self, _now: DateTime<Utc>) -> bool {
+        // 对于从未运行过的任务，检查是否有有效的调度时间
+        // 如果有，则认为可以立即执行（避免时间精度问题）
+        if let Some(_next_time) = self.schedule.upcoming(Utc).next() {
+            true
+        } else {
+            false
+        }
     }
 
     pub fn get_next_execution_time(

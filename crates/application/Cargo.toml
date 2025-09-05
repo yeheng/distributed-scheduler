@@ -44,3 +44,4 @@ tracing-opentelemetry = { workspace = true }
 tokio-test = { workspace = true }
 mockall = { workspace = true }
 criterion = { workspace = true }
+scheduler-testing-utils = { path = "../testing-utils" }
