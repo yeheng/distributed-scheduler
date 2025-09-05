@@ -35,6 +35,12 @@ impl TaskExecutionManager {
         let running_tasks = self.running_tasks.read().await;
         running_tasks.len() as i32
     }
+
+    /// 获取当前正在运行的任务ID列表，用于优雅停止时的任务取消
+    pub async fn get_running_task_ids(&self) -> Vec<i64> {
+        let running_tasks = self.running_tasks.read().await;
+        running_tasks.keys().copied().collect()
+    }
     pub async fn can_accept_task(&self, task_type: &str) -> bool {
         let current_count = self.get_current_task_count().await;
         if current_count >= self.max_concurrent_tasks as i32 {

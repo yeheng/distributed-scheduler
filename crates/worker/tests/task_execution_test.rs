@@ -603,6 +603,192 @@ mod tests {
     }
 
     #[tokio::test]
+    async fn test_graceful_task_cancellation_integration() {
+        // 集成测试：验证优雅的任务取消机制
+        let registry = Arc::new(MockExecutorRegistry::new());
+        let executor = Arc::new(MockExecutor::new("long_running".to_string(), true, 2000));
+        registry.add_executor(executor.clone() as Arc<dyn TaskExecutor>).await;
+
+        let manager = Arc::new(TaskExecutionManager::new(
+            "test-worker".to_string(),
+            registry,
+            5,
+        ));
+
+        let (tx, mut rx) = tokio::sync::mpsc::channel(10);
+
+        // 启动一个长时间运行的任务（模拟shell命令 sleep 2）
+        let message = TaskExecutionMessage {
+            task_run_id: 100,
+            task_id: 100,
+            task_type: "long_running".to_string(),
+            parameters: json!({"command": "sleep", "args": ["2"]}),
+            timeout_seconds: 10,
+            retry_count: 0,
+            shard_index: Some(0),
+            shard_total: Some(1),
+            task_name: "long_sleep_task".to_string(),
+        };
+
+        let status_callback = move |task_run_id, status, result, error_message| {
+            let tx = tx.clone();
+            async move {
+                tx.send((task_run_id, status, result, error_message))
+                    .await
+                    .unwrap();
+                Ok(())
+            }
+        };
+
+        // 启动任务
+        manager
+            .handle_task_execution(message, status_callback)
+            .await
+            .unwrap();
+
+        // 验证任务开始运行
+        let (task_run_id, status, _result, _error) = rx.recv().await.unwrap();
+        assert_eq!(task_run_id, 100);
+        assert_eq!(status, TaskRunStatus::Running);
+        assert_eq!(manager.get_current_task_count().await, 1);
+
+        // 短暂等待确保任务真正开始执行
+        tokio::time::sleep(Duration::from_millis(100)).await;
+
+        // 取消任务（这里模拟优雅取消）
+        let start_time = std::time::Instant::now();
+        let cancel_result = manager.cancel_task(100).await;
+        let cancel_duration = start_time.elapsed();
+
+        assert!(cancel_result.is_ok());
+        // 验证取消操作相对快速完成（模拟优雅取消，不必等待整个sleep完成）
+        assert!(cancel_duration < Duration::from_millis(500));
+
+        // 验证执行器的cancel方法被调用
+        let cancel_calls = executor.get_cancel_calls().await;
+        assert!(cancel_calls.contains(&100));
+
+        // 任务应该从运行列表中移除
+        assert_eq!(manager.get_current_task_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_multiple_concurrent_task_cancellation() {
+        // 测试同时取消多个任务的能力
+        let registry = Arc::new(MockExecutorRegistry::new());
+        let executor = Arc::new(MockExecutor::new("test".to_string(), true, 1000));
+        registry.add_executor(executor.clone() as Arc<dyn TaskExecutor>).await;
+
+        let manager = Arc::new(TaskExecutionManager::new(
+            "test-worker".to_string(),
+            registry,
+            5,
+        ));
+
+        let (tx, mut rx) = tokio::sync::mpsc::channel(20);
+
+        // 启动3个长时间运行的任务
+        for i in 1..=3 {
+            let message = TaskExecutionMessage {
+                task_run_id: 200 + i,
+                task_id: 200 + i,
+                task_type: "test".to_string(),
+                parameters: json!({"task_id": i}),
+                timeout_seconds: 30,
+                retry_count: 0,
+                shard_index: Some(0),
+                shard_total: Some(1),
+                task_name: format!("test_task_{}", i),
+            };
+
+            let tx_clone = tx.clone();
+            let status_callback = move |task_run_id, status, result, error_message| {
+                let tx = tx_clone.clone();
+                async move {
+                    tx.send((task_run_id, status, result, error_message))
+                        .await
+                        .unwrap();
+                    Ok(())
+                }
+            };
+
+            manager
+                .handle_task_execution(message, status_callback)
+                .await
+                .unwrap();
+        }
+
+        // 等待所有任务开始运行
+        for _ in 1..=3 {
+            let (_task_run_id, status, _result, _error) = rx.recv().await.unwrap();
+            assert_eq!(status, TaskRunStatus::Running);
+        }
+        assert_eq!(manager.get_current_task_count().await, 3);
+
+        // 获取所有运行中的任务ID
+        let running_task_ids = manager.get_running_task_ids().await;
+        assert_eq!(running_task_ids.len(), 3);
+
+        // 模拟 WorkerLifecycle::stop 的并发取消逻辑
+        let cancel_futures: Vec<_> = running_task_ids
+            .into_iter()
+            .map(|task_run_id| {
+                let manager_clone = Arc::clone(&manager);
+                async move {
+                    manager_clone.cancel_task(task_run_id).await
+                }
+            })
+            .collect();
+
+        // 并发执行所有取消操作
+        let cancel_handles: Vec<_> = cancel_futures
+            .into_iter()
+            .map(|future| tokio::spawn(future))
+            .collect();
+
+        // 等待所有取消操作完成
+        let mut successful_cancellations = 0;
+        for handle in cancel_handles {
+            match handle.await {
+                Ok(Ok(())) => successful_cancellations += 1,
+                Ok(Err(e)) => {
+                    println!("取消操作失败: {}", e);
+                }
+                Err(e) => {
+                    println!("取消句柄执行失败: {}", e);
+                }
+            }
+        }
+
+        assert_eq!(successful_cancellations, 3);
+
+        // 验证所有执行器的cancel方法都被调用
+        let cancel_calls = executor.get_cancel_calls().await;
+        assert_eq!(cancel_calls.len(), 3);
+        assert!(cancel_calls.contains(&201));
+        assert!(cancel_calls.contains(&202));
+        assert!(cancel_calls.contains(&203));
+
+        // 所有任务都应该从运行列表中移除
+        assert_eq!(manager.get_current_task_count().await, 0);
+    }
+
+    #[tokio::test]
+    async fn test_task_cancellation_error_handling() {
+        // 测试取消不存在任务时的错误处理
+        let registry = Arc::new(MockExecutorRegistry::new());
+        let manager = TaskExecutionManager::new("test-worker".to_string(), registry, 5);
+
+        // 尝试取消一个不存在的任务
+        let cancel_result = manager.cancel_task(999).await;
+        assert!(cancel_result.is_err());
+
+        let error = cancel_result.unwrap_err();
+        assert!(error.to_string().contains("未找到或未在运行中"));
+        assert!(error.to_string().contains("999"));
+    }
+
+    #[tokio::test]
     async fn test_max_concurrency_rejection() {
         let registry = Arc::new(MockExecutorRegistry::new());
         let executor = Arc::new(MockExecutor::new("test".to_string(), true, 500));

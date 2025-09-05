@@ -1,4 +1,6 @@
+use async_trait::async_trait;
 use reqwest;
+use scheduler_application::ports::DispatcherApiClient;
 use scheduler_domain::entities::{WorkerInfo, WorkerStatus};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 use serde_json::json;
@@ -27,7 +29,11 @@ impl DispatcherClient {
             http_client: reqwest::Client::new(),
         }
     }
-    pub async fn register(&self, supported_task_types: Vec<String>) -> SchedulerResult<()> {
+}
+
+#[async_trait]
+impl DispatcherApiClient for DispatcherClient {
+    async fn register(&self, supported_task_types: Vec<String>) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping registration");
             return Ok(());
@@ -72,7 +78,8 @@ impl DispatcherClient {
             }
         }
     }
-    pub async fn send_heartbeat(&self, current_task_count: i32) -> SchedulerResult<()> {
+    
+    async fn send_heartbeat(&self, current_task_count: i32) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping heartbeat");
             return Ok(());
@@ -117,7 +124,8 @@ impl DispatcherClient {
             }
         }
     }
-    pub async fn unregister(&self) -> SchedulerResult<()> {
+    
+    async fn unregister(&self) -> SchedulerResult<()> {
         let Some(ref dispatcher_url) = self.dispatcher_url else {
             debug!("No dispatcher URL configured, skipping unregistration");
             return Ok(());
@@ -145,10 +153,12 @@ impl DispatcherClient {
             }
         }
     }
-    pub fn is_configured(&self) -> bool {
+    
+    fn is_configured(&self) -> bool {
         self.dispatcher_url.is_some()
     }
-    pub fn get_dispatcher_url(&self) -> &Option<String> {
+    
+    fn get_dispatcher_url(&self) -> &Option<String> {
         &self.dispatcher_url
     }
 }

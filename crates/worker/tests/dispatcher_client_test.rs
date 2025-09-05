@@ -1,6 +1,7 @@
 #[cfg(test)]
 mod tests {
-    use scheduler_worker::components::DispatcherClient;
+    use scheduler_application::ports::DispatcherApiClient;
+    use scheduler_infrastructure::DispatcherClient;
 
     #[test]
     fn test_dispatcher_client_creation() {

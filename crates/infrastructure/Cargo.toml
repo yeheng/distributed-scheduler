@@ -4,6 +4,7 @@ version = "0.1.0"
 edition = "2021"
 
 [dependencies]
+scheduler-application = { path = "../application" }
 scheduler-domain = { path = "../domain", features = ["sqlx-support"] }
 scheduler-errors = { path = "../errors" }
 scheduler-config = { path = "../config" }
@@ -26,6 +27,7 @@ metrics = { workspace = true }
 prometheus = { workspace = true }
 tracing-subscriber = { workspace = true }
 url = { workspace = true }
+reqwest = { workspace = true }
 
 [dev-dependencies]
 scheduler-testing-utils = { path = "../testing-utils" }

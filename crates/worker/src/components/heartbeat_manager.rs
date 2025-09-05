@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use scheduler_application::ports::DispatcherApiClient;
 use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::{Message, StatusUpdateMessage, TaskResult, TaskRunStatus};
 use scheduler_domain::events::TaskStatusUpdate;
@@ -9,14 +10,12 @@ use tokio::sync::broadcast;
 use tokio::time::interval;
 use tracing::{error, info};
 
-use super::DispatcherClient;
-
 pub struct HeartbeatManager {
     worker_id: String,
     service_locator: Arc<ServiceLocator>,
     status_queue: String,
     heartbeat_interval_seconds: u64,
-    dispatcher_client: Arc<DispatcherClient>,
+    dispatcher_client: Arc<dyn DispatcherApiClient>,
 }
 
 impl HeartbeatManager {
@@ -25,7 +24,7 @@ impl HeartbeatManager {
         service_locator: Arc<ServiceLocator>,
         status_queue: String,
         heartbeat_interval_seconds: u64,
-        dispatcher_client: Arc<DispatcherClient>,
+        dispatcher_client: Arc<dyn DispatcherApiClient>,
     ) -> Self {
         Self {
             worker_id,

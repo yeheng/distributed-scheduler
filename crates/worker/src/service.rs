@@ -1,15 +1,18 @@
 use std::sync::Arc;
 
-use scheduler_application::{scheduler::WorkerService, ExecutorRegistry};
+use scheduler_application::{
+    ports::DispatcherApiClient,
+    scheduler::WorkerService,
+    ExecutorRegistry,
+};
 use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::TaskRun;
 use scheduler_domain::events::TaskStatusUpdate;
 use scheduler_domain::TaskType;
 use scheduler_errors::SchedulerResult;
+use scheduler_infrastructure::DispatcherClient;
 
-use crate::components::{
-    DispatcherClient, HeartbeatManager, TaskExecutionManager, WorkerLifecycle,
-};
+use crate::components::{HeartbeatManager, TaskExecutionManager, WorkerLifecycle};
 
 #[derive(Debug, Clone)]
 pub struct WorkerConfig {
@@ -95,7 +98,7 @@ impl WorkerConfigBuilder {
 
 pub struct WorkerServiceImpl {
     task_execution_manager: Arc<TaskExecutionManager>,
-    dispatcher_client: Arc<DispatcherClient>,
+    dispatcher_client: Arc<dyn DispatcherApiClient>,
     heartbeat_manager: Arc<HeartbeatManager>,
     worker_lifecycle: Arc<WorkerLifecycle>,
 }
@@ -112,7 +115,8 @@ impl WorkerServiceImpl {
             config.max_concurrent_tasks,
         ));
 
-        let dispatcher_client = Arc::new(DispatcherClient::new(
+        // 使用具体实现，但作为抽象接口返回
+        let dispatcher_client: Arc<dyn DispatcherApiClient> = Arc::new(DispatcherClient::new(
             config.dispatcher_url,
             config.worker_id.clone(),
             config.hostname,

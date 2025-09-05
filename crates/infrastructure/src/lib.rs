@@ -2,6 +2,7 @@ pub mod cache;
 pub mod circuit_breaker;
 pub mod circuit_breaker_wrapper;
 pub mod cleanup_service;
+pub mod clients;
 pub mod config;
 pub mod database;
 pub mod error_handling;
@@ -13,6 +14,7 @@ pub mod resource_monitor;
 pub mod timeout_handler;
 
 pub use circuit_breaker_wrapper::*;
+pub use clients::*;
 pub use config::*;
 pub use database::*;
 pub use error_handling::*;

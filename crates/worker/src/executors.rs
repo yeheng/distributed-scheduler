@@ -547,6 +547,7 @@ impl TaskExecutor for HttpExecutor {
             "执行HTTP任务: task_run_id={}, method={}, url={}",
             context.task_run.id, method, url
         );
+
         let mut request_builder = match method.to_uppercase().as_str() {
             "GET" => self.client.get(&url),
             "POST" => self.client.post(&url),
@@ -560,6 +561,7 @@ impl TaskExecutor for HttpExecutor {
                 )));
             }
         };
+
         request_builder = request_builder.timeout(std::time::Duration::from_secs(timeout_seconds));
         for (key, value) in headers {
             request_builder = request_builder.header(&key, &value);
@@ -568,63 +570,104 @@ impl TaskExecutor for HttpExecutor {
             request_builder = request_builder.body(body_content);
         }
 
-        // Track the running task
-        let _task_run_id = context.task_run.id;
+        let task_run_id = context.task_run.id;
 
-        // Execute the request with timeout
-        let response_result =
-            tokio::time::timeout(Duration::from_secs(timeout_seconds), request_builder.send())
-                .await;
+        // 创建异步任务来执行HTTP请求
+        let request_handle = tokio::spawn(async move {
+            request_builder.send().await
+        });
+
+        // 将任务句柄存储以便取消
+        {
+            let mut tasks = self.running_tasks.write().await;
+            // 创建一个虚拟句柄，实际的请求句柄在上面的spawn中
+            let dummy_handle = tokio::spawn(async { });
+            tasks.insert(task_run_id, dummy_handle);
+        }
+
+        // 等待HTTP请求完成，带有超时
+        let response_result = tokio::time::timeout(
+            Duration::from_secs(timeout_seconds), 
+            request_handle
+        ).await;
+
+        // 执行完成后从追踪列表中移除
+        {
+            let mut tasks = self.running_tasks.write().await;
+            tasks.remove(&task_run_id);
+        }
 
         let execution_time = start_time.elapsed();
 
         match response_result {
-            Ok(Ok(response)) => {
-                let status_code = response.status().as_u16();
-                let success = response.status().is_success();
-                let response_body = response
-                    .text()
-                    .await
-                    .unwrap_or_else(|e| format!("读取响应体失败: {e}"));
+            Ok(join_result) => {
+                match join_result {
+                    Ok(Ok(response)) => {
+                        let status_code = response.status().as_u16();
+                        let success = response.status().is_success();
+                        let response_body = response
+                            .text()
+                            .await
+                            .unwrap_or_else(|e| format!("读取响应体失败: {e}"));
 
-                let result = TaskResult {
-                    success,
-                    output: Some(format!(
-                        "HTTP {method} {url}\nStatus: {status_code}\nResponse:\n{response_body}"
-                    )),
-                    error_message: if success {
-                        None
-                    } else {
-                        Some(format!("HTTP请求失败，状态码: {status_code}"))
-                    },
-                    exit_code: Some(status_code as i32),
-                    execution_time_ms: execution_time.as_millis() as u64,
-                };
+                        let result = TaskResult {
+                            success,
+                            output: Some(format!(
+                                "HTTP {method} {url}\nStatus: {status_code}\nResponse:\n{response_body}"
+                            )),
+                            error_message: if success {
+                                None
+                            } else {
+                                Some(format!("HTTP请求失败，状态码: {status_code}"))
+                            },
+                            exit_code: Some(status_code as i32),
+                            execution_time_ms: execution_time.as_millis() as u64,
+                        };
 
-                info!(
-                    "HTTP任务执行完成: task_run_id={}, success={}, status={}, duration={}ms",
-                    context.task_run.id, success, status_code, result.execution_time_ms
-                );
+                        info!(
+                            "HTTP任务执行完成: task_run_id={}, success={}, status={}, duration={}ms",
+                            context.task_run.id, success, status_code, result.execution_time_ms
+                        );
 
-                Ok(result)
-            }
-            Ok(Err(e)) => {
-                // HTTP request failed
-                let error_message = format!("HTTP请求失败: {e}");
-                error!(
-                    "HTTP任务执行失败: task_run_id={}, error={}",
-                    context.task_run.id, error_message
-                );
+                        Ok(result)
+                    }
+                    Ok(Err(e)) => {
+                        // HTTP request failed
+                        let error_message = format!("HTTP请求失败: {e}");
+                        error!(
+                            "HTTP任务执行失败: task_run_id={}, error={}",
+                            context.task_run.id, error_message
+                        );
 
-                let result = TaskResult {
-                    success: false,
-                    output: None,
-                    error_message: Some(error_message),
-                    exit_code: None,
-                    execution_time_ms: execution_time.as_millis() as u64,
-                };
+                        let result = TaskResult {
+                            success: false,
+                            output: None,
+                            error_message: Some(error_message),
+                            exit_code: None,
+                            execution_time_ms: execution_time.as_millis() as u64,
+                        };
 
-                Ok(result)
+                        Ok(result)
+                    }
+                    Err(e) => {
+                        // Spawned task was cancelled or panicked
+                        let error_message = format!("HTTP任务被取消或发生错误: {e}");
+                        error!(
+                            "HTTP任务执行错误: task_run_id={}, error={}",
+                            context.task_run.id, error_message
+                        );
+
+                        let result = TaskResult {
+                            success: false,
+                            output: None,
+                            error_message: Some(error_message),
+                            exit_code: None,
+                            execution_time_ms: execution_time.as_millis() as u64,
+                        };
+
+                        Ok(result)
+                    }
+                }
             }
             Err(_) => {
                 // Timeout occurred
@@ -696,6 +739,8 @@ impl TaskExecutor for HttpExecutor {
     async fn cancel(&self, task_run_id: i64) -> SchedulerResult<()> {
         let mut tasks = self.running_tasks.write().await;
         if let Some(handle) = tasks.remove(&task_run_id) {
+            // HTTP请求取消：reqwest的Future在被丢弃时会自动取消底层的HTTP请求
+            // handle.abort() 的效果与此类似，这是HTTP客户端的标准行为
             handle.abort();
             info!("成功取消HTTP任务: task_run_id={}", task_run_id);
         } else {

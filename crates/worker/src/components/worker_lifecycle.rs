@@ -1,6 +1,7 @@
 use std::sync::Arc;
 use std::time::Duration;
 
+use scheduler_application::ports::DispatcherApiClient;
 use scheduler_core::ServiceLocator;
 use scheduler_domain::entities::TaskControlMessage;
 use scheduler_domain::{TaskControlAction, TaskStatusUpdate};
@@ -9,7 +10,7 @@ use tokio::sync::{broadcast, RwLock};
 use tokio::time::interval;
 use tracing::{error, info, warn};
 
-use super::{DispatcherClient, HeartbeatManager, TaskExecutionManager};
+use super::{HeartbeatManager, TaskExecutionManager};
 
 pub struct WorkerLifecycle {
     worker_id: String,
@@ -19,7 +20,7 @@ pub struct WorkerLifecycle {
     shutdown_tx: Arc<RwLock<Option<broadcast::Sender<()>>>>,
     is_running: Arc<RwLock<bool>>,
     task_execution_manager: Arc<TaskExecutionManager>,
-    dispatcher_client: Arc<DispatcherClient>,
+    dispatcher_client: Arc<dyn DispatcherApiClient>,
     heartbeat_manager: Arc<HeartbeatManager>,
 }
 
@@ -30,7 +31,7 @@ impl WorkerLifecycle {
         task_queue: String,
         poll_interval_ms: u64,
         task_execution_manager: Arc<TaskExecutionManager>,
-        dispatcher_client: Arc<DispatcherClient>,
+        dispatcher_client: Arc<dyn DispatcherApiClient>,
         heartbeat_manager: Arc<HeartbeatManager>,
     ) -> Self {
         Self {
@@ -103,29 +104,47 @@ impl WorkerLifecycle {
 
         info!("停止worker服务: {}", self.worker_id);
         
-        // 获取所有正在运行的任务并取消它们
-        let running_task_ids: Vec<i64> = {
-            // 通过公共方法获取当前任务数
-            let current_count = self.task_execution_manager.get_current_task_count().await;
-            info!("当前正在运行 {} 个任务", current_count);
-            // 由于 running_tasks 是私有的，我们只能在这里简化处理
-            Vec::new() // 暂时返回空列表，等待修正 API 访问权限
-        };
+        // 获取所有正在运行的任务
+        let running_task_ids = self.task_execution_manager.get_running_task_ids().await;
 
         if !running_task_ids.is_empty() {
-            info!("发现 {} 个正在运行的任务，开始取消", running_task_ids.len());
+            info!("发现 {} 个正在运行的任务，开始并发取消", running_task_ids.len());
             
-            // 串行取消所有任务（由于没有 futures 依赖）
-            for task_run_id in running_task_ids {
-                match self.task_execution_manager.cancel_task(task_run_id).await {
-                    Ok(()) => {
-                        info!("任务 {} 取消成功", task_run_id);
+            // 创建所有取消任务的futures
+            let cancel_futures: Vec<_> = running_task_ids
+                .into_iter()
+                .map(|task_run_id| {
+                    let task_execution_manager = Arc::clone(&self.task_execution_manager);
+                    async move {
+                        match task_execution_manager.cancel_task(task_run_id).await {
+                            Ok(()) => {
+                                info!("任务 {} 取消成功", task_run_id);
+                                Ok(())
+                            }
+                            Err(e) => {
+                                error!("任务 {} 取消失败: {}", task_run_id, e);
+                                Err(e)
+                            }
+                        }
                     }
-                    Err(e) => {
-                        error!("任务 {} 取消失败: {}", task_run_id, e);
-                    }
+                })
+                .collect();
+
+            // 使用 futures::future::join_all 并发等待所有取消操作完成
+            // 注意：由于没有futures依赖，我们使用tokio的方式实现并发等待
+            let cancel_handles: Vec<_> = cancel_futures
+                .into_iter()
+                .map(|future| tokio::spawn(future))
+                .collect();
+
+            // 等待所有取消操作完成
+            for handle in cancel_handles {
+                if let Err(e) = handle.await {
+                    error!("任务取消操作执行失败: {}", e);
                 }
             }
+
+            info!("所有任务取消操作已完成");
         }
 
         // 发送关闭信号

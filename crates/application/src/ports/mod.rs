@@ -15,13 +15,16 @@
 //! - `executor.rs` - Task execution interfaces
 //! - `strategy.rs` - Task dispatch and scheduling strategy interfaces
 //! - `service_interfaces.rs` - General service interfaces
+//! - `dispatcher_api_client.rs` - Dispatcher API client interface
 
+pub mod dispatcher_api_client;
 pub mod executor;
 pub mod scheduler;
 pub mod service_interfaces;
 pub mod strategy;
 
 // Re-export all ports for convenience
+pub use dispatcher_api_client::*;
 pub use executor::*;
 pub use service_interfaces::*;
 pub use strategy::*;
