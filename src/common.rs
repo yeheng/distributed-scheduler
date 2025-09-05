@@ -2,6 +2,7 @@ use std::sync::Arc;
 use std::time::Duration;
 
 use anyhow::{Context, Result};
+use clap::{Arg, ArgMatches, Command};
 use scheduler_config::AppConfig;
 use tokio::signal;
 use tracing::{error, info, warn};
@@ -9,6 +10,124 @@ use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilte
 
 use crate::app::{AppMode, Application};
 use crate::shutdown::ShutdownManager;
+
+/// CLI构建器，用于创建统一的命令行接口
+pub struct CliBuilder {
+    command: Command,
+}
+
+impl CliBuilder {
+    /// 创建新的CLI构建器
+    pub fn new(name: &'static str, about: &'static str) -> Self {
+        let command = Command::new(name)
+            .version(env!("CARGO_PKG_VERSION"))
+            .about(about);
+        
+        Self { command }
+    }
+
+    /// 添加通用参数（config, log-level, log-format）
+    pub fn with_common_args(mut self) -> Self {
+        self.command = self.command
+            .arg(
+                Arg::new("config")
+                    .short('c')
+                    .long("config")
+                    .value_name("FILE")
+                    .help("配置文件路径")
+                    .default_value("config/scheduler.toml"),
+            )
+            .arg(
+                Arg::new("log-level")
+                    .short('l')
+                    .long("log-level")
+                    .value_name("LEVEL")
+                    .help("日志级别")
+                    .value_parser(["trace", "debug", "info", "warn", "error"])
+                    .default_value("info"),
+            )
+            .arg(
+                Arg::new("log-format")
+                    .long("log-format")
+                    .value_name("FORMAT")
+                    .help("日志格式")
+                    .value_parser(["json", "pretty"])
+                    .default_value("pretty"),
+            );
+        self
+    }
+
+    /// 添加长描述
+    pub fn with_long_about(mut self, long_about: &'static str) -> Self {
+        self.command = self.command.long_about(long_about);
+        self
+    }
+
+    /// 添加自定义参数
+    pub fn with_arg(mut self, arg: Arg) -> Self {
+        self.command = self.command.arg(arg);
+        self
+    }
+
+    /// 添加多个自定义参数
+    pub fn with_args(mut self, args: Vec<Arg>) -> Self {
+        for arg in args {
+            self.command = self.command.arg(arg);
+        }
+        self
+    }
+
+    /// 构建并解析命令行参数
+    pub fn build_and_parse(self) -> ArgMatches {
+        self.command.get_matches()
+    }
+}
+
+/// 从命令行参数创建StartupConfig
+pub fn create_startup_config_from_matches(matches: &ArgMatches) -> StartupConfig {
+    let config_path = matches.get_one::<String>("config").unwrap().to_string();
+    let log_level = matches.get_one::<String>("log-level").unwrap().to_string();
+    let log_format = matches.get_one::<String>("log-format").unwrap().to_string();
+    let worker_id = matches.get_one::<String>("worker-id").map(|s| s.to_string());
+
+    StartupConfig {
+        config_path,
+        log_level,
+        log_format,
+        worker_id,
+    }
+}
+
+/// 统一的CLI运行函数
+pub async fn run_cli(
+    app_name: &'static str,
+    app_description: &'static str,
+    long_description: Option<&'static str>,
+    custom_args: Vec<Arg>,
+    app_mode: AppMode,
+    service_name: &str,
+) -> Result<()> {
+    // 创建CLI构建器
+    let mut cli_builder = CliBuilder::new(app_name, app_description)
+        .with_common_args();
+
+    // 添加长描述
+    if let Some(long_desc) = long_description {
+        cli_builder = cli_builder.with_long_about(long_desc);
+    }
+
+    // 添加自定义参数
+    cli_builder = cli_builder.with_args(custom_args);
+
+    // 解析命令行参数
+    let matches = cli_builder.build_and_parse();
+
+    // 创建启动配置
+    let startup_config = create_startup_config_from_matches(&matches);
+
+    // 启动应用程序
+    start_application(startup_config, app_mode, service_name).await
+}
 
 /// 通用的应用启动配置
 #[derive(Debug, Clone)]
