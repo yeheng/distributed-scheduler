@@ -25,6 +25,7 @@ pub fn create_app(
     task_run_repo: Arc<dyn TaskRunRepository>,
     worker_repo: Arc<dyn WorkerRepository>,
     task_controller: Arc<dyn TaskControlService>,
+    authentication_service: Arc<scheduler_application::AuthenticationService>,
     api_config: ApiConfig,
 ) -> Router {
     let auth_config = convert_auth_config(&api_config.auth);
@@ -47,6 +48,7 @@ pub fn create_app(
         task_run_repo,
         worker_repo,
         task_controller,
+        authentication_service,
         auth_config,
         rate_limiter,
     };
@@ -64,6 +66,7 @@ pub fn create_simple_app(
     task_run_repo: Arc<dyn TaskRunRepository>,
     worker_repo: Arc<dyn WorkerRepository>,
     task_controller: Arc<dyn TaskControlService>,
+    authentication_service: Arc<scheduler_application::AuthenticationService>,
 ) -> Router {
     let default_api_config = ApiConfig {
         enabled: true,
@@ -81,6 +84,7 @@ pub fn create_simple_app(
         task_run_repo,
         worker_repo,
         task_controller,
+        authentication_service,
         default_api_config,
     )
 }
@@ -90,6 +94,7 @@ pub fn create_test_app(
     task_run_repo: Arc<dyn TaskRunRepository>,
     worker_repo: Arc<dyn WorkerRepository>,
     task_controller: Arc<dyn TaskControlService>,
+    authentication_service: Arc<scheduler_application::AuthenticationService>,
 ) -> Router {
     let test_api_config = ApiConfig {
         enabled: true,
@@ -112,6 +117,7 @@ pub fn create_test_app(
         task_run_repo,
         worker_repo,
         task_controller,
+        authentication_service,
         test_api_config,
     )
 }
@@ -161,14 +167,118 @@ mod tests {
         body::Body,
         http::{Request, StatusCode},
     };
-    use scheduler_application::task_services::TaskControlService;
-    use scheduler_domain::*;
+    use scheduler_application::{task_services::TaskControlService, AuthenticationService};
+    use scheduler_domain::{
+        repositories::{CreateUserRequest, User, UserRepository, UserRole},
+        *,
+    };
+    use scheduler_errors::SchedulerResult;
     use std::sync::Arc;
     use tower::ServiceExt;
+    use uuid::Uuid;
+
     struct MockTaskRepository;
     struct MockTaskRunRepository;
     struct MockWorkerRepository;
     struct MockTaskController;
+    struct MockUserRepository;
+
+    #[async_trait]
+    impl UserRepository for MockUserRepository {
+        async fn create(&self, _request: &CreateUserRequest) -> SchedulerResult<User> {
+            let user = User {
+                id: Uuid::new_v4(),
+                username: "testuser".to_string(),
+                email: "test@example.com".to_string(),
+                password_hash: "hashed_password".to_string(),
+                role: UserRole::Operator,
+                is_active: true,
+                created_at: chrono::Utc::now(),
+                updated_at: chrono::Utc::now(),
+            };
+            Ok(user)
+        }
+
+        async fn get_by_id(&self, _user_id: Uuid) -> SchedulerResult<Option<User>> {
+            Ok(None)
+        }
+
+        async fn get_by_username(&self, username: &str) -> SchedulerResult<Option<User>> {
+            if username == "testuser" {
+                let user = User {
+                    id: Uuid::new_v4(),
+                    username: "testuser".to_string(),
+                    email: "test@example.com".to_string(),
+                    password_hash: bcrypt::hash("password123", bcrypt::DEFAULT_COST).unwrap(),
+                    role: UserRole::Operator,
+                    is_active: true,
+                    created_at: chrono::Utc::now(),
+                    updated_at: chrono::Utc::now(),
+                };
+                Ok(Some(user))
+            } else {
+                Ok(None)
+            }
+        }
+
+        async fn get_by_email(&self, _email: &str) -> SchedulerResult<Option<User>> {
+            Ok(None)
+        }
+
+        async fn authenticate_user(
+            &self,
+            username: &str,
+            password: &str,
+        ) -> SchedulerResult<Option<User>> {
+            if let Some(user) = self.get_by_username(username).await? {
+                if user.is_active
+                    && bcrypt::verify(password, &user.password_hash).unwrap_or(false)
+                {
+                    Ok(Some(user))
+                } else {
+                    Ok(None)
+                }
+            } else {
+                Ok(None)
+            }
+        }
+
+        async fn update(&self, _user: &User) -> SchedulerResult<()> {
+            Ok(())
+        }
+
+        async fn delete(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
+
+        async fn list_users(
+            &self,
+            _limit: Option<i64>,
+            _offset: Option<i64>,
+        ) -> SchedulerResult<Vec<User>> {
+            Ok(vec![])
+        }
+
+        async fn update_password(
+            &self,
+            _user_id: Uuid,
+            _password_hash: &str,
+        ) -> SchedulerResult<()> {
+            Ok(())
+        }
+
+        async fn update_role(&self, _user_id: Uuid, _role: UserRole) -> SchedulerResult<()> {
+            Ok(())
+        }
+
+        async fn activate_user(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
+
+        async fn deactivate_user(&self, _user_id: Uuid) -> SchedulerResult<()> {
+            Ok(())
+        }
+    }
 
     #[async_trait::async_trait]
     impl TaskRepository for MockTaskRepository {
@@ -521,8 +631,16 @@ mod tests {
         let task_run_repo = Arc::new(MockTaskRunRepository) as Arc<dyn TaskRunRepository>;
         let worker_repo = Arc::new(MockWorkerRepository) as Arc<dyn WorkerRepository>;
         let task_controller = Arc::new(MockTaskController) as Arc<dyn TaskControlService>;
+        let user_repo = Arc::new(MockUserRepository) as Arc<dyn UserRepository>;
+        let authentication_service = Arc::new(AuthenticationService::new(user_repo));
 
-        let app = create_simple_app(task_repo, task_run_repo, worker_repo, task_controller);
+        let app = create_simple_app(
+            task_repo,
+            task_run_repo,
+            worker_repo,
+            task_controller,
+            authentication_service,
+        );
 
         let response = app
             .oneshot(
@@ -543,8 +661,16 @@ mod tests {
         let task_run_repo = Arc::new(MockTaskRunRepository) as Arc<dyn TaskRunRepository>;
         let worker_repo = Arc::new(MockWorkerRepository) as Arc<dyn WorkerRepository>;
         let task_controller = Arc::new(MockTaskController) as Arc<dyn TaskControlService>;
+        let user_repo = Arc::new(MockUserRepository) as Arc<dyn UserRepository>;
+        let authentication_service = Arc::new(AuthenticationService::new(user_repo));
 
-        let app = create_test_app(task_repo, task_run_repo, worker_repo, task_controller);
+        let app = create_test_app(
+            task_repo,
+            task_run_repo,
+            worker_repo,
+            task_controller,
+            authentication_service,
+        );
         let response = app
             .clone()
             .oneshot(

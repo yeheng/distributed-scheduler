@@ -8,6 +8,8 @@ use crate::{
     error::{ApiError, ApiResult},
     response::ApiResponse,
 };
+use scheduler_application::AuthenticationService;
+use scheduler_domain::repositories::UserRole;
 
 #[derive(Debug, Deserialize)]
 pub struct RefreshTokenRequest {
@@ -44,8 +46,19 @@ pub async fn login(
 ) -> ApiResult<Json<ApiResponse<LoginResponse>>> {
     info!("User login attempt: {}", request.username);
 
-    // For now, use the existing credential validation for backward compatibility
-    let (user_id, permissions) = validate_user_credentials(&request.username, &request.password)?;
+    // 使用AuthenticationService进行用户认证
+    let user = state
+        .authentication_service
+        .authenticate_user(&request.username, &request.password)
+        .await
+        .map_err(|e| ApiError::Internal(format!("Authentication failed: {e}")))?;
+
+    let user = user.ok_or_else(|| {
+        ApiError::Authentication(crate::auth::AuthError::InvalidToken)
+    })?;
+
+    // 将用户角色转换为权限列表
+    let permissions = convert_user_role_to_permissions(&user.role);
 
     let jwt_service = JwtService::new(
         &state.auth_config.jwt_secret,
@@ -55,11 +68,11 @@ pub async fn login(
     let refresh_service = RefreshTokenService::new(&state.auth_config.jwt_secret);
 
     let access_token = jwt_service
-        .generate_token(&user_id, &permissions)
+        .generate_token(&user.id.to_string(), &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate token: {e}")))?;
 
     let refresh_token = refresh_service
-        .generate_refresh_token(&user_id, &permissions)
+        .generate_refresh_token(&user.id.to_string(), &permissions)
         .map_err(|e| ApiError::Internal(format!("Failed to generate refresh token: {e}")))?;
 
     let response = LoginResponse {
@@ -68,21 +81,15 @@ pub async fn login(
         token_type: "Bearer".to_string(),
         expires_in: state.auth_config.jwt_expiration_hours * 3600,
         user: crate::auth::models::UserResponse {
-            id: uuid::Uuid::new_v4(),
-            username: user_id.clone(),
-            email: format!("{user_id}@example.com"),
-            role: if permissions.contains(&Permission::Admin) {
-                crate::auth::models::UserRole::Admin
-            } else if permissions.contains(&Permission::TaskWrite) {
-                crate::auth::models::UserRole::Operator
-            } else {
-                crate::auth::models::UserRole::Viewer
-            },
+            id: user.id,
+            username: user.username.clone(),
+            email: user.email.clone(),
+            role: convert_domain_role_to_api_role(user.role),
             permissions,
         },
     };
 
-    info!("User {} logged in successfully", user_id);
+    info!("User {} logged in successfully", user.username);
 
     Ok(Json(ApiResponse::success(response)))
 }
@@ -217,56 +224,31 @@ pub async fn logout(
 
     Ok(Json(ApiResponse::success(())))
 }
-fn validate_user_credentials(
-    username: &str,
-    password: &str,
-) -> ApiResult<(String, Vec<Permission>)> {
-    match username {
-        "admin" => {
-            if password == "admin123" {
-                Ok(("admin".to_string(), vec![Permission::Admin]))
-            } else {
-                Err(ApiError::Authentication(
-                    crate::auth::AuthError::InvalidToken,
-                ))
-            }
-        }
-        "operator" => {
-            if password == "op123" {
-                Ok((
-                    "operator".to_string(),
-                    vec![
-                        Permission::TaskRead,
-                        Permission::TaskWrite,
-                        Permission::WorkerRead,
-                        Permission::SystemRead,
-                    ],
-                ))
-            } else {
-                Err(ApiError::Authentication(
-                    crate::auth::AuthError::InvalidToken,
-                ))
-            }
-        }
-        "viewer" => {
-            if password == "view123" {
-                Ok((
-                    "viewer".to_string(),
-                    vec![
-                        Permission::TaskRead,
-                        Permission::WorkerRead,
-                        Permission::SystemRead,
-                    ],
-                ))
-            } else {
-                Err(ApiError::Authentication(
-                    crate::auth::AuthError::InvalidToken,
-                ))
-            }
-        }
-        _ => Err(ApiError::Authentication(
-            crate::auth::AuthError::InvalidToken,
-        )),
+
+/// 将用户域角色转换为API权限列表
+fn convert_user_role_to_permissions(role: &UserRole) -> Vec<Permission> {
+    match role {
+        UserRole::Admin => vec![Permission::Admin],
+        UserRole::Operator => vec![
+            Permission::TaskRead,
+            Permission::TaskWrite,
+            Permission::WorkerRead,
+            Permission::SystemRead,
+        ],
+        UserRole::Viewer => vec![
+            Permission::TaskRead,
+            Permission::WorkerRead,
+            Permission::SystemRead,
+        ],
+    }
+}
+
+/// 将域用户角色转换为API用户角色
+fn convert_domain_role_to_api_role(domain_role: UserRole) -> crate::auth::models::UserRole {
+    match domain_role {
+        UserRole::Admin => crate::auth::models::UserRole::Admin,
+        UserRole::Operator => crate::auth::models::UserRole::Operator,
+        UserRole::Viewer => crate::auth::models::UserRole::Viewer,
     }
 }
 
@@ -288,20 +270,37 @@ fn parse_permission_string(permission: &str) -> Result<Permission, ()> {
 mod tests {
     use super::*;
 
-    #[tokio::test]
-    async fn test_validate_user_credentials() {
-        let result = validate_user_credentials("admin", "admin123");
-        assert!(result.is_ok());
+    #[test]
+    fn test_convert_user_role_to_permissions() {
+        let admin_permissions = convert_user_role_to_permissions(&UserRole::Admin);
+        assert!(admin_permissions.contains(&Permission::Admin));
 
-        let (user_id, permissions) = result.unwrap();
-        assert_eq!(user_id, "admin");
-        assert!(permissions.contains(&Permission::Admin));
+        let operator_permissions = convert_user_role_to_permissions(&UserRole::Operator);
+        assert!(operator_permissions.contains(&Permission::TaskRead));
+        assert!(operator_permissions.contains(&Permission::TaskWrite));
+        assert!(operator_permissions.contains(&Permission::WorkerRead));
+        assert!(operator_permissions.contains(&Permission::SystemRead));
+
+        let viewer_permissions = convert_user_role_to_permissions(&UserRole::Viewer);
+        assert!(viewer_permissions.contains(&Permission::TaskRead));
+        assert!(viewer_permissions.contains(&Permission::WorkerRead));
+        assert!(viewer_permissions.contains(&Permission::SystemRead));
     }
 
-    #[tokio::test]
-    async fn test_invalid_credentials() {
-        let result = validate_user_credentials("admin", "wrong_password");
-        assert!(result.is_err());
+    #[test]
+    fn test_convert_domain_role_to_api_role() {
+        assert_eq!(
+            convert_domain_role_to_api_role(UserRole::Admin),
+            crate::auth::models::UserRole::Admin
+        );
+        assert_eq!(
+            convert_domain_role_to_api_role(UserRole::Operator),
+            crate::auth::models::UserRole::Operator
+        );
+        assert_eq!(
+            convert_domain_role_to_api_role(UserRole::Viewer),
+            crate::auth::models::UserRole::Viewer
+        );
     }
 
     #[test]

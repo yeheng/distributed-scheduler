@@ -20,6 +20,7 @@ use crate::{
         workers::{get_worker, get_worker_stats, list_workers},
     },
 };
+use scheduler_application::AuthenticationService;
 
 #[derive(Clone)]
 pub struct AppState {
@@ -27,6 +28,7 @@ pub struct AppState {
     pub task_run_repo: Arc<dyn scheduler_domain::repositories::TaskRunRepository>,
     pub worker_repo: Arc<dyn scheduler_domain::repositories::WorkerRepository>,
     pub task_controller: Arc<dyn scheduler_application::task_services::TaskControlService>,
+    pub authentication_service: Arc<AuthenticationService>,
     pub auth_config: Arc<AuthConfig>,
     pub rate_limiter: Option<Arc<crate::middleware::RateLimiter>>,
 }

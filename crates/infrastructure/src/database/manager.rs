@@ -1,8 +1,11 @@
 use super::postgres::{
     PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
+    PostgresUserRepository,
 };
-use super::sqlite::{SqliteTaskRepository, SqliteTaskRunRepository, SqliteWorkerRepository};
-use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, WorkerRepository};
+use super::sqlite::{
+    SqliteTaskRepository, SqliteTaskRunRepository, SqliteWorkerRepository, SqliteUserRepository,
+};
+use scheduler_domain::repositories::{TaskRepository, TaskRunRepository, UserRepository, WorkerRepository};
 use scheduler_errors::{SchedulerError, SchedulerResult};
 
 #[derive(Debug, Clone, PartialEq)]
@@ -122,6 +125,12 @@ impl DatabaseManager {
         match &self.pool {
             DatabasePool::PostgreSQL(pool) => Box::new(PostgresWorkerRepository::new(pool.clone())),
             DatabasePool::SQLite(pool) => Box::new(SqliteWorkerRepository::new(pool.clone())),
+        }
+    }
+    pub fn user_repository(&self) -> Box<dyn UserRepository> {
+        match &self.pool {
+            DatabasePool::PostgreSQL(pool) => Box::new(PostgresUserRepository::new(pool.clone())),
+            DatabasePool::SQLite(pool) => Box::new(SqliteUserRepository::new(pool.clone())),
         }
     }
 }

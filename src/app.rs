@@ -5,7 +5,7 @@ use scheduler_api::create_app;
 use scheduler_application::{
     scheduler::{StateListenerService, WorkerService},
     task_services::{TaskControlService, TaskSchedulerService},
-    ExecutorRegistry,
+    AuthenticationService, ExecutorRegistry,
 };
 use scheduler_config::AppConfig;
 use scheduler_core::ServiceLocator;
@@ -13,14 +13,11 @@ use scheduler_dispatcher::{
     controller::TaskController, scheduler::TaskScheduler, state_listener::StateListener,
 };
 use scheduler_infrastructure::{
-    database::postgres::{
-        PostgresTaskRepository, PostgresTaskRunRepository, PostgresWorkerRepository,
-    },
+    database::manager::DatabaseManager,
     message_queue::RabbitMQMessageQueue,
 };
 use scheduler_observability::MetricsCollector;
 use scheduler_worker::WorkerServiceImpl;
-use sqlx::PgPool;
 use tokio::{net::TcpListener, sync::broadcast};
 use tracing::{error, info};
 
@@ -42,6 +39,7 @@ pub struct Application {
     config: AppConfig,
     mode: AppMode,
     service_locator: Arc<ServiceLocator>,
+    authentication_service: Arc<AuthenticationService>,
     metrics: Arc<MetricsCollector>,
 }
 
@@ -50,22 +48,45 @@ impl Application {
     pub async fn new(config: AppConfig, mode: AppMode) -> Result<Self> {
         info!("初始化应用程序，模式: {:?}", mode);
 
-        // 创建数据库连接池
-        let db_pool = create_database_pool(&config).await?;
+        // 创建数据库管理器
+        let db_manager = DatabaseManager::new(&config.database.url, config.database.max_connections)
+            .await
+            .context("创建数据库管理器失败")?;
 
         // 创建消息队列
         let message_queue = create_message_queue(&config).await?;
 
         // 创建Repository实例
-        let task_repo = Arc::new(PostgresTaskRepository::new(db_pool.clone()));
-        let task_run_repo = Arc::new(PostgresTaskRunRepository::new(db_pool.clone()));
-        let worker_repo = Arc::new(PostgresWorkerRepository::new(db_pool.clone()));
+        let task_repo: Arc<dyn scheduler_domain::repositories::TaskRepository> =
+            match db_manager.task_repository() {
+                Box::new(repo) => Arc::new(repo),
+                _ => unreachable!(),
+            };
+        let task_run_repo: Arc<dyn scheduler_domain::repositories::TaskRunRepository> =
+            match db_manager.task_run_repository() {
+                Box::new(repo) => Arc::new(repo),
+                _ => unreachable!(),
+            };
+        let worker_repo: Arc<dyn scheduler_domain::repositories::WorkerRepository> =
+            match db_manager.worker_repository() {
+                Box::new(repo) => Arc::new(repo),
+                _ => unreachable!(),
+            };
+        let user_repo: Arc<dyn scheduler_domain::repositories::UserRepository> =
+            match db_manager.user_repository() {
+                Box::new(repo) => Arc::new(repo),
+                _ => unreachable!(),
+            };
+
+        // 创建AuthenticationService
+        let authentication_service = Arc::new(AuthenticationService::new(user_repo));
 
         // 创建应用上下文
         let mut app_context = scheduler_core::ApplicationContext::new();
         app_context
-            .register_core_services(task_repo, task_run_repo, worker_repo, message_queue)
+            .register_core_services(task_repo.clone(), task_run_repo.clone(), worker_repo.clone(), message_queue)
             .await?;
+        app_context.set_user_repository(user_repo);
 
         // 创建服务定位器
         let service_locator = Arc::new(scheduler_core::ServiceLocator::new(Arc::new(app_context)));
@@ -77,6 +98,7 @@ impl Application {
             config,
             mode,
             service_locator,
+            authentication_service,
             metrics,
         })
     }
@@ -215,6 +237,7 @@ impl Application {
             self.service_locator.task_run_repository().await?,
             self.service_locator.worker_repository().await?,
             task_controller as Arc<dyn TaskControlService>,
+            Arc::clone(&self.authentication_service),
             self.config.api.clone(),
         );
 
